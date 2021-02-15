@@ -1,6 +1,8 @@
 #!/bin/bash
 
-mkdir ../bin
+if [ ! -d "../bin" ]; then
+    mkdir ../bin
+fi
 pushd ../bin
 include_paths="-I ../third_party/glfw/include/ -I ../third_party/glad/include/"
 source_files="../src/linux_platform.cpp";

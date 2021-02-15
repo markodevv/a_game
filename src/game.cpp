@@ -1,4 +1,4 @@
-#include "main.h"
+#include "game.h"
 #include "renderer.h"
 
 
