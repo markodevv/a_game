@@ -1,14 +1,14 @@
 workspace "Game"
+
 configurations {"Debug", "Release"}
 architecture "x86_64"
-toolset "clang"
 
 project "glad"
 	kind "StaticLib"
 	language "C"
 
-	targetdir "../../bin/"
-	objdir "../../bin/"
+	targetdir "../../build/"
+	objdir "../../build/"
 
 
 	files
@@ -31,6 +31,7 @@ project "glad"
 		systemversion "latest"
 
 	filter "configurations:Debug"
+        buildoptions "/MTd"
 		runtime "Debug"
 		symbols "on"
 

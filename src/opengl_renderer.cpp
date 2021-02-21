@@ -3,7 +3,6 @@
 
 #include "game.h"
 
-global_variable GLFWwindow* Window;
 
 global_variable const char* vertex_shader_source = "#version 330 core\n"
     "layout (location = 0) in vec3 att_pos;\n"
