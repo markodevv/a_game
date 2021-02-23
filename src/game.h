@@ -27,6 +27,19 @@
 
 #define PI 3.14159265359f
 
+struct ButtonState
+{
+    b8 pressed;
+};
+
+struct GameInput
+{
+    ButtonState move_left;
+    ButtonState move_right;
+    ButtonState move_up;
+    ButtonState move_down;
+};
+
 struct GameMemory
 {
     b8 is_initialized;
@@ -66,7 +79,7 @@ internal b8 DEBUG_write_entire_file(char* file_name, DWORD size, void* memory);
 
 #endif
 
-internal void game_update_and_render(GameMemory* memory, GameSoundBuffer* sound_buffer);
+internal void game_update_and_render(GameMemory* memory, GameSoundBuffer* sound_buffer, GameInput* input);
 
 #define MAIN_H
 #endif

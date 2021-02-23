@@ -1,7 +1,7 @@
 #include "game.h"
 #include "renderer.h"
 
-void
+internal void
 game_play_sound(GameSoundBuffer* game_sound, i32 tone_hz, i32 tone_volume) 
 {
     local_persist f32 t_sine = 0;
@@ -25,15 +25,25 @@ game_play_sound(GameSoundBuffer* game_sound, i32 tone_hz, i32 tone_volume)
 
 
 internal void
-game_update_and_render(GameMemory* memory, GameSoundBuffer* game_sound)
+game_update_and_render(GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
 {
     GameState* game_state = (GameState*)memory;
 
     if (!memory->is_initialized)
     {
-        game_state->tone_hz = 256;
+        game_state->tone_hz = 512;
         game_state->tone_volume = 3000;
         memory->is_initialized = true;
+    }
+
+    if (input->move_left.pressed)
+    {
+        game_state->tone_hz -= 1;
+    }
+
+    if (input->move_right.pressed)
+    {
+        game_state->tone_hz += 1;
     }
 
     game_play_sound(game_sound, game_state->tone_hz, game_state->tone_volume);
