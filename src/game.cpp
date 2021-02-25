@@ -19,36 +19,47 @@ game_play_sound(GameSoundBuffer* game_sound, i32 tone_hz, i32 tone_volume)
         *samples = sample_value;
         samples++;
         t_sine += 2.0f * PI * (1.0f / (f32)wave_period);
+        if (t_sine > 2.0f * PI)
+        {
+            t_sine -= 2.0f * PI;
+        }
     }
 }
 
 
 
 internal void
-game_update_and_render(GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
+game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
 {
     GameState* game_state = (GameState*)memory;
 
     if (!memory->is_initialized)
     {
-        game_state->tone_hz = 512;
+        game_state->tone_hz = 256;
         game_state->tone_volume = 3000;
         memory->is_initialized = true;
     }
 
     if (input->move_left.pressed)
     {
-        game_state->tone_hz -= 1;
+        game_state->tone_volume -= 1000;
     }
 
     if (input->move_right.pressed)
     {
-        game_state->tone_hz += 1;
+        game_state->tone_volume += 1000;
     }
 
     game_play_sound(game_sound, game_state->tone_hz, game_state->tone_volume);
 
-    renderer_clear();
-    renderer_draw();
 }
 
+internal void
+game_render()
+{
+    renderer_clear();
+    for (sizet i = 0; i < 1000; ++i)
+    {
+        renderer_draw();
+    }
+}

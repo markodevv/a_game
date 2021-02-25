@@ -220,7 +220,7 @@ win32_init_dsound(HWND window, i32 samples_per_sec, i32 buffer_size)
 struct Win32SoundState
 {
     i32 buffer_size;
-    u32 running_index;
+    u32 running_sample_count;
     i32 latency_sample_count;
     i32 samples_per_sec;
     i32 bytes_per_sample;
@@ -292,7 +292,7 @@ win32_fill_sound_buffer(Win32SoundState* sound_output, GameSoundBuffer* sound_bu
         {
             *sample_out = *buffer_samples; sample_out++; buffer_samples++;
             *sample_out = *buffer_samples; sample_out++; buffer_samples++;
-            (sound_output->running_index)++;
+            (sound_output->running_sample_count)++;
         }
 
 
@@ -305,7 +305,7 @@ win32_fill_sound_buffer(Win32SoundState* sound_output, GameSoundBuffer* sound_bu
         {
             *sample_out = *buffer_samples; sample_out++; buffer_samples++;
             *sample_out = *buffer_samples; sample_out++; buffer_samples++;
-            (sound_output->running_index)++;
+            (sound_output->running_sample_count)++;
         }
 
         global_sound_buffer->Unlock(region_1, region_1_size, region_2, region_2_size);
@@ -335,7 +335,6 @@ win32_get_preformance_counter()
 }
 
 
-#define FRAMES_OF_AUDIO_LATENCY 3
 #define AUDIO_SAMPLE_RATE 48000
 
 i32 main()
@@ -355,7 +354,8 @@ i32 main()
     }
 
     QueryPerformanceFrequency(&global_pref_count_freq);
-    f32 target_sec_per_frame = 1.0f / 30.0f;
+    f32 target_fps = 60.0f;
+    f32 target_sec_per_frame = 1.0f / target_fps;
 
     GameMemory game_memory = {};
     game_memory.permanent_storage_size = MEGABYTES(64);
@@ -382,39 +382,24 @@ i32 main()
     sound_output.bytes_per_sample = sizeof(i16) * 2;
     sound_output.samples_per_sec = AUDIO_SAMPLE_RATE;
     sound_output.buffer_size = sound_output.samples_per_sec * sound_output.bytes_per_sample;
-    sound_output.running_index = 0;
-    sound_output.latency_sample_count = (i32)(sound_output.samples_per_sec * target_sec_per_frame * FRAMES_OF_AUDIO_LATENCY);
+    sound_output.running_sample_count = 0;
+    sound_output.latency_sample_count = (i32)(sound_output.samples_per_sec / target_fps) * 5;
 
     HWND win32 = glfwGetWin32Window(window);
     win32_init_dsound(win32, sound_output.samples_per_sec, sound_output.buffer_size);
 
-    if (!win32_clear_sound_buffer(&sound_output))
-    {
-        printf("Could not clear sound buffer \n");
-    }
     
-    HRESULT hresult = global_sound_buffer->Play(0, 0, DSBPLAY_LOOPING);
-
-    if (FAILED(hresult))
-    {
-        printf("Failed to play sound \n");
-    }
-
     i16* samples = (i16*)malloc(sound_output.buffer_size);
     GameInput game_input;
+    LARGE_INTEGER last_counter = win32_get_preformance_counter();
+    b8 sound_is_valid = false;
+    b8 sound_is_playing = false;
+    f32 acumilated_delta_time = 0.0f;
 
     while(!glfwWindowShouldClose(window))
     {
-        b8 sound_is_valid = false;
-        DWORD play_cursor = 0;
-        DWORD write_cursor = 0;
         DWORD bytes_to_write = 0;
-        DWORD target_cursor = 0;
-        DWORD byte_offset = 0;
         game_input = {};
-
-        LARGE_INTEGER last_counter = {};
-        last_counter = win32_get_preformance_counter();
 
 
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
@@ -434,70 +419,85 @@ i32 main()
             game_input.move_up.pressed = true;
         }
 
-        if (SUCCEEDED(global_sound_buffer->GetCurrentPosition(&play_cursor, &write_cursor)))
-        {
-            byte_offset = ((sound_output.running_index * sound_output.bytes_per_sample) % sound_output.buffer_size);
-            target_cursor = ((play_cursor + 
-                             (sound_output.latency_sample_count * sound_output.bytes_per_sample)) %
-                             sound_output.buffer_size);
 
-            if (byte_offset > target_cursor)
-            {
-                bytes_to_write = (sound_output.buffer_size - byte_offset);
-                bytes_to_write += target_cursor;
-            }
-            else 
-            {
-                bytes_to_write = target_cursor - byte_offset;
-            }
 
-            sound_is_valid = true;
-        }
-        else 
-        {
-            sound_is_valid = false;
-        }
-
-        GameSoundBuffer sound_buffer = {};
-        sound_buffer.samples_per_sec = sound_output.samples_per_sec;
-        sound_buffer.sample_count = bytes_to_write / sound_output.bytes_per_sample;
-        sound_buffer.samples = samples;
-
-        game_update_and_render(&game_memory, &sound_buffer, &game_input);
-
-        if (sound_is_valid) 
-        {
-            win32_fill_sound_buffer(&sound_output, &sound_buffer, byte_offset, bytes_to_write);
-        }
 
         LARGE_INTEGER end_count = win32_get_preformance_counter();
+        f32 delta_time = win32_get_elapsed_seconds(last_counter, end_count);
+        last_counter = win32_get_preformance_counter();
+        acumilated_delta_time += delta_time;
 
-        f32 seconds_elapsed = win32_get_elapsed_seconds(last_counter, end_count);
-        if (seconds_elapsed < target_sec_per_frame)
-        {
-            while (seconds_elapsed < target_sec_per_frame)
-            {
-                DWORD sleepMS = (DWORD)((target_sec_per_frame - seconds_elapsed) * 1000.0f);
-                if (sleepMS > 0)
-                {
-                    Sleep(sleepMS);
-                }
-                end_count = win32_get_preformance_counter();
-                seconds_elapsed = win32_get_elapsed_seconds(last_counter, end_count);
-            }
-        }
-        else
-        {
-            // TODO: Low framerate
-        }
-
-        f32 ms_per_frame = seconds_elapsed * 1000.0f;
-        f32 frames_per_second = 1.0f / (ms_per_frame / 1000.0f);
-        printf("ms: %f \n", ms_per_frame);
+#ifdef GAME_DEBUG
+        f32 frame_ms = delta_time * 1000.0f;
+        f32 frames_per_second = 1.0f / delta_time;
+        printf("ms: %f \n", frame_ms);
         printf("fps: %f \n", frames_per_second);
+#endif
+        while (acumilated_delta_time >= target_sec_per_frame)
+        {
+            DWORD play_cursor;
+            DWORD write_cursor;
+            DWORD byte_offset;
+            DWORD target_cursor;
+            if (global_sound_buffer->GetCurrentPosition(&play_cursor, &write_cursor) == DS_OK)
+            {
+                byte_offset = (sound_output.running_sample_count * sound_output.bytes_per_sample) %
+                              sound_output.buffer_size;
+                target_cursor = ((play_cursor + 
+                                 (sound_output.latency_sample_count * sound_output.bytes_per_sample)) %
+                                 sound_output.buffer_size);
+
+
+                if (byte_offset > target_cursor)
+                {
+                    bytes_to_write = (sound_output.buffer_size - byte_offset);
+                    bytes_to_write += target_cursor;
+                }
+                else 
+                {
+                    bytes_to_write = target_cursor - byte_offset;
+                }
+
+                sound_is_valid = true;
+            }
+            else
+            {
+                // TODO: logging
+                printf("Could not get sound buffer cursor position! \n");
+            }
+
+            GameSoundBuffer sound_buffer = {};
+            sound_buffer.samples_per_sec = sound_output.samples_per_sec;
+            sound_buffer.sample_count = bytes_to_write / sound_output.bytes_per_sample;
+            sound_buffer.samples = samples;
+
+
+            game_update(delta_time, &game_memory, &sound_buffer, &game_input);
+
+            if (sound_is_valid)
+            {
+                win32_fill_sound_buffer(&sound_output, &sound_buffer, byte_offset, bytes_to_write);
+                if (!sound_is_playing)
+                {
+                    HRESULT hresult = global_sound_buffer->Play(0, 0, DSBPLAY_LOOPING);
+
+                    if (FAILED(hresult))
+                    {
+                        printf("Failed to play sound \n");
+                    }
+                    sound_is_playing = true;
+                }
+            }
+
+            acumilated_delta_time -= target_sec_per_frame;
+        }
+
+        game_render();
+
 
         glfwSwapBuffers(window);
         glfwPollEvents();
+
     }
 }
         

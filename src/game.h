@@ -79,7 +79,8 @@ internal b8 DEBUG_write_entire_file(char* file_name, DWORD size, void* memory);
 
 #endif
 
-internal void game_update_and_render(GameMemory* memory, GameSoundBuffer* sound_buffer, GameInput* input);
+internal void game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* sound_buffer, GameInput* input);
+internal void game_render();
 
 #define MAIN_H
 #endif
