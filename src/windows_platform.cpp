@@ -4,28 +4,6 @@
    $Creator: Marko Bisevac $
    $Notice: (C) Copyright 2021. All Rights Reserved. $
    ======================================================================== */
-#define internal static 
-#define global_variable static 
-#define local_persist static
-
-#include <stdint.h>
-#include <stddef.h>
-
-typedef int8_t i8;
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
-
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-
-typedef float f32;
-typedef double f64;
-
-typedef i8 b8;
-typedef size_t sizet;
 
 
 #include <stdlib.h>
@@ -36,14 +14,14 @@ typedef size_t sizet;
 #include <dsound.h>
 #include <math.h>
 
+#include "game.h"
+
 #include "renderer.h"
 #include "opengl_renderer.cpp"
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
-#include "game.h"
-#include "game.cpp"
 
 
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
@@ -337,8 +315,50 @@ win32_get_preformance_counter()
 
 #define AUDIO_SAMPLE_RATE 48000
 
+typedef void (*GameUpdate)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
+typedef void (*GameRender)();
+
+struct Win32GameCode
+{
+    HINSTANCE game_code_dll;
+    GameUpdate update;
+    GameRender render;
+};
+
+internal Win32GameCode
+win32_load_game_code()
+{
+    Win32GameCode game_code;
+    CopyFile("game.dll", "game_temp.dll", FALSE);
+    game_code.game_code_dll = LoadLibrary("game_temp.dll");
+    if (game_code.game_code_dll != NULL)
+    {
+        game_code.update = (GameUpdate)GetProcAddress(game_code.game_code_dll, "game_update");
+        game_code.render = (GameRender)GetProcAddress(game_code.game_code_dll, "game_render");
+        if (!(game_code.update) || !(game_code.render))
+        {
+            ASSERT(false, "Failed to load game.dll functions");
+        }
+    }
+    else
+    {
+        ASSERT(false, "No game.dll found.");
+    }
+    return game_code;
+}
+
+internal void
+win32_unload_game_code(Win32GameCode* game_code)
+{
+    FreeLibrary(game_code->game_code_dll);
+    game_code->update = 0;
+    game_code->render = 0;
+}
+
 i32 main()
 {
+    Win32GameCode game = win32_load_game_code();
+
     TIMECAPS time_caps = {};
     u32 tcs = sizeof(time_caps);
     MMRESULT mresult = timeGetDevCaps(&time_caps, tcs);
@@ -383,7 +403,7 @@ i32 main()
     sound_output.samples_per_sec = AUDIO_SAMPLE_RATE;
     sound_output.buffer_size = sound_output.samples_per_sec * sound_output.bytes_per_sample;
     sound_output.running_sample_count = 0;
-    sound_output.latency_sample_count = (i32)(sound_output.samples_per_sec / target_fps) * 5;
+    sound_output.latency_sample_count = (i32)(sound_output.samples_per_sec / target_fps) * 3;
 
     HWND win32 = glfwGetWin32Window(window);
     win32_init_dsound(win32, sound_output.samples_per_sec, sound_output.buffer_size);
@@ -395,6 +415,7 @@ i32 main()
     b8 sound_is_valid = false;
     b8 sound_is_playing = false;
     f32 acumilated_delta_time = 0.0f;
+
 
     while(!glfwWindowShouldClose(window))
     {
@@ -420,6 +441,12 @@ i32 main()
         }
 
 
+        if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS)
+        {
+            win32_unload_game_code(&game);
+            game = win32_load_game_code();
+        }
+
 
 
         LARGE_INTEGER end_count = win32_get_preformance_counter();
@@ -428,10 +455,12 @@ i32 main()
         acumilated_delta_time += delta_time;
 
 #ifdef GAME_DEBUG
+/*
         f32 frame_ms = delta_time * 1000.0f;
         f32 frames_per_second = 1.0f / delta_time;
         printf("ms: %f \n", frame_ms);
         printf("fps: %f \n", frames_per_second);
+        */
 #endif
         while (acumilated_delta_time >= target_sec_per_frame)
         {
@@ -463,6 +492,7 @@ i32 main()
             else
             {
                 // TODO: logging
+                sound_is_valid = false;
                 printf("Could not get sound buffer cursor position! \n");
             }
 
@@ -472,7 +502,7 @@ i32 main()
             sound_buffer.samples = samples;
 
 
-            game_update(delta_time, &game_memory, &sound_buffer, &game_input);
+            game.update(delta_time, &game_memory, &sound_buffer, &game_input);
 
             if (sound_is_valid)
             {
@@ -492,7 +522,9 @@ i32 main()
             acumilated_delta_time -= target_sec_per_frame;
         }
 
-        game_render();
+        game.render();
+        renderer_clear();
+        renderer_draw();
 
 
         glfwSwapBuffers(window);

@@ -129,6 +129,6 @@ renderer_initialize()
 
     glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)(3 * sizeof(f32)));
     glEnableVertexAttribArray(1); 
-    glfwSwapInterval(1);
+    glfwSwapInterval(0);
 
 }

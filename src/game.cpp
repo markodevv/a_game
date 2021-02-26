@@ -1,5 +1,6 @@
 #include "game.h"
-#include "renderer.h"
+
+#include <math.h>
 
 internal void
 game_play_sound(GameSoundBuffer* game_sound, i32 tone_hz, i32 tone_volume) 
@@ -27,8 +28,9 @@ game_play_sound(GameSoundBuffer* game_sound, i32 tone_hz, i32 tone_volume)
 }
 
 
+#include <stdio.h>
 
-internal void
+extern "C" WIN32_DECLSPEC void
 game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
 {
     GameState* game_state = (GameState*)memory;
@@ -42,24 +44,13 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
     if (input->move_left.pressed)
     {
-        game_state->tone_volume -= 1000;
+        game_state->tone_volume += 300;
     }
-
-    if (input->move_right.pressed)
-    {
-        game_state->tone_volume += 1000;
-    }
-
     game_play_sound(game_sound, game_state->tone_hz, game_state->tone_volume);
 
 }
 
-internal void
+extern "C" WIN32_DECLSPEC void
 game_render()
 {
-    renderer_clear();
-    for (sizet i = 0; i < 1000; ++i)
-    {
-        renderer_draw();
-    }
 }
