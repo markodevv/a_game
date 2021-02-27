@@ -29,7 +29,7 @@ game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
 }
 
 
-extern "C" WIN32_DECLSPEC void
+extern "C" PLATFORM_API void
 game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
 {
     GameState* game_state = (GameState*)memory;
@@ -50,7 +50,7 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
 }
 
-extern "C" WIN32_DECLSPEC void
+extern "C" PLATFORM_API void
 game_render()
 {
 }

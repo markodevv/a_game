@@ -30,18 +30,51 @@ typedef size_t sizet;
 
 
 #ifdef GAME_DEBUG
+#include <stdio.h>
 
-#define ASSERT(condition, message) \
-    if (!(condition)) { \
-        printf(message); \
-        printf("\n"); \
-        assert(condition); \
+#define ASSERT(condition) \
+    if (!(condition)) \
+    { \
+        *(int *)0 = 0; \
     } 
+
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
+/*
+#define ALERT_MSG(msg, ...) \
+    printf(ANSI_COLOR_RED msg ANSI_COLOR_RESET, __VA_ARGS__)
+#define WARN_MSG(msg, ...) \
+    printf(ANSI_COLOR_YELLOW msg ANSI_COLOR_RESET, __VA_ARGS__)
+#define NORMAL_MSG(msg, ...) \
+    printf(ANSI_COLOR_GREEN msg ANSI_COLOR_RESET, __VA_ARGS__)
+    */
+
+global_variable char DEBUG_string_buffer[512];
+
+#define ALERT_MSG(msg, ...) \
+    sprintf_s(DEBUG_string_buffer, msg, __VA_ARGS__); \
+    OutputDebugString(DEBUG_string_buffer)
+#define WARN_MSG(msg, ...) \
+    sprintf_s(DEBUG_string_buffer, msg, __VA_ARGS__); \
+    OutputDebugString(DEBUG_string_buffer)
+#define NORMAL_MSG(msg, ...) \
+    sprintf_s(DEBUG_string_buffer, msg, __VA_ARGS__); \
+    OutputDebugString(DEBUG_string_buffer)
+
 #else
 
-#define ASSERT(condifiton, message) 
+#define ASSERT(condition) 
+#define ALERT_MSG(msg, ...) 
+#define WARN_MSG(msg, ...)
+#define NORMAL_MSG(msg, ...)
 
-#endif  
+#endif
 
 #define KYLOBYTES(n) n*1024
 #define MEGABYTES(n) n*1024*1024
@@ -102,13 +135,7 @@ internal b8 DEBUG_write_entire_file(char* file_name, i32 size, void* memory);
 
 #endif
 
-#define WIN32_DECLSPEC __declspec(dllexport)
-
-
-/*
-WIN32_DECLSPEC void game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
-WIN32_DECLSPEC void game_render();
-*/
+#define PLATFORM_API __declspec(dllexport)
 
 #define MAIN_H
 #endif

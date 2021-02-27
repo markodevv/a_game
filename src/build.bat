@@ -11,5 +11,5 @@ pushd ..\build
 REM 64-bit build
 del *.pdb > NUL 2> NUL
 cl  %CommonCompilerFlags% /LD ..\src\game.cpp %IncludePaths% /link /INCREMENTAL:NO /OPT:REF /PDB:game_%date:~-4,4%%date:~-10,2%%date:~-7,2%_%time:~0,2%%time:~3,2%%time:~6,2%.pdb 
-cl  %CommonCompilerFlags% ..\src\windows_platform.cpp  %IncludePaths% /link %CommonLinkerFlags% /SUBSYSTEM:windows 
+cl  %CommonCompilerFlags% ..\src\windows_platform.cpp  %IncludePaths% /link %CommonLinkerFlags%  
 popd
