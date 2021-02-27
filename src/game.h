@@ -82,6 +82,7 @@ struct GameSoundBuffer
 
 struct GameState
 {
+    f32 t_sine;
     i32 tone_hz;
     i32 tone_volume;
 };

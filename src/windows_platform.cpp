@@ -1,4 +1,4 @@
-/* ========================================================================
+/*te ========================================================================
    $File: $
    $Date: $
    $Creator: Marko Bisevac $
@@ -16,12 +16,120 @@
 
 #include "game.h"
 
-#include "renderer.h"
-#include "opengl_renderer.cpp"
-
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
+
+global_variable const char* vertex_shader_source = "#version 330 core\n"
+    "layout (location = 0) in vec3 att_pos;\n"
+    "layout (location = 1) in vec4 att_color;\n"
+    "out vec4 color;\n"
+    "void main()\n"
+    "{\n"
+    "   gl_Position = vec4(att_pos.x, att_pos.y, att_pos.z, 1.0);\n"
+    "   color = att_color;\n"
+    "}\0";
+
+global_variable const char* fragment_shader_source = "#version 330 core\n"
+    "out vec4 frag_color;\n"
+    "in vec4 color;\n"
+    "void main()\n"
+    "{\n"
+    "   frag_color = color;\n"
+    "}\0";
+
+
+internal void
+create_shaders(i32 shader_program)
+{
+    i32 success;
+    char info_log[512];
+
+    u32 vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
+    glCompileShader(vertex_shader);
+
+    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
+
+    if (!success)
+    {
+        glGetShaderInfoLog(vertex_shader, 512, NULL, info_log);
+        printf("[ERROR] Failed to compile vertex shader: \n%s \n", info_log);
+    }
+
+    u32 fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
+    glCompileShader(fragment_shader);
+
+    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
+
+    if (!success)
+    {
+        glGetShaderInfoLog(fragment_shader, 512, NULL, info_log);
+        printf("[ERROR] Failed to compile fragment shader: \n%s \n", info_log);
+    }
+
+    glAttachShader(shader_program, vertex_shader);
+    glAttachShader(shader_program, fragment_shader);
+    glLinkProgram(shader_program);
+
+    glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
+    if(!success)
+    {
+        glGetProgramInfoLog(shader_program, 512, NULL, info_log);
+        printf("[ERROR] Failed to link shader \n%s \n", info_log);
+    }
+
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
+}
+
+
+internal void
+glfw_framebuffer_size_callback(GLFWwindow* Window, i32 w, i32 h)
+{
+    glViewport(0, 0, w, h);
+}
+
+internal void
+opengl_init(GLFWwindow* window)
+{
+    u32 VBO, VAO, shader_program;
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        printf("Failed to initialize GLAD");
+    }
+
+    shader_program = glCreateProgram();
+
+    create_shaders(shader_program);
+    glUseProgram(shader_program);
+
+    f32 vertex_data[] = {
+                          -0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+                           0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f, 1.0f,
+                           0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f, 1.0f
+    }; 
+    
+
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_data), vertex_data, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)0);
+    glEnableVertexAttribArray(0); 
+
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 7 * sizeof(f32), (void*)(3 * sizeof(f32)));
+    glEnableVertexAttribArray(1); 
+    glfwSwapInterval(0);
+
+    glfwSetFramebufferSizeCallback(window, glfw_framebuffer_size_callback);  
+}
 
 
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
@@ -42,7 +150,7 @@ DEBUG_read_entire_file(char* file_name)
 {
      DebugFileResult result = {};
     
-    HANDLE file_handle = CreateFileA(file_name, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    HANDLE file_handle = (file_name, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
     if(file_handle != INVALID_HANDLE_VALUE)
     {
         LARGE_INTEGER file_size;
@@ -119,38 +227,12 @@ DEBUG_write_entire_file(char* file_name, DWORD size, void* memory)
     return result;
 }
 
-internal GLFWwindow*
-glfw_create_window()
-{
-    
-    GLFWwindow* window = NULL;
-    
-    if (glfwInit())
-    {
-        window = glfwCreateWindow(800, 600, "A GEMM", NULL, NULL);
-        if (window)
-        {
-            glfwMakeContextCurrent(window);
-        }
-        else
-        {
-            // TODO: logging
-            ASSERT(false, "failed to create window");
-            glfwTerminate();
-        }
-    }
-    else
-    {
-        // TODO: logging
-    }
 
-    return window;
-}
 
 internal void
-framebuffer_size_callback(GLFWwindow* Window, i32 w, i32 h)
-{
-    glViewport(0, 0, w, h);
+glfw_error_callback(i32 code, const char* description) {
+
+    printf("GLFW Error %i \n %s \n", code, description);
 }
 
 
@@ -292,6 +374,36 @@ win32_fill_sound_buffer(Win32SoundState* sound_output, GameSoundBuffer* sound_bu
 }
 
 
+internal GLFWwindow*
+glfw_create_window(i32 width, i32 height)
+{
+    
+    GLFWwindow* window = NULL;
+    
+    if (glfwInit())
+    {
+        window = glfwCreateWindow(width, height, "A GEMM", NULL, NULL);
+        if (window)
+        {
+            glfwMakeContextCurrent(window);
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        }
+        else
+        {
+            // TODO: logging
+            ASSERT(false, "failed to create window");
+            glfwTerminate();
+        }
+    }
+    else
+    {
+        // TODO: logging
+    }
+
+    return window;
+}
+
 global_variable LARGE_INTEGER global_pref_count_freq;
 
 internal f32 
@@ -350,12 +462,32 @@ win32_load_game_code()
 internal void
 win32_unload_game_code(Win32GameCode* game_code)
 {
-    FreeLibrary(game_code->game_code_dll);
+    ASSERT(FreeLibrary(game_code->game_code_dll), ":)");
     game_code->update = 0;
     game_code->render = 0;
+    game_code->game_code_dll = 0;
 }
 
-i32 main()
+internal i32
+win32_get_last_write_time(char* file_name) 
+{
+    FILETIME last_write_time = {};
+    WIN32_FIND_DATA find_data = {};
+
+    HANDLE find_handle = FindFirstFileA("game.dll", &find_data);
+    if (find_handle != INVALID_HANDLE_VALUE)
+    {
+        last_write_time = find_data.ftLastWriteTime;
+        FindClose(find_handle);
+    }
+
+    return (i32)last_write_time.dwLowDateTime;
+}
+
+i32 WinMain(HINSTANCE hinstance,
+            HINSTANCE prev_hinstance,
+            LPSTR cmd_line_args,
+            i32 show_cmd)
 {
     Win32GameCode game = win32_load_game_code();
 
@@ -377,26 +509,21 @@ i32 main()
     f32 target_fps = 60.0f;
     f32 target_sec_per_frame = 1.0f / target_fps;
 
+    glfwSetErrorCallback(glfw_error_callback);
+
     GameMemory game_memory = {};
     game_memory.permanent_storage_size = MEGABYTES(64);
     game_memory.temporary_storage_size = MEGABYTES(10);
     game_memory.is_initialized = false;
     sizet total_size = game_memory.permanent_storage_size + game_memory.temporary_storage_size;
-
     game_memory.permanent_storage = malloc(sizeof(u8) * total_size);
-
     game_memory.temporary_storage =
         ((u8*)game_memory.permanent_storage +
          game_memory.permanent_storage_size);
-
     ASSERT(game_memory.permanent_storage, "Game memory allocation failed");
-    
-    GLFWwindow* window = glfw_create_window();
-    ASSERT(window != 0, "Failed to create window");
+    GLFWwindow* window = glfw_create_window(1024, 768);
 
-    renderer_initialize();
-
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);  
+    opengl_init(window);
 
     Win32SoundState sound_output = {};
     sound_output.bytes_per_sample = sizeof(i16) * 2;
@@ -416,6 +543,7 @@ i32 main()
     b8 sound_is_playing = false;
     f32 acumilated_delta_time = 0.0f;
 
+    i32 last_game_dll_write_time = win32_get_last_write_time("game.dll");
 
     while(!glfwWindowShouldClose(window))
     {
@@ -440,22 +568,13 @@ i32 main()
             game_input.move_up.pressed = true;
         }
 
-
-        if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS)
-        {
-            win32_unload_game_code(&game);
-            game = win32_load_game_code();
-        }
-
-
-
         LARGE_INTEGER end_count = win32_get_preformance_counter();
         f32 delta_time = win32_get_elapsed_seconds(last_counter, end_count);
         last_counter = win32_get_preformance_counter();
         acumilated_delta_time += delta_time;
 
 #ifdef GAME_DEBUG
-/*
+        /*
         f32 frame_ms = delta_time * 1000.0f;
         f32 frames_per_second = 1.0f / delta_time;
         printf("ms: %f \n", frame_ms);
@@ -464,6 +583,14 @@ i32 main()
 #endif
         while (acumilated_delta_time >= target_sec_per_frame)
         {
+            i32 game_dll_write_time = win32_get_last_write_time("game.dll");
+            if (last_game_dll_write_time != game_dll_write_time)
+            {
+                win32_unload_game_code(&game);
+                game = win32_load_game_code();
+                last_game_dll_write_time = game_dll_write_time;
+            }
+
             DWORD play_cursor;
             DWORD write_cursor;
             DWORD byte_offset;
@@ -523,9 +650,9 @@ i32 main()
         }
 
         game.render();
-        renderer_clear();
-        renderer_draw();
-
+        glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
