@@ -1,11 +1,3 @@
-/*te ========================================================================
-   $File: $
-   $Date: $
-   $Creator: Marko Bisevac $
-   $Notice: (C) Copyright 2021. All Rights Reserved. $
-   ======================================================================== */
-
-
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
@@ -25,6 +17,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#include "math.h"
 
 global_variable const char* vertex_shader_source =
 R"(
@@ -36,9 +29,13 @@ layout (location = 2) in vec2 att_texture;
 out vec4 color;
 out vec2 tex;
 
+uniform mat4 u_model;
+uniform mat4 u_view;
+uniform mat4 u_projection;
+
 void main()
 {
-   gl_Position = vec4(att_pos.x, att_pos.y, att_pos.z, 1.0);
+   gl_Position = u_projection * u_model * vec4(att_pos, 1.0f);
    color = att_color;
    tex = att_texture;
 }
@@ -452,7 +449,9 @@ i32 WinMain(HINSTANCE hinstance,
             LPSTR cmd_line_args,
             i32 show_cmd)
 {
+
     Win32GameCode game = win32_load_game_code();
+
 
     TIMECAPS time_caps = {};
     u32 tcs = sizeof(time_caps);
@@ -579,7 +578,6 @@ i32 WinMain(HINSTANCE hinstance,
         WARN_MSG("Invalid texture location. \n");
     }
 
-    //glUniform1i(texture_location, texture);
 
     Win32SoundState sound_output = {};
     sound_output.bytes_per_sample = sizeof(i16) * 2;
@@ -687,6 +685,7 @@ i32 WinMain(HINSTANCE hinstance,
 
             game.update(delta_time, &game_memory, &sound_buffer, &game_input);
 
+#if 0
             if (sound_is_valid)
             {
                 win32_fill_sound_buffer(&sound_output, &sound_buffer, byte_offset, bytes_to_write);
@@ -701,8 +700,27 @@ i32 WinMain(HINSTANCE hinstance,
                     sound_is_playing = true;
                 }
             }
+#endif
 
             acumilated_delta_time -= target_sec_per_frame;
+            local_persist vec3 rotate = {0.0f, 0.0f, 1.0f};
+            local_persist vec3 translate = {500.0f, 300.0f, 0.0f};
+            local_persist vec3 scale = {500.0f, 500.0f, 0.0f};
+
+            mat4 model = identity_mat4();
+            mat4 projection = identity_mat4();
+
+            model = translate_mat4(translate) * scale_mat4(scale);
+            projection = orthographic_mat4(1024.0f, 768.0f);
+
+            model = transpose_mat4(model);
+            projection = transpose_mat4(projection);
+
+            i32 mod_loc = glGetUniformLocation(shader_program, "u_model");
+            i32 proj_loc = glGetUniformLocation(shader_program, "u_projection");
+
+            glUniformMatrix4fv(mod_loc, 1, GL_FALSE, (f32*)model.rows);
+            glUniformMatrix4fv(proj_loc, 1, GL_FALSE, (f32*)projection.rows);
         }
 
         game.render();
