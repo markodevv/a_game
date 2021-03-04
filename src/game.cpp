@@ -41,7 +41,6 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         game_state->t_sine = 0.0f;
         memory->is_initialized = true;
     }
-
     if (input->move_left.pressed)
     {
         game_state->tone_volume += 300;
@@ -54,3 +53,4 @@ extern "C" PLATFORM_API void
 game_render()
 {
 }
+

@@ -3,21 +3,86 @@
 #include <stdio.h>
 
 #include <windows.h>
+#include <wingdi.h>
 #include <dsound.h>
 #include <math.h>
+#include <gl/gl.h>
 
 #include "game.h"
-
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
-
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 #include "math.h"
+
+#define GLDECL WINAPI
+typedef char GLchar;
+typedef ptrdiff_t GLintptr;
+typedef ptrdiff_t GLsizeiptr;
+
+#define GL_ARRAY_BUFFER                   0x8892 // Acquired from:
+#define GL_ARRAY_BUFFER_BINDING           0x8894 // https://www.opengl.org/registry/api/GL/glext.h
+#define GL_COLOR_ATTACHMENT0              0x8CE0
+#define GL_COMPILE_STATUS                 0x8B81
+#define GL_CURRENT_PROGRAM                0x8B8D
+#define GL_DYNAMIC_DRAW                   0x88E8
+#define GL_ELEMENT_ARRAY_BUFFER           0x8893
+#define GL_ELEMENT_ARRAY_BUFFER_BINDING   0x8895
+#define GL_LINK_STATUS                    0x8B82
+#define GL_FRAGMENT_SHADER                0x8B30
+#define GL_FRAMEBUFFER                    0x8D40
+#define GL_FRAMEBUFFER_COMPLETE           0x8CD5
+#define GL_FUNC_ADD                       0x8006
+#define GL_INVALID_FRAMEBUFFER_OPERATION  0x0506
+#define GL_MAJOR_VERSION                  0x821B
+#define GL_MINOR_VERSION                  0x821C
+#define GL_STATIC_DRAW                    0x88E4
+#define GL_STREAM_DRAW                    0x88E0
+#define GL_TEXTURE0                       0x84C0
+#define GL_VERTEX_SHADER                  0x8B31
+
+#define GL_FUNCTION_LIST \
+    LOAD_GL_FUNCTION(void,      AttachShader,            GLuint program, GLuint shader) \
+    LOAD_GL_FUNCTION(void,      BindBuffer,              GLenum target, GLuint buffer) \
+    LOAD_GL_FUNCTION(void,      BindFramebuffer,         GLenum target, GLuint framebuffer) \
+    LOAD_GL_FUNCTION(void,      BufferData,              GLenum target, GLsizeiptr size, const GLvoid *data, GLenum usage) \
+    LOAD_GL_FUNCTION(void,      BufferSubData,           GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid * data) \
+    LOAD_GL_FUNCTION(GLenum,    CheckFramebufferStatus,  GLenum target) \
+    LOAD_GL_FUNCTION(void,      ClearBufferfv,           GLenum buffer, GLint drawbuffer, const GLfloat * value) \
+    LOAD_GL_FUNCTION(void,      CompileShader,           GLuint shader) \
+    LOAD_GL_FUNCTION(GLuint,    CreateProgram,           void) \
+    LOAD_GL_FUNCTION(GLuint,    CreateShader,            GLenum type) \
+    LOAD_GL_FUNCTION(void,      DeleteBuffers,           GLsizei n, const GLuint *buffers) \
+    LOAD_GL_FUNCTION(void,      DeleteFramebuffers,      GLsizei n, const GLuint *framebuffers) \
+    LOAD_GL_FUNCTION(void,      EnableVertexAttribArray, GLuint index) \
+    LOAD_GL_FUNCTION(void,      DrawBuffers,             GLsizei n, const GLenum *bufs) \
+    LOAD_GL_FUNCTION(void,      FramebufferTexture2D,    GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level) \
+    LOAD_GL_FUNCTION(void,      GenBuffers,              GLsizei n, GLuint *buffers) \
+    LOAD_GL_FUNCTION(void,      GenFramebuffers,         GLsizei n, GLuint * framebuffers) \
+    LOAD_GL_FUNCTION(GLint,     GetAttribLocation,       GLuint program, const GLchar *name) \
+    LOAD_GL_FUNCTION(void,      GetShaderInfoLog,        GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog) \
+    LOAD_GL_FUNCTION(void,      GetShaderiv,             GLuint shader, GLenum pname, GLint *params) \
+    LOAD_GL_FUNCTION(GLint,     GetUniformLocation,      GLuint program, const GLchar *name) \
+    LOAD_GL_FUNCTION(void,      LinkProgram,             GLuint program) \
+    LOAD_GL_FUNCTION(void,      ShaderSource,            GLuint shader, GLsizei count, const GLchar* const *string, const GLint *length) \
+    LOAD_GL_FUNCTION(void,      Uniform1i,               GLint location, GLint v0) \
+    LOAD_GL_FUNCTION(void,      Uniform1f,               GLint location, GLfloat v0) \
+    LOAD_GL_FUNCTION(void,      Uniform2f,               GLint location, GLfloat v0, GLfloat v1) \
+    LOAD_GL_FUNCTION(void,      Uniform4f,               GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3) \
+    LOAD_GL_FUNCTION(void,      UniformMatrix4fv,        GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) \
+    LOAD_GL_FUNCTION(void,      UseProgram,              GLuint program) \
+    LOAD_GL_FUNCTION(void,      VertexAttribPointer,     GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid * pointer) \
+    LOAD_GL_FUNCTION(void,      GenVertexArrays,         GLsizei n, GLuint *arrays) \
+    LOAD_GL_FUNCTION(void,      BindVertexArray,         GLuint array) \
+    LOAD_GL_FUNCTION(void,      DeleteShader,            GLuint shader) \
+    LOAD_GL_FUNCTION(void,      GetProgramInfoLog,      GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog) \
+    LOAD_GL_FUNCTION(void,      GetProgramiv,            GLuint program, GLenum pname, GLint *params) \
+
+
+#define LOAD_GL_FUNCTION(ret, name, ...) typedef ret GLDECL name##proc(__VA_ARGS__); extern name##proc * gl##name;
+GL_FUNCTION_LIST
+#undef LOAD_GL_FUNCTION
+
 
 global_variable const char* vertex_shader_source =
 R"(
@@ -102,27 +167,6 @@ create_shaders(i32 shader_program)
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 }
-
-
-internal void
-glfw_framebuffer_size_callback(GLFWwindow* Window, i32 w, i32 h)
-{
-    glViewport(0, 0, w, h);
-}
-
-internal void
-opengl_init(GLFWwindow* window)
-{
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    {
-        ASSERT(false);
-    }
-
-    glfwSwapInterval(0);
-
-    glfwSetFramebufferSizeCallback(window, glfw_framebuffer_size_callback);  
-}
-
 
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
 typedef DIRECT_SOUND_CREATE(DSC);
@@ -223,11 +267,6 @@ DEBUG_write_entire_file(char* file_name, DWORD size, void* memory)
 
 
 
-internal void
-glfw_error_callback(i32 code, const char* description) {
-
-    ALERT_MSG("GLFW Error Callback %i: \n%s \n", code, description);
-}
 
 
 internal void
@@ -444,34 +483,129 @@ win32_get_last_write_time(char* file_name)
     return (i32)last_write_time.dwLowDateTime;
 }
 
+LRESULT CALLBACK win32_window_callback(
+  _In_ HWND   window,
+  _In_ UINT   message,
+  _In_ WPARAM w_param,
+  _In_ LPARAM l_param
+) 
+{
+    LRESULT result = 0;
+
+    switch(message)
+    {
+        case WM_SIZE:
+        {
+        } break;
+        case WM_DESTROY:
+        {
+        } break;
+        case WM_CLOSE:
+        {
+        } break;
+        case WM_ACTIVATEAPP:
+        {
+        } break;
+
+        default:
+        {
+            result = DefWindowProc(window, message, w_param, l_param);
+        } break;
+    }
+    return result;
+}
+
+internal void*
+win32_get_opengl_function(char *name)
+{
+}
+
+internal void
+win32_init_opengl(HWND window_handle)
+{
+    PIXELFORMATDESCRIPTOR pixel_format = {};
+
+    HDC window_dc = GetDC(window_handle);
+
+    pixel_format.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+    pixel_format.nVersion = 1;
+    pixel_format.dwFlags = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
+    pixel_format.cColorBits = 32;
+    pixel_format.cAlphaBits = 8;
+    pixel_format.iLayerType = PFD_MAIN_PLANE;
+
+    i32 suggest_pf_index = ChoosePixelFormat(window_dc, &pixel_format);
+
+    PIXELFORMATDESCRIPTOR suggested_pixel_format = {};
+    DescribePixelFormat(window_dc, suggest_pf_index, sizeof(suggested_pixel_format), &pixel_format);
+    SetPixelFormat(window_dc, suggest_pf_index, &suggested_pixel_format);
+
+    HGLRC opengl_rc = wglCreateContext(window_dc);
+    if (opengl_rc)
+    {
+        if (wglMakeCurrent(window_dc, opengl_rc))
+        {
+        }
+        else
+        {
+            ASSERT(false);
+        }
+    }
+    else
+    {
+        ASSERT(false);
+    }
+#define LOAD_GL_FUNCTION(ret, name, ...)                                                                    \
+    gl##name = (name##proc *)wglGetProcAddress("gl" #name);                                \
+    if (!gl##name) {                                                                       \
+        NORMAL_MSG("Function gl" #name " couldn't be loaded.\n"); \
+    }
+    GL_FUNCTION_LIST
+#undef LOAD_GL_FUNCTION
+    ReleaseDC(window_handle, window_dc);
+}
+
+#define LOAD_GL_FUNCTION(ret, name, ...) name##proc * gl##name;
+GL_FUNCTION_LIST
+#undef LOAD_GL_FUNCTION
+
 i32 WinMain(HINSTANCE hinstance,
             HINSTANCE prev_hinstance,
-            LPSTR cmd_line_args,
-            i32 show_cmd)
+            LPSTR cmd_line,
+            i32 show_code)
 {
+    WNDCLASS window_class = {};
+    window_class.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
+    window_class.lpfnWndProc = win32_window_callback;
+    window_class.hInstance = hinstance;
+    window_class.lpszClassName = "Win32WindowClass";
 
+    RegisterClass(&window_class);
+    HWND window_handle = CreateWindowEx(
+            0,
+            window_class.lpszClassName,
+            "Game",
+            WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            0,
+            0,
+            hinstance, 
+            0); 
+
+    ASSERT(window_handle);
+
+    win32_init_opengl(window_handle);
     Win32GameCode game = win32_load_game_code();
 
 
-    TIMECAPS time_caps = {};
-    u32 tcs = sizeof(time_caps);
-    MMRESULT mresult = timeGetDevCaps(&time_caps, tcs);
-    if (mresult == MMSYSERR_ERROR) 
-    {
-        WARN_MSG("Failed to get dev caps. \n");
-    }
-    u32 time_period_min = time_caps.wPeriodMin;
-    mresult = timeBeginPeriod(time_period_min);
-    if (mresult != TIMERR_NOERROR)
-    {
-        WARN_MSG("Failed to set time begin period. \n");
-    }
 
     QueryPerformanceFrequency(&global_pref_count_freq);
     f32 target_fps = 60.0f;
     f32 target_sec_per_frame = 1.0f / target_fps;
 
-    glfwSetErrorCallback(glfw_error_callback);
 
     GameMemory game_memory = {};
     game_memory.permanent_storage_size = MEGABYTES(64);
@@ -483,34 +617,6 @@ i32 WinMain(HINSTANCE hinstance,
         ((u8*)game_memory.permanent_storage +
          game_memory.permanent_storage_size);
     ASSERT(game_memory.permanent_storage);
-
-    GLFWwindow* window;
-    if (glfwInit())
-    {
-        window = glfwCreateWindow(1024, 768, "A GEMM", NULL, NULL);
-        if (window)
-        {
-            glfwMakeContextCurrent(window);
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-        }
-        else
-        {
-            // TODO: logging
-            ALERT_MSG("Failed to create glfw window. ");
-            ASSERT(false);
-            glfwTerminate();
-        }
-    }
-    else
-    {
-        // TODO: logging
-        ALERT_MSG("Failed to initialize GLFW.");
-        ASSERT(false);
-    }
-
-
-    opengl_init(window);
 
     u32 VBO, VAO, EBO, shader_program, texture;
 
@@ -586,8 +692,7 @@ i32 WinMain(HINSTANCE hinstance,
     sound_output.running_sample_count = 0;
     sound_output.latency_sample_count = (i32)(sound_output.samples_per_sec / target_fps) * 3;
 
-    HWND win32 = glfwGetWin32Window(window);
-    win32_init_dsound(win32, sound_output.samples_per_sec, sound_output.buffer_size);
+    win32_init_dsound(window_handle, sound_output.samples_per_sec, sound_output.buffer_size);
 
     
     i16* samples = (i16*)malloc(sound_output.buffer_size);
@@ -599,42 +704,45 @@ i32 WinMain(HINSTANCE hinstance,
 
     i32 last_game_dll_write_time = win32_get_last_write_time("game.dll");
 
-    while(!glfwWindowShouldClose(window))
+    b8 running = true;
+    while(running)
     {
         DWORD bytes_to_write = 0;
         game_input = {};
 
-
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        {
-            game_input.move_left.pressed = true;
-        } 
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        {
-            game_input.move_right.pressed = true;
-        }
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        {
-            game_input.move_down.pressed = true;
-        }
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        {
-            game_input.move_up.pressed = true;
-        }
 
         LARGE_INTEGER end_count = win32_get_preformance_counter();
         f32 delta_time = win32_get_elapsed_seconds(last_counter, end_count);
         last_counter = win32_get_preformance_counter();
         acumilated_delta_time += delta_time;
 
-#ifdef GAME_DEBUG
-        /*
+#if 0
         f32 frame_ms = delta_time * 1000.0f;
         f32 frames_per_second = 1.0f / delta_time;
         NORMAL_MSG("ms: %f \n", frame_ms);
         NORMAL_MSG("fps: %f \n", frames_per_second);
-        */
 #endif
+        MSG message;
+        while(PeekMessage(&message, 0, 0, 0, PM_REMOVE)) 
+        {
+            switch(message.message)
+            {
+                case WM_DESTROY:
+                {
+                    running = false;
+                } break;
+                case WM_KEYUP:
+                {
+                    u32 vk_code = (u32)message.wParam;
+
+                } break;
+                default:
+                {
+                    TranslateMessage(&message);
+                    DispatchMessageA(&message);
+                } break;
+            }
+        }
         while (acumilated_delta_time >= target_sec_per_frame)
         {
             i32 game_dll_write_time = win32_get_last_write_time("game.dll");
@@ -702,6 +810,7 @@ i32 WinMain(HINSTANCE hinstance,
             }
 #endif
 
+            NORMAL_MSG("delta time : %f \n", acumilated_delta_time);
             acumilated_delta_time -= target_sec_per_frame;
             local_persist vec3 rotate = {0.0f, 0.0f, 1.0f};
             local_persist vec3 translate = {500.0f, 300.0f, 0.0f};
@@ -722,18 +831,16 @@ i32 WinMain(HINSTANCE hinstance,
             glUniformMatrix4fv(mod_loc, 1, GL_FALSE, (f32*)model.rows);
             glUniformMatrix4fv(proj_loc, 1, GL_FALSE, (f32*)projection.rows);
         }
-
-        game.render();
-
         glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        //glDrawArrays(GL_TRIANGLES, 0, 3);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-        glfwSwapBuffers(window);
-        glfwPollEvents();
+        game.render();
+        HDC window_dc = GetDC(window_handle);
+        SwapBuffers(window_dc);
 
     }
+
+    return 0;
 }
         
