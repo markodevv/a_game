@@ -5,28 +5,6 @@
    $Creator: Marko Bisevac $
    $Notice: (C) Copyright 2021. All Rights Reserved. $
    ======================================================================== */
-#define internal static 
-#define global_variable static 
-#define local_persist static
-
-#include <stdint.h>
-#include <stddef.h>
-
-typedef int8_t i8;
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
-
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-
-typedef float f32;
-typedef double f64;
-
-typedef i8 b8;
-typedef size_t sizet;
 
 
 #ifdef GAME_DEBUG
@@ -38,41 +16,21 @@ typedef size_t sizet;
         *(int *)0 = 0; \
     } 
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_YELLOW  "\x1b[33m"
-#define ANSI_COLOR_BLUE    "\x1b[34m"
-#define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN    "\x1b[36m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
+char DEBUG_string_buffer[512];
 
-/*
-#define ALERT_MSG(msg, ...) \
-    printf(ANSI_COLOR_RED msg ANSI_COLOR_RESET, __VA_ARGS__)
-#define WARN_MSG(msg, ...) \
-    printf(ANSI_COLOR_YELLOW msg ANSI_COLOR_RESET, __VA_ARGS__)
-#define NORMAL_MSG(msg, ...) \
-    printf(ANSI_COLOR_GREEN msg ANSI_COLOR_RESET, __VA_ARGS__)
-    */
+#define DEBUG_PRINT(msg, ...) \
+    sprintf_s(DEBUG_string_buffer, msg, __VA_ARGS__); \
+    DEBUG_print(DEBUG_string_buffer);
 
-global_variable char DEBUG_string_buffer[512];
-
-#define ALERT_MSG(msg, ...) \
+#define GAME_DEBUG_PRINT(memory, msg, ...) \
     sprintf_s(DEBUG_string_buffer, msg, __VA_ARGS__); \
-    OutputDebugString(DEBUG_string_buffer)
-#define WARN_MSG(msg, ...) \
-    sprintf_s(DEBUG_string_buffer, msg, __VA_ARGS__); \
-    OutputDebugString(DEBUG_string_buffer)
-#define NORMAL_MSG(msg, ...) \
-    sprintf_s(DEBUG_string_buffer, msg, __VA_ARGS__); \
-    OutputDebugString(DEBUG_string_buffer)
+    memory->DEBUG_print(DEBUG_string_buffer);
 
 #else
 
-#define ASSERT(condition) 
-#define ALERT_MSG(msg, ...) 
-#define WARN_MSG(msg, ...)
-#define NORMAL_MSG(msg, ...)
+#define DEBUG_PRINT(msg, ...) 
+#define GAME_DEBUG_PRINT(memory, msg, ...) 
+
 
 #endif
 
@@ -80,29 +38,120 @@ global_variable char DEBUG_string_buffer[512];
 #define MEGABYTES(n) n*1024*1024
 #define GIGABYTES(n) n*1024*1024*1024
 
-#define PI 3.14159265359f
+
+#define ARRAY_COUNT(a) (sizeof(a) / sizeof(a[0]))
 
 struct ButtonState
 {
-    b8 pressed;
+    b8 is_down;
 };
 
 struct GameInput
 {
-    ButtonState move_left;
-    ButtonState move_right;
-    ButtonState move_up;
-    ButtonState move_down;
+    union
+    {
+        struct
+        {
+            ButtonState move_left;
+            ButtonState move_right;
+            ButtonState move_up;
+            ButtonState move_down;
+            ButtonState move_forward;
+            ButtonState move_back;
+        };
+        ButtonState buttons[6];
+    };
+
 };
+
+#define MAX_VERTICES 10000
+
+struct VertexData
+{
+    vec3 position;
+    vec2 uv;
+    vec4 color;
+};
+
+struct Camera
+{
+    vec3 position;
+    vec3 direction;
+    vec3 up;
+};
+
+// NOTE(marko): Move this fucntion from here
+inline mat4
+camera_transform(Camera* cam)
+{
+    vec3 f = vec3_normalized(cam->direction);
+    vec3 u = vec3_normalized(cam->up);
+    vec3 r = vec3_normalized(vec3_cross(cam->up, cam->direction));
+    vec3 t = cam->position;
+
+    mat4 out =
+    {
+        r.x,  r.y,  r.z,  -t.x,
+        u.x,  u.y,  u.z,  -t.y,
+        f.x,  f.y,  f.z,  -t.z,
+        0.0f, 0.0f, 0.0f,  1.0f
+    };
+
+    return out;
+}
+
+struct Renderer
+{
+    i32 shader_program;
+    VertexData vertices_start[MAX_VERTICES];
+    u32 vertex_index;
+    u32 VAO;
+    u32 VBO;
+    Camera camera;
+
+};
+
+
+
+struct DebugFileResult;
+typedef void DebugPrintFunc(char* text);
+typedef DebugFileResult DebugReadEntireFileFunc(char* path);
+typedef void DebugFreeEntireFileFunc(void* memory);
+typedef b8 DebugWriteEntireFileFunc(char* file_name, i32 size, void* memory);
+
+#define PUSH_STRUCT(mem, type) \
+(type*)(((u8*)mem.permanent_storage) + mem.permanent_storage_index); \
+mem.permanent_storage_index += sizeof(type) \
+
+#define PUSH_STRUCTS(mem, type, count) \
+(type*)(((u8*)mem.permanent_storage) + mem.permanent_storage_index); \
+mem.permanent_storage_index += sizeof(type) * count \
+
+// TODO: temporary until i figure out what platform independent code is.
+typedef void PlatformDrawRectangle(Renderer* ren, vec2 position, vec2 scale, vec4 color);
+typedef void PlatformRendererEnd(Renderer* ren);
+typedef void PlatformRendererInit(Renderer* ren);
 
 struct GameMemory
 {
     b8 is_initialized;
+
     void* permanent_storage;
     sizet permanent_storage_size;
+    sizet permanent_storage_index;
 
     void* temporary_storage;
     sizet temporary_storage_size;
+
+    DebugPrintFunc* DEBUG_print;
+    DebugReadEntireFileFunc* DEBUG_read_entire_file;
+    DebugFreeEntireFileFunc* DEBUG_free_file_memory;
+    DebugWriteEntireFileFunc* DEBUG_write_entire_file;
+    
+    PlatformRendererInit* renderer_init;
+    PlatformDrawRectangle* draw_rectange;
+    PlatformRendererEnd* frame_end;
+    Renderer renderer;
 };
 
 
@@ -118,6 +167,7 @@ struct GameState
     f32 t_sine;
     i32 tone_hz;
     i32 tone_volume;
+
 };
 
 
@@ -132,6 +182,7 @@ struct DebugFileResult
 internal DebugFileResult DEBUG_read_entire_file(char* path);
 internal void DEBUG_free_file_memory(void* memory);
 internal b8 DEBUG_write_entire_file(char* file_name, i32 size, void* memory);
+internal void DEBUG_print(char* text);
 
 #endif
 
@@ -139,3 +190,12 @@ internal b8 DEBUG_write_entire_file(char* file_name, i32 size, void* memory);
 
 #define MAIN_H
 #endif
+
+// TODO LIST:
+/*
+-3D batched renderer
+-collision detection
+-asset loading
+-memory management
+*/
+

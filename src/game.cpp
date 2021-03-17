@@ -1,6 +1,30 @@
 #include <math.h>
 #include <stdio.h>
 
+#define internal static 
+#define global_variable static 
+#define local_persist static
+
+#include <stdint.h>
+#include <stddef.h>
+
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+typedef float f32;
+typedef double f64;
+
+typedef i8 b8;
+typedef size_t sizet;
+
+#include "math.h"
 #include "game.h"
 
 
@@ -36,21 +60,51 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
     if (!memory->is_initialized)
     {
+        memory->renderer_init(&memory->renderer);
+
         game_state->tone_hz = 256;
         game_state->tone_volume = 3000;
         game_state->t_sine = 0.0f;
+
         memory->is_initialized = true;
     }
-    if (input->move_left.pressed)
+    if (input->move_left.is_down)
     {
-        game_state->tone_volume += 300;
+        GAME_DEBUG_PRINT(memory, "A is pressed \n");
     }
-    game_play_sound(game_sound, game_state);
 
+    Camera* cam = &memory->renderer.camera;
+
+    if (input->move_left.is_down)
+    {
+        cam->position.x -= 1.0f;
+    }
+    if (input->move_right.is_down)
+    {
+        cam->position.x += 1.0f;
+    }
+    if (input->move_up.is_down)
+    {
+        cam->position.y += 1.0f;
+    }
+    if (input->move_down.is_down)
+    {
+        cam->position.y -= 1.0f;
+    }
 }
 
 extern "C" PLATFORM_API void
-game_render()
+game_render(GameMemory* memory)
 {
+    if (memory->is_initialized)
+    {
+        memory->draw_rectange(&memory->renderer,
+        {400.0f, 400.0f}, {200.0f, 300.0f}, {1.0f, 1.0f, 0.0f, 1.0f});
+        memory->draw_rectange(&memory->renderer,
+        {100.0f, 400.0f}, {100.0f, 100.0f}, {1.0f, 0.0f, 1.0f, 1.0f});
+        memory->draw_rectange(&memory->renderer,
+        {500.0f, 700.0f}, {100.0f, 400.0f}, {0.0f, 1.0f, 1.0f, 1.0f});
+        memory->frame_end(&memory->renderer);
+    }
 }
 

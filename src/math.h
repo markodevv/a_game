@@ -1,6 +1,8 @@
 #if !defined(MATH_H)
 #define MATH_H
 
+#define PI 3.14159265359f
+
 struct vec2
 {
     f32 x, y;
@@ -41,6 +43,7 @@ struct mat4
     union
     {
         vec4 rows[4];
+        f32 data[16];
     };
 
     vec4 &operator[](sizet i);
@@ -56,21 +59,37 @@ inline f32
 }
 
 inline f32
-length_vec3(vec3 v)
+vec3_length(vec3 v)
 {
     return sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
 }
 
 inline vec3
-normalized_vec3(vec3 v)
+vec3_normalized(vec3 v)
 {
-    f32 len = length_vec3(v);
+    f32 len = vec3_length(v);
 
     v.x = v.x / len;
     v.y = v.y / len;
     v.z = v.z / len;
 
     return v;
+}
+
+inline vec3
+vec3_cross(vec3 a, vec3 b)
+{
+    return {
+        a.y*b.z - a.z*b.y,
+        a.z*b.x - a.x*b.z,
+        a.x*b.y - a.y*b.x
+    };
+}
+
+inline vec3
+vec3_dot(vec3 a, vec3 b)
+{
+    return {a.x*b.x + a.y*b.y + a.z*b.z};
 }
 
 inline f32 
@@ -146,7 +165,7 @@ mat4::operator*(vec4& other)
 }
 
 inline mat4
-identity_mat4()
+mat4_identity()
 {
     mat4 out = {};
     out[0][0] = 1.0f;
@@ -158,9 +177,9 @@ identity_mat4()
 }
 
 inline mat4
-scale_mat4(vec3 v)
+mat4_scale(vec3 v)
 {
-    mat4 out = identity_mat4();
+    mat4 out = mat4_identity();
     out[0][0] = v.x;
     out[1][1] = v.y;
     out[2][2] = v.z;
@@ -169,20 +188,19 @@ scale_mat4(vec3 v)
 }
 
 inline mat4
-translate_mat4(vec3 v)
+mat4_translate(vec3 v)
 {
-    mat4 out = identity_mat4();
+    mat4 out = mat4_identity();
 
-    for (sizet i = 0; i < 3; ++i)
-    {
-        out[i][3] = v[i];
-    }
+    out[0][3] = v.x;
+    out[1][3] = v.y;
+    out[2][3] = v.z;
 
     return out;
 }
 
 inline mat4
-rotate_mat4(f32 angle, vec3 v)
+mat4_rotate(f32 angle, vec3 v)
 {
     f32 radians = angle * PI / 180;
     f32 cos = cosf(radians);
@@ -201,7 +219,7 @@ rotate_mat4(f32 angle, vec3 v)
 
 
 inline mat4
-transpose_mat4(mat4 matrix)
+mat4_transpose(mat4 matrix)
 {
     mat4 out;
     for (sizet i = 0; i < 4; ++i)
@@ -216,15 +234,35 @@ transpose_mat4(mat4 matrix)
 }
 
 inline mat4
-orthographic_mat4(f32 w, f32 h)
+mat4_orthographic(f32 w, f32 h)
 {
     mat4 out = {
         2/w,  0.0f, 0.0f, -1.0f, 
         0.0f, 2/h,  0.0f, -1.0f,
-        0.0f, 0.0f, 1.0f,  0.0f,
+        0.0f, 0.0f, 0.1f,  0.0f,
         0.0f, 0.0f, 0.0f,  1.0f
     };
 
     return out;
 }
+
+inline f32
+degrees_to_radians(f32 d) 
+{
+    return (d*((f32)PI/180));
+}
+
+inline mat4
+mat4_perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
+{
+    mat4 out =
+    {
+        2/w,    0.0f, 0.0f, -1.0f,
+        0.0f,   2/h,  0.0f, -1.0f,
+        0.0f,   0.0f, 1.0f,  0.0f,
+        0.0f,   0.0f, 0.5f,  1.0f
+    };
+    return out;
+}
+
 #endif

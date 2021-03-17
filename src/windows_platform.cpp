@@ -1,172 +1,48 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
-
 #include <windows.h>
 #include <wingdi.h>
 #include <dsound.h>
 #include <math.h>
 #include <gl/gl.h>
 
+#define internal static 
+#define global_variable static 
+#define local_persist static
+
+#include <stdint.h>
+#include <stddef.h>
+
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+typedef float f32;
+typedef double f64;
+
+typedef i8 b8;
+typedef size_t sizet;
+
+
+#include "math.h"
 #include "game.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#include "math.h"
+#include "opengl_renderer.cpp"
 
-#define GLDECL WINAPI
-typedef char GLchar;
-typedef ptrdiff_t GLintptr;
-typedef ptrdiff_t GLsizeiptr;
-
-#define GL_ARRAY_BUFFER                   0x8892 // Acquired from:
-#define GL_ARRAY_BUFFER_BINDING           0x8894 // https://www.opengl.org/registry/api/GL/glext.h
-#define GL_COLOR_ATTACHMENT0              0x8CE0
-#define GL_COMPILE_STATUS                 0x8B81
-#define GL_CURRENT_PROGRAM                0x8B8D
-#define GL_DYNAMIC_DRAW                   0x88E8
-#define GL_ELEMENT_ARRAY_BUFFER           0x8893
-#define GL_ELEMENT_ARRAY_BUFFER_BINDING   0x8895
-#define GL_LINK_STATUS                    0x8B82
-#define GL_FRAGMENT_SHADER                0x8B30
-#define GL_FRAMEBUFFER                    0x8D40
-#define GL_FRAMEBUFFER_COMPLETE           0x8CD5
-#define GL_FUNC_ADD                       0x8006
-#define GL_INVALID_FRAMEBUFFER_OPERATION  0x0506
-#define GL_MAJOR_VERSION                  0x821B
-#define GL_MINOR_VERSION                  0x821C
-#define GL_STATIC_DRAW                    0x88E4
-#define GL_STREAM_DRAW                    0x88E0
-#define GL_TEXTURE0                       0x84C0
-#define GL_VERTEX_SHADER                  0x8B31
-
-#define GL_FUNCTION_LIST \
-    LOAD_GL_FUNCTION(void,      AttachShader,            GLuint program, GLuint shader) \
-    LOAD_GL_FUNCTION(void,      BindBuffer,              GLenum target, GLuint buffer) \
-    LOAD_GL_FUNCTION(void,      BindFramebuffer,         GLenum target, GLuint framebuffer) \
-    LOAD_GL_FUNCTION(void,      BufferData,              GLenum target, GLsizeiptr size, const GLvoid *data, GLenum usage) \
-    LOAD_GL_FUNCTION(void,      BufferSubData,           GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid * data) \
-    LOAD_GL_FUNCTION(GLenum,    CheckFramebufferStatus,  GLenum target) \
-    LOAD_GL_FUNCTION(void,      ClearBufferfv,           GLenum buffer, GLint drawbuffer, const GLfloat * value) \
-    LOAD_GL_FUNCTION(void,      CompileShader,           GLuint shader) \
-    LOAD_GL_FUNCTION(GLuint,    CreateProgram,           void) \
-    LOAD_GL_FUNCTION(GLuint,    CreateShader,            GLenum type) \
-    LOAD_GL_FUNCTION(void,      DeleteBuffers,           GLsizei n, const GLuint *buffers) \
-    LOAD_GL_FUNCTION(void,      DeleteFramebuffers,      GLsizei n, const GLuint *framebuffers) \
-    LOAD_GL_FUNCTION(void,      EnableVertexAttribArray, GLuint index) \
-    LOAD_GL_FUNCTION(void,      DrawBuffers,             GLsizei n, const GLenum *bufs) \
-    LOAD_GL_FUNCTION(void,      FramebufferTexture2D,    GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level) \
-    LOAD_GL_FUNCTION(void,      GenBuffers,              GLsizei n, GLuint *buffers) \
-    LOAD_GL_FUNCTION(void,      GenFramebuffers,         GLsizei n, GLuint * framebuffers) \
-    LOAD_GL_FUNCTION(GLint,     GetAttribLocation,       GLuint program, const GLchar *name) \
-    LOAD_GL_FUNCTION(void,      GetShaderInfoLog,        GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog) \
-    LOAD_GL_FUNCTION(void,      GetShaderiv,             GLuint shader, GLenum pname, GLint *params) \
-    LOAD_GL_FUNCTION(GLint,     GetUniformLocation,      GLuint program, const GLchar *name) \
-    LOAD_GL_FUNCTION(void,      LinkProgram,             GLuint program) \
-    LOAD_GL_FUNCTION(void,      ShaderSource,            GLuint shader, GLsizei count, const GLchar* const *string, const GLint *length) \
-    LOAD_GL_FUNCTION(void,      Uniform1i,               GLint location, GLint v0) \
-    LOAD_GL_FUNCTION(void,      Uniform1f,               GLint location, GLfloat v0) \
-    LOAD_GL_FUNCTION(void,      Uniform2f,               GLint location, GLfloat v0, GLfloat v1) \
-    LOAD_GL_FUNCTION(void,      Uniform4f,               GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3) \
-    LOAD_GL_FUNCTION(void,      UniformMatrix4fv,        GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) \
-    LOAD_GL_FUNCTION(void,      UseProgram,              GLuint program) \
-    LOAD_GL_FUNCTION(void,      VertexAttribPointer,     GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid * pointer) \
-    LOAD_GL_FUNCTION(void,      GenVertexArrays,         GLsizei n, GLuint *arrays) \
-    LOAD_GL_FUNCTION(void,      BindVertexArray,         GLuint array) \
-    LOAD_GL_FUNCTION(void,      DeleteShader,            GLuint shader) \
-    LOAD_GL_FUNCTION(void,      GetProgramInfoLog,      GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog) \
-    LOAD_GL_FUNCTION(void,      GetProgramiv,            GLuint program, GLenum pname, GLint *params) \
-
-
-#define LOAD_GL_FUNCTION(ret, name, ...) typedef ret GLDECL name##proc(__VA_ARGS__); extern name##proc * gl##name;
+#define LOAD_GL_FUNCTION(ret, name, ...) name##proc * gl##name;
 GL_FUNCTION_LIST
 #undef LOAD_GL_FUNCTION
 
-
-global_variable const char* vertex_shader_source =
-R"(
-#version 330 core
-layout (location = 0) in vec3 att_pos;
-layout (location = 1) in vec4 att_color;
-layout (location = 2) in vec2 att_texture;
-
-out vec4 color;
-out vec2 tex;
-
-uniform mat4 u_model;
-uniform mat4 u_view;
-uniform mat4 u_projection;
-
-void main()
-{
-   gl_Position = u_projection * u_model * vec4(att_pos, 1.0f);
-   color = att_color;
-   tex = att_texture;
-}
-)";
-
-global_variable const char* fragment_shader_source =
-R"(
-#version 330 core
-
-out vec4 frag_color;
-
-in vec4 color;
-in vec2 tex;
-
-uniform sampler2D u_texture;
-
-void main()
-{
-    frag_color = texture(u_texture, tex);
-}
-)";
-
-internal void
-create_shaders(i32 shader_program)
-{
-    i32 success;
-    char info_log[512];
-
-    u32 vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
-    glCompileShader(vertex_shader);
-
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
-
-    if (!success)
-    {
-        glGetShaderInfoLog(vertex_shader, 512, NULL, info_log);
-        ALERT_MSG("Failed to compile vertex shader: \n%s \n", info_log);
-    }
-
-    u32 fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
-    glCompileShader(fragment_shader);
-
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
-
-    if (!success)
-    {
-        glGetShaderInfoLog(fragment_shader, 512, NULL, info_log);
-        ALERT_MSG("Failed to compile fragment shader: \n%s \n", info_log);
-    }
-
-    glAttachShader(shader_program, vertex_shader);
-    glAttachShader(shader_program, fragment_shader);
-    glLinkProgram(shader_program);
-
-    glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
-    if(!success)
-    {
-        glGetProgramInfoLog(shader_program, 512, NULL, info_log);
-        ALERT_MSG("Failed to link shader \n%s \n", info_log);
-    }
-
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-}
 
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
 typedef DIRECT_SOUND_CREATE(DSC);
@@ -179,6 +55,12 @@ safe_truncate_u64(u64 value)
     ASSERT(value <= 0xFFFFFFFF);
     u32 result = (u32)value;
     return result;
+}
+
+internal void
+DEBUG_print(char* text)
+{
+    OutputDebugString(text);
 }
 
 internal DebugFileResult
@@ -211,7 +93,7 @@ DEBUG_read_entire_file(char* file_name)
             }
             else
             {
-                ALERT_MSG("File malloc failed for file %s. \n", file_name);
+                DEBUG_PRINT("File malloc failed for file %s. \n", file_name);
             }
         }
         else
@@ -222,7 +104,7 @@ DEBUG_read_entire_file(char* file_name)
     }
     else
     {
-        ALERT_MSG("Trying to open invalid file %s. \n", file_name);
+        DEBUG_PRINT("Trying to open invalid file %s. \n", file_name);
     }
 
     return result;
@@ -238,7 +120,7 @@ DEBUG_free_file_memory(void* memory)
 }
 
 internal b8
-DEBUG_write_entire_file(char* file_name, DWORD size, void* memory)
+DEBUG_write_entire_file(char* file_name, i32 size, void* memory)
 {
     b8 result = false;
     
@@ -252,14 +134,14 @@ DEBUG_write_entire_file(char* file_name, DWORD size, void* memory)
         }
         else
         {
-            WARN_MSG("Failed to write entire file: %s.\n", file_name);
+            DEBUG_PRINT("Failed to write entire file: %s.\n", file_name);
         }
 
         CloseHandle(file_handle);
     }
     else
     {
-        WARN_MSG("Invalid file handle \n");
+        DEBUG_PRINT("Invalid file handle \n");
     }
 
     return result;
@@ -298,13 +180,13 @@ win32_init_dsound(HWND window, i32 samples_per_sec, i32 buffer_size)
 
             if (!FAILED(direct_sound->CreateSoundBuffer(&buffer_description, &global_sound_buffer, 0)))
             {
-                NORMAL_MSG("Created sound buffer. \n");
+                DEBUG_PRINT("Created sound buffer. \n");
             }
         }
     }
     else
     {
-        ALERT_MSG("Failed to create sound buffer. \n");
+        DEBUG_PRINT("Failed to create sound buffer. \n");
     }
 }
 
@@ -430,7 +312,7 @@ win32_get_preformance_counter()
 #define AUDIO_SAMPLE_RATE 48000
 
 typedef void (*GameUpdate)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
-typedef void (*GameRender)();
+typedef void (*GameRender)(GameMemory* memory);
 
 struct Win32GameCode
 {
@@ -515,10 +397,6 @@ LRESULT CALLBACK win32_window_callback(
     return result;
 }
 
-internal void*
-win32_get_opengl_function(char *name)
-{
-}
 
 internal void
 win32_init_opengl(HWND window_handle)
@@ -555,21 +433,74 @@ win32_init_opengl(HWND window_handle)
     {
         ASSERT(false);
     }
+
+
 #define LOAD_GL_FUNCTION(ret, name, ...)                                                                    \
     gl##name = (name##proc *)wglGetProcAddress("gl" #name);                                \
     if (!gl##name) {                                                                       \
-        NORMAL_MSG("Function gl" #name " couldn't be loaded.\n"); \
+        DEBUG_PRINT("Function gl" #name " couldn't be loaded.\n"); \
     }
     GL_FUNCTION_LIST
 #undef LOAD_GL_FUNCTION
+
     ReleaseDC(window_handle, window_dc);
+
+    // TODO: pass memory here for opengl to allocate?
 }
 
-#define LOAD_GL_FUNCTION(ret, name, ...) name##proc * gl##name;
-GL_FUNCTION_LIST
-#undef LOAD_GL_FUNCTION
+internal void
+win32_process_input_messages(GameInput* game_input)
+{
+    MSG message;
+    while(PeekMessage(&message, 0, 0, 0, PM_REMOVE)) 
+    {
+        switch(message.message)
+        {
+            case WM_DESTROY:
+            {
+            } break;
+            case WM_KEYUP:
+            case WM_KEYDOWN:
+            {
+                b8 is_down = ((message.lParam & (1 << 31)) == 0);
+                b8 was_down = ((message.lParam & (1 << 30)) != 0);
+                u32 vk_code = (u32)message.wParam;
 
-i32 WinMain(HINSTANCE hinstance,
+                if (is_down != was_down)
+                {
+                    switch(vk_code)
+                    {
+                        case 'A':
+                        {
+                            game_input->move_left.is_down = is_down;
+                        } break;
+                        case 'D':
+                        {
+                            game_input->move_right.is_down = is_down;
+                        } break;
+                        case 'W':
+                        {
+                            game_input->move_up.is_down = is_down;
+                        } break;
+                        case 'S':
+                        {
+                            game_input->move_down.is_down = is_down;
+                        } break;
+                    }
+                }
+            } break;
+            default:
+            {
+                TranslateMessage(&message);
+                DispatchMessageA(&message);
+            } break;
+        }
+    }
+
+}
+
+i32
+WinMain(HINSTANCE hinstance,
             HINSTANCE prev_hinstance,
             LPSTR cmd_line,
             i32 show_code)
@@ -594,13 +525,16 @@ i32 WinMain(HINSTANCE hinstance,
             0,
             hinstance, 
             0); 
+    if (window_handle)
+    {
+        win32_init_opengl(window_handle);
+    }
+    else
+    {
+        ASSERT(false);
+    }
 
-    ASSERT(window_handle);
-
-    win32_init_opengl(window_handle);
     Win32GameCode game = win32_load_game_code();
-
-
 
     QueryPerformanceFrequency(&global_pref_count_freq);
     f32 target_fps = 60.0f;
@@ -610,80 +544,30 @@ i32 WinMain(HINSTANCE hinstance,
     GameMemory game_memory = {};
     game_memory.permanent_storage_size = MEGABYTES(64);
     game_memory.temporary_storage_size = MEGABYTES(10);
+    game_memory.permanent_storage_index = 0;
+
     game_memory.is_initialized = false;
     sizet total_size = game_memory.permanent_storage_size + game_memory.temporary_storage_size;
-    game_memory.permanent_storage = malloc(sizeof(u8) * total_size);
+    game_memory.permanent_storage = calloc(total_size, sizeof(u8));
     game_memory.temporary_storage =
         ((u8*)game_memory.permanent_storage +
          game_memory.permanent_storage_size);
+
     ASSERT(game_memory.permanent_storage);
 
-    u32 VBO, VAO, EBO, shader_program, texture;
+    // NOTE(marko): this need to be first memory push
+    PUSH_STRUCT(game_memory, GameState);
 
-    
-    shader_program = glCreateProgram();
-    create_shaders(shader_program);
-    glUseProgram(shader_program);
+    game_memory.draw_rectange = &opengl_draw_rectangle;
+    game_memory.frame_end = &opengl_frame_end;
+    game_memory.renderer_init = &opengl_init;
 
-    f32 vertex_data[] = {
-                          -0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f, 1.0f,  0.0f, 0.0f,
-                           0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f, 1.0f,  1.0f, 0.0f,
-                           0.5f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f, 1.0f,  1.0f, 1.0f,
-                          -0.5f,  0.5f, 0.0f,  1.0f, 1.0f, 0.0f, 1.0f,  0.0f, 1.0f
-    }; 
-
-    u32 indices[] = {
-        0, 1, 2,
-        0, 2, 3
-    };
-
-
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_data), vertex_data, GL_STATIC_DRAW);
-
-    glGenBuffers(1, &EBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    // Vertex layout
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(f32), (void*)0);
-    // Enable the vertex atribute;
-    glEnableVertexAttribArray(0); 
-
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 9 * sizeof(f32), (void*)(3 * sizeof(f32)));
-    // Enable the vertex atribute;
-    glEnableVertexAttribArray(1); 
-
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 9 * sizeof(f32), (void*)(7 * sizeof(f32)));
-    // Enable the vertex atribute;
-    glEnableVertexAttribArray(2); 
-
-    i32 image_w, image_h, channels;
-    stbi_set_flip_vertically_on_load(1);
-    u8* image = stbi_load("../test_image.jpg", &image_w, &image_h, &channels, 0);
-    ASSERT(image);
-
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image_w, image_h, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-
-    stbi_image_free(image);
-    i32 texture_location = glGetUniformLocation(shader_program, "u_texture");
-    if (texture_location == -1)
-    {
-        WARN_MSG("Invalid texture location. \n");
-    }
-
+#if defined(GAME_DEBUG)
+    game_memory.DEBUG_print = DEBUG_print;
+    game_memory.DEBUG_read_entire_file = DEBUG_read_entire_file;
+    game_memory.DEBUG_write_entire_file = DEBUG_write_entire_file;
+    game_memory.DEBUG_free_file_memory = DEBUG_free_file_memory;
+#endif
 
     Win32SoundState sound_output = {};
     sound_output.bytes_per_sample = sizeof(i16) * 2;
@@ -692,11 +576,11 @@ i32 WinMain(HINSTANCE hinstance,
     sound_output.running_sample_count = 0;
     sound_output.latency_sample_count = (i32)(sound_output.samples_per_sec / target_fps) * 3;
 
+    GameInput game_input = {};
     win32_init_dsound(window_handle, sound_output.samples_per_sec, sound_output.buffer_size);
 
     
     i16* samples = (i16*)malloc(sound_output.buffer_size);
-    GameInput game_input;
     LARGE_INTEGER last_counter = win32_get_preformance_counter();
     b8 sound_is_valid = false;
     b8 sound_is_playing = false;
@@ -708,7 +592,8 @@ i32 WinMain(HINSTANCE hinstance,
     while(running)
     {
         DWORD bytes_to_write = 0;
-        game_input = {};
+
+        win32_process_input_messages(&game_input);
 
 
         LARGE_INTEGER end_count = win32_get_preformance_counter();
@@ -716,33 +601,7 @@ i32 WinMain(HINSTANCE hinstance,
         last_counter = win32_get_preformance_counter();
         acumilated_delta_time += delta_time;
 
-#if 0
-        f32 frame_ms = delta_time * 1000.0f;
-        f32 frames_per_second = 1.0f / delta_time;
-        NORMAL_MSG("ms: %f \n", frame_ms);
-        NORMAL_MSG("fps: %f \n", frames_per_second);
-#endif
-        MSG message;
-        while(PeekMessage(&message, 0, 0, 0, PM_REMOVE)) 
-        {
-            switch(message.message)
-            {
-                case WM_DESTROY:
-                {
-                    running = false;
-                } break;
-                case WM_KEYUP:
-                {
-                    u32 vk_code = (u32)message.wParam;
 
-                } break;
-                default:
-                {
-                    TranslateMessage(&message);
-                    DispatchMessageA(&message);
-                } break;
-            }
-        }
         while (acumilated_delta_time >= target_sec_per_frame)
         {
             i32 game_dll_write_time = win32_get_last_write_time("game.dll");
@@ -753,6 +612,12 @@ i32 WinMain(HINSTANCE hinstance,
                 last_game_dll_write_time = game_dll_write_time;
             }
 
+            f32 frame_ms = delta_time * 1000.0f;
+            f32 frames_per_second = 1.0f / delta_time;
+            DEBUG_PRINT("ms: %f \n", frame_ms);
+            DEBUG_PRINT("fps: %f \n", frames_per_second);
+
+#if 0
             DWORD play_cursor;
             DWORD write_cursor;
             DWORD byte_offset;
@@ -782,7 +647,7 @@ i32 WinMain(HINSTANCE hinstance,
             {
                 // TODO: logging
                 sound_is_valid = false;
-                WARN_MSG("Could not get sound buffer cursor position! \n");
+                DEBUG_PRINT("Could not get sound buffer cursor position! \n");
             }
 
             GameSoundBuffer sound_buffer = {};
@@ -791,9 +656,8 @@ i32 WinMain(HINSTANCE hinstance,
             sound_buffer.samples = samples;
 
 
-            game.update(delta_time, &game_memory, &sound_buffer, &game_input);
 
-#if 0
+
             if (sound_is_valid)
             {
                 win32_fill_sound_buffer(&sound_output, &sound_buffer, byte_offset, bytes_to_write);
@@ -803,43 +667,24 @@ i32 WinMain(HINSTANCE hinstance,
 
                     if (FAILED(hresult))
                     {
-                        WARN_MSG("Failed to play sound. \n");
+                        DEBUG_PRINT("Failed to play sound. \n");
                     }
                     sound_is_playing = true;
                 }
             }
 #endif
 
-            NORMAL_MSG("delta time : %f \n", acumilated_delta_time);
+            game.update(delta_time, &game_memory, NULL, &game_input);
             acumilated_delta_time -= target_sec_per_frame;
-            local_persist vec3 rotate = {0.0f, 0.0f, 1.0f};
-            local_persist vec3 translate = {500.0f, 300.0f, 0.0f};
-            local_persist vec3 scale = {500.0f, 500.0f, 0.0f};
-
-            mat4 model = identity_mat4();
-            mat4 projection = identity_mat4();
-
-            model = translate_mat4(translate) * scale_mat4(scale);
-            projection = orthographic_mat4(1024.0f, 768.0f);
-
-            model = transpose_mat4(model);
-            projection = transpose_mat4(projection);
-
-            i32 mod_loc = glGetUniformLocation(shader_program, "u_model");
-            i32 proj_loc = glGetUniformLocation(shader_program, "u_projection");
-
-            glUniformMatrix4fv(mod_loc, 1, GL_FALSE, (f32*)model.rows);
-            glUniformMatrix4fv(proj_loc, 1, GL_FALSE, (f32*)projection.rows);
         }
         glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        game.render();
+        game.render(&game_memory);
+
         HDC window_dc = GetDC(window_handle);
         SwapBuffers(window_dc);
-
-    }
+     }
 
     return 0;
 }
