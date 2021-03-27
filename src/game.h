@@ -16,7 +16,7 @@
         *(int *)0 = 0; \
     } 
 
-char DEBUG_string_buffer[512];
+char DEBUG_string_buffer[5120];
 
 #define DEBUG_PRINT(msg, ...) \
     sprintf_s(DEBUG_string_buffer, msg, __VA_ARGS__); \
@@ -39,11 +39,17 @@ char DEBUG_string_buffer[512];
 #define GIGABYTES(n) n*1024*1024*1024
 
 
-#define ARRAY_COUNT(a) (sizeof(a) / sizeof(a[0]))
+#define ARRAY_COUNT(Array) (sizeof(Array) / sizeof((Array)[0]))
 
 struct ButtonState
 {
     b8 is_down;
+};
+
+struct MouseScroll
+{
+    b8 scrolled;
+    i32 wheel_delta;
 };
 
 struct GameInput
@@ -61,14 +67,15 @@ struct GameInput
         };
         ButtonState buttons[6];
     };
+    MouseScroll mouse_scroll;
 
 };
 
-#define MAX_VERTICES 10000
 
 struct VertexData
 {
     vec3 position;
+    vec3 normal;
     vec2 uv;
     vec4 color;
 };
@@ -80,33 +87,17 @@ struct Camera
     vec3 up;
 };
 
-// NOTE(marko): Move this fucntion from here
-inline mat4
-camera_transform(Camera* cam)
-{
-    vec3 f = vec3_normalized(cam->direction);
-    vec3 u = vec3_normalized(cam->up);
-    vec3 r = vec3_normalized(vec3_cross(cam->up, cam->direction));
-    vec3 t = cam->position;
 
-    mat4 out =
-    {
-        r.x,  r.y,  r.z,  -t.x,
-        u.x,  u.y,  u.z,  -t.y,
-        f.x,  f.y,  f.z,  -t.z,
-        0.0f, 0.0f, 0.0f,  1.0f
-    };
-
-    return out;
-}
-
+#define MAX_VERTICES 1000
 struct Renderer
 {
-    i32 shader_program;
+    i32 shader_program_3D;
+    i32 shader_program_light;
     VertexData vertices_start[MAX_VERTICES];
     u32 vertex_index;
     u32 VAO;
     u32 VBO;
+    u32 light_VAO;
     Camera camera;
 
 };
@@ -131,6 +122,8 @@ mem.permanent_storage_index += sizeof(type) * count \
 typedef void PlatformDrawRectangle(Renderer* ren, vec2 position, vec2 scale, vec4 color);
 typedef void PlatformRendererEnd(Renderer* ren);
 typedef void PlatformRendererInit(Renderer* ren);
+typedef void PlatformRendererInit(Renderer* ren);
+typedef void PlatformDrawCube(Renderer* ren, vec3 position, vec3 scale, vec4 color);
 
 struct GameMemory
 {
@@ -149,10 +142,31 @@ struct GameMemory
     DebugWriteEntireFileFunc* DEBUG_write_entire_file;
     
     PlatformRendererInit* renderer_init;
-    PlatformDrawRectangle* draw_rectange;
+    PlatformDrawRectangle* draw_rectangle;
     PlatformRendererEnd* frame_end;
+    PlatformDrawCube* draw_cube;
     Renderer renderer;
 };
+
+inline mat4
+camera_transform(Camera* cam)
+{
+    vec3 f = vec3_normalized(cam->direction);
+    vec3 u = vec3_normalized(cam->up);
+    vec3 r = vec3_normalized(vec3_cross(cam->up, cam->direction));
+    vec3 t = cam->position;
+
+    mat4 out =
+    {
+        r.x,  r.y,  r.z,  -t.x,
+        u.x,  u.y,  u.z,  -t.y,
+        f.x,  f.y,  f.z,  -t.z,
+        0.0f, 0.0f, 0.0f,  1.0f
+    };
+
+    return out;
+}
+
 
 
 struct GameSoundBuffer

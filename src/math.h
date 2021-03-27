@@ -20,6 +20,9 @@ struct vec3
     };
 
     f32 &operator[](sizet i);
+    vec3 operator+(vec3& other);
+    vec3 operator-(vec3& other);
+    vec3 operator*(vec3& other);
 };
 
 struct vec4
@@ -51,6 +54,23 @@ struct mat4
     vec4 operator*(vec4& other);
 };
 
+inline vec3
+vec3::operator+(vec3& other)
+{
+    return {x+other.x, y+other.y, z+other.z};
+}
+
+inline vec3
+vec3::operator-(vec3& other)
+{
+    return {x-other.x, y-other.y, z-other.z};
+}
+
+inline vec3
+vec3::operator*(vec3& other)
+{
+    return {x*other.x, y*other.y, z*other.z};
+}
 
 inline f32 
 &vec3::operator[](sizet i)
@@ -218,7 +238,58 @@ mat4_rotate(f32 angle, vec3 v)
 }
 
 
-inline mat4
+internal inline mat4
+mat4_inverse(mat4 m)
+{
+    f32 A2323 = m[2][2] * m[3][3] - m[2][3] * m[3][2];
+    f32 A1323 = m[2][1] * m[3][3] - m[2][3] * m[3][1];
+    f32 A1223 = m[2][1] * m[3][2] - m[2][2] * m[3][1];
+    f32 A0323 = m[2][0] * m[3][3] - m[2][3] * m[3][0];
+    f32 A0223 = m[2][0] * m[3][2] - m[2][2] * m[3][0];
+    f32 A0123 = m[2][0] * m[3][1] - m[2][1] * m[3][0];
+    f32 A2313 = m[1][2] * m[3][3] - m[1][3] * m[3][2];
+    f32 A1313 = m[1][1] * m[3][3] - m[1][3] * m[3][1];
+    f32 A1213 = m[1][1] * m[3][2] - m[1][2] * m[3][1];
+    f32 A2312 = m[1][2] * m[2][3] - m[1][3] * m[2][2];
+    f32 A1312 = m[1][1] * m[2][3] - m[1][3] * m[2][1];
+    f32 A1212 = m[1][1] * m[2][2] - m[1][2] * m[2][1];
+    f32 A0313 = m[1][0] * m[3][3] - m[1][3] * m[3][0];
+    f32 A0213 = m[1][0] * m[3][2] - m[1][2] * m[3][0];
+    f32 A0312 = m[1][0] * m[2][3] - m[1][3] * m[2][0];
+    f32 A0212 = m[1][0] * m[2][2] - m[1][2] * m[2][0];
+    f32 A0113 = m[1][0] * m[3][1] - m[1][1] * m[3][0];
+    f32 A0112 = m[1][0] * m[2][1] - m[1][1] * m[2][0];
+
+    mat4 out;
+
+    f32 det = m[0][0] * ( m[1][1] * A2323 - m[1][2] * A1323 + m[1][3] * A1223 )
+        - m[0][1] * ( m[1][0] * A2323 - m[1][2] * A0323 + m[1][3] * A0223 )
+        + m[0][2] * ( m[1][0] * A1323 - m[1][1] * A0323 + m[1][3] * A0123 )
+        - m[0][3] * ( m[1][0] * A1223 - m[1][1] * A0223 + m[1][2] * A0123 );
+    det = 1 / det;
+
+    out[0][0] = det *   ( m[1][1] * A2323 - m[1][2] * A1323 + m[1][3] * A1223 );
+    out[0][1] = det * - ( m[0][1] * A2323 - m[0][2] * A1323 + m[0][3] * A1223 );
+    out[0][2] = det *   ( m[0][1] * A2313 - m[0][2] * A1313 + m[0][3] * A1213 );
+    out[0][3] = det * - ( m[0][1] * A2312 - m[0][2] * A1312 + m[0][3] * A1212 );
+    out[1][0] = det * - ( m[1][0] * A2323 - m[1][2] * A0323 + m[1][3] * A0223 );
+    out[1][1] = det *   ( m[0][0] * A2323 - m[0][2] * A0323 + m[0][3] * A0223 );
+    out[1][2] = det * - ( m[0][0] * A2313 - m[0][2] * A0313 + m[0][3] * A0213 );
+    out[1][3] = det *   ( m[0][0] * A2312 - m[0][2] * A0312 + m[0][3] * A0212 );
+    out[2][0] = det *   ( m[1][0] * A1323 - m[1][1] * A0323 + m[1][3] * A0123 );
+    out[2][1] = det * - ( m[0][0] * A1323 - m[0][1] * A0323 + m[0][3] * A0123 );
+    out[2][2] = det *   ( m[0][0] * A1313 - m[0][1] * A0313 + m[0][3] * A0113 );
+    out[2][3] = det * - ( m[0][0] * A1312 - m[0][1] * A0312 + m[0][3] * A0112 );
+    out[3][0] = det * - ( m[1][0] * A1223 - m[1][1] * A0223 + m[1][2] * A0123 );
+    out[3][1] = det *   ( m[0][0] * A1223 - m[0][1] * A0223 + m[0][2] * A0123 );
+    out[3][2] = det * - ( m[0][0] * A1213 - m[0][1] * A0213 + m[0][2] * A0113 );
+    out[3][3] = det *   ( m[0][0] * A1212 - m[0][1] * A0212 + m[0][2] * A0112 );
+
+    return out;
+}
+
+
+internal inline mat4
 mat4_transpose(mat4 matrix)
 {
     mat4 out;
@@ -255,12 +326,15 @@ degrees_to_radians(f32 d)
 inline mat4
 mat4_perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
 {
+    f32 t = tanf(degrees_to_radians(fov/2.0f));
+    f32 a = w/h;
+
     mat4 out =
     {
-        2/w,    0.0f, 0.0f, -1.0f,
-        0.0f,   2/h,  0.0f, -1.0f,
-        0.0f,   0.0f, 1.0f,  0.0f,
-        0.0f,   0.0f, 0.5f,  1.0f
+        1/t,    0.0f, 0.0f,  0.0f,
+        0.0f,   a/t,  0.0f,  0.0f,
+        0.0f,   0.0f, (n+f)/(n-f), 2*n*f/(n-f),
+        0.0f,   0.0f, -1.0f,  0.0f,
     };
     return out;
 }

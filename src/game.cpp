@@ -68,10 +68,6 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         memory->is_initialized = true;
     }
-    if (input->move_left.is_down)
-    {
-        GAME_DEBUG_PRINT(memory, "A is pressed \n");
-    }
 
     Camera* cam = &memory->renderer.camera;
 
@@ -91,6 +87,12 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
     {
         cam->position.y -= 1.0f;
     }
+    if (input->mouse_scroll.scrolled)
+    {
+        GAME_DEBUG_PRINT(memory, "Mouse scrolled\n");
+        f32 scroll_amount = (f32)input->mouse_scroll.wheel_delta;
+        cam->position.z -= scroll_amount;
+    }
 }
 
 extern "C" PLATFORM_API void
@@ -98,12 +100,17 @@ game_render(GameMemory* memory)
 {
     if (memory->is_initialized)
     {
-        memory->draw_rectange(&memory->renderer,
-        {400.0f, 400.0f}, {200.0f, 300.0f}, {1.0f, 1.0f, 0.0f, 1.0f});
-        memory->draw_rectange(&memory->renderer,
-        {100.0f, 400.0f}, {100.0f, 100.0f}, {1.0f, 0.0f, 1.0f, 1.0f});
-        memory->draw_rectange(&memory->renderer,
-        {500.0f, 700.0f}, {100.0f, 400.0f}, {0.0f, 1.0f, 1.0f, 1.0f});
+        /*
+        memory->draw_rectangle(&memory->renderer,
+        {400.0f, 400.0f}, {200.0f, 300.0f}, {1.0f, 1.0f, 1.0f, 1.0f});
+        memory->draw_rectangle(&memory->renderer,
+        {100.0f, 400.0f}, {100.0f, 100.0f}, {1.0f, 0.0f, 0.0f, 1.0f});
+        memory->draw_rectangle(&memory->renderer,
+        {500.0f, 700.0f}, {100.0f, 400.0f}, {1.0f, 1.0f, 0.0f, 1.0f});
+        */
+        memory->draw_cube(&memory->renderer,
+        {0.0f, 0.0f, 0.0f}, {100.0f, 100.0f, 100.0f}, {0.8f, 0.3f, 0.0f, 1.0f});
+
         memory->frame_end(&memory->renderer);
     }
 }

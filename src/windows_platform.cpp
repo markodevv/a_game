@@ -63,6 +63,7 @@ DEBUG_print(char* text)
     OutputDebugString(text);
 }
 
+
 internal DebugFileResult
 DEBUG_read_entire_file(char* file_name)
 {
@@ -365,7 +366,8 @@ win32_get_last_write_time(char* file_name)
     return (i32)last_write_time.dwLowDateTime;
 }
 
-LRESULT CALLBACK win32_window_callback(
+LRESULT CALLBACK 
+win32_window_callback(
   _In_ HWND   window,
   _In_ UINT   message,
   _In_ WPARAM w_param,
@@ -378,6 +380,10 @@ LRESULT CALLBACK win32_window_callback(
     {
         case WM_SIZE:
         {
+            i32 width = LOWORD(l_param);
+            i32 height = HIWORD(l_param);
+            // TODO: this should be in opengl file.
+            glViewport(0, 0, width, height);
         } break;
         case WM_DESTROY:
         {
@@ -489,6 +495,13 @@ win32_process_input_messages(GameInput* game_input)
                     }
                 }
             } break;
+            case WM_MOUSEWHEEL:
+            {
+                i32 wheel_delta = GET_WHEEL_DELTA_WPARAM(message.wParam);
+
+                game_input->mouse_scroll.wheel_delta = wheel_delta;
+                game_input->mouse_scroll.scrolled = true;;
+            } break;
             default:
             {
                 TranslateMessage(&message);
@@ -555,12 +568,13 @@ WinMain(HINSTANCE hinstance,
 
     ASSERT(game_memory.permanent_storage);
 
-    // NOTE(marko): this need to be first memory push
+    // NOTE(marko): this needs to be first memory push
     PUSH_STRUCT(game_memory, GameState);
 
-    game_memory.draw_rectange = &opengl_draw_rectangle;
-    game_memory.frame_end = &opengl_frame_end;
     game_memory.renderer_init = &opengl_init;
+    game_memory.frame_end = &opengl_frame_end;
+    game_memory.draw_rectangle = &opengl_draw_rectangle;
+    game_memory.draw_cube = &opengl_draw_cube;
 
 #if defined(GAME_DEBUG)
     game_memory.DEBUG_print = DEBUG_print;
@@ -580,11 +594,12 @@ WinMain(HINSTANCE hinstance,
     win32_init_dsound(window_handle, sound_output.samples_per_sec, sound_output.buffer_size);
 
     
-    i16* samples = (i16*)malloc(sound_output.buffer_size);
     LARGE_INTEGER last_counter = win32_get_preformance_counter();
+    f32 acumilated_delta_time = 0.0f;
+
+    i16* samples = (i16*)malloc(sound_output.buffer_size);
     b8 sound_is_valid = false;
     b8 sound_is_playing = false;
-    f32 acumilated_delta_time = 0.0f;
 
     i32 last_game_dll_write_time = win32_get_last_write_time("game.dll");
 
@@ -611,11 +626,6 @@ WinMain(HINSTANCE hinstance,
                 game = win32_load_game_code();
                 last_game_dll_write_time = game_dll_write_time;
             }
-
-            f32 frame_ms = delta_time * 1000.0f;
-            f32 frames_per_second = 1.0f / delta_time;
-            DEBUG_PRINT("ms: %f \n", frame_ms);
-            DEBUG_PRINT("fps: %f \n", frames_per_second);
 
 #if 0
             DWORD play_cursor;
@@ -676,6 +686,7 @@ WinMain(HINSTANCE hinstance,
 
             game.update(delta_time, &game_memory, NULL, &game_input);
             acumilated_delta_time -= target_sec_per_frame;
+            game_input.mouse_scroll.scrolled = false;
         }
         glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
