@@ -6,15 +6,13 @@
    $Notice: (C) Copyright 2021. All Rights Reserved. $
    ======================================================================== */
 
+#include "renderer.h"
 
 #ifdef GAME_DEBUG
 #include <stdio.h>
 
 #define ASSERT(condition) \
-    if (!(condition)) \
-    { \
-        *(int *)0 = 0; \
-    } 
+    if (!(condition)) *(int *)0 = 0 
 
 char DEBUG_string_buffer[5120];
 
@@ -28,6 +26,7 @@ char DEBUG_string_buffer[5120];
 
 #else
 
+#define ASSERT(condition)
 #define DEBUG_PRINT(msg, ...) 
 #define GAME_DEBUG_PRINT(memory, msg, ...) 
 
@@ -72,58 +71,32 @@ struct GameInput
 };
 
 
-struct VertexData
-{
-    vec3 position;
-    vec3 normal;
-    vec2 uv;
-    vec4 color;
-};
-
-struct Camera
-{
-    vec3 position;
-    vec3 direction;
-    vec3 up;
-};
-
-
-#define MAX_VERTICES 1000
-struct Renderer
-{
-    i32 shader_program_3D;
-    i32 shader_program_light;
-    VertexData vertices_start[MAX_VERTICES];
-    u32 vertex_index;
-    u32 VAO;
-    u32 VBO;
-    u32 light_VAO;
-    Camera camera;
-
-};
-
-
-
 struct DebugFileResult;
 typedef void DebugPrintFunc(char* text);
 typedef DebugFileResult DebugReadEntireFileFunc(char* path);
 typedef void DebugFreeEntireFileFunc(void* memory);
 typedef b8 DebugWriteEntireFileFunc(char* file_name, i32 size, void* memory);
 
-#define PUSH_STRUCT(mem, type) \
-(type*)(((u8*)mem.permanent_storage) + mem.permanent_storage_index); \
-mem.permanent_storage_index += sizeof(type) \
+#define ALLOCATE(arena, type) \
+(type*)(((u8*)arena.permanent_storage) + arena.permanent_storage_index); \
+ASSERT((arena.permanent_storage_size - arena.permanent_storage_index) > sizeof(type)); \
+arena.permanent_storage_index += sizeof(type); 
 
-#define PUSH_STRUCTS(mem, type, count) \
-(type*)(((u8*)mem.permanent_storage) + mem.permanent_storage_index); \
-mem.permanent_storage_index += sizeof(type) * count \
+#define ALLOCATE_ARRAY(arena, type, count) \
+(type*)(((u8*)arena.permanent_storage) + (arena.permanent_storage_index)); \
+ASSERT((arena.permanent_storage_size - arena.permanent_storage_index) > (sizeof(type)*count)); \
+arena.permanent_storage_index += (sizeof(type)*count); 
 
-// TODO: temporary until i figure out what platform independent code is.
-typedef void PlatformDrawRectangle(Renderer* ren, vec2 position, vec2 scale, vec4 color);
-typedef void PlatformRendererEnd(Renderer* ren);
-typedef void PlatformRendererInit(Renderer* ren);
-typedef void PlatformRendererInit(Renderer* ren);
-typedef void PlatformDrawCube(Renderer* ren, vec3 position, vec3 scale, vec4 color);
+#define ALLOCATE_TEMP(arena, type) \
+(type*)(((u8*)arena.temporary_storage) + arena.temporary_storage_index); \
+ASSERT((arena.temporary_storage_size - arena.temporary_storage_index) > sizeof(type)); \
+arena.temporary_storage_index += (sizeof(type));
+
+#define ALLOCATE_TEMP_ARRAY(arena, type, count) \
+(type*)(((u8*)arena.temporary_storage) + (arena.temporary_storage_index)); \
+ASSERT((arena.temporary_storage_size - arena.temporary_storage_index) > (sizeof(type)*count)); \
+arena.temporary_storage_index += (sizeof(type)*count); 
+
 
 struct GameMemory
 {
@@ -135,38 +108,14 @@ struct GameMemory
 
     void* temporary_storage;
     sizet temporary_storage_size;
+    sizet temporary_storage_index;
 
     DebugPrintFunc* DEBUG_print;
     DebugReadEntireFileFunc* DEBUG_read_entire_file;
     DebugFreeEntireFileFunc* DEBUG_free_file_memory;
     DebugWriteEntireFileFunc* DEBUG_write_entire_file;
     
-    PlatformRendererInit* renderer_init;
-    PlatformDrawRectangle* draw_rectangle;
-    PlatformRendererEnd* frame_end;
-    PlatformDrawCube* draw_cube;
-    Renderer renderer;
 };
-
-inline mat4
-camera_transform(Camera* cam)
-{
-    vec3 f = vec3_normalized(cam->direction);
-    vec3 u = vec3_normalized(cam->up);
-    vec3 r = vec3_normalized(vec3_cross(cam->up, cam->direction));
-    vec3 t = cam->position;
-
-    mat4 out =
-    {
-        r.x,  r.y,  r.z,  -t.x,
-        u.x,  u.y,  u.z,  -t.y,
-        f.x,  f.y,  f.z,  -t.z,
-        0.0f, 0.0f, 0.0f,  1.0f
-    };
-
-    return out;
-}
-
 
 
 struct GameSoundBuffer
@@ -182,6 +131,7 @@ struct GameState
     i32 tone_hz;
     i32 tone_volume;
 
+    Renderer renderer;
 };
 
 

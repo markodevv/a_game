@@ -7,6 +7,11 @@
 #include <math.h>
 #include <gl/gl.h>
 
+#define WGL_CONTEXT_MAJOR_VERSION_ARB             0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB             0x2092
+typedef HGLRC WINAPI wglCreateContextAttribsARB_type(HDC hdc, HGLRC hShareContext, const int *attribList);
+wglCreateContextAttribsARB_type *wglCreateContextAttribsARB;
+
 #define internal static 
 #define global_variable static 
 #define local_persist static
@@ -36,6 +41,9 @@ typedef size_t sizet;
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
 
 #include "opengl_renderer.cpp"
 
@@ -69,7 +77,7 @@ DEBUG_read_entire_file(char* file_name)
 {
      DebugFileResult result = {};
     
-    HANDLE file_handle = (file_name, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    HANDLE file_handle = CreateFile(file_name, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
     if(file_handle != INVALID_HANDLE_VALUE)
     {
         LARGE_INTEGER file_size;
@@ -94,18 +102,19 @@ DEBUG_read_entire_file(char* file_name)
             }
             else
             {
-                DEBUG_PRINT("File malloc failed for file %s. \n", file_name);
+                DEBUG_PRINT("File malloc failed for file %s.\n", file_name);
             }
         }
         else
         {
+            DEBUG_PRINT("Trying to open invalid file %s.\n", file_name);
         }
 
         CloseHandle(file_handle);
     }
     else
     {
-        DEBUG_PRINT("Trying to open invalid file %s. \n", file_name);
+        DEBUG_PRINT("Trying to open invalid file %s.\n", file_name);
     }
 
     return result;
@@ -424,7 +433,14 @@ win32_init_opengl(HWND window_handle)
     DescribePixelFormat(window_dc, suggest_pf_index, sizeof(suggested_pixel_format), &pixel_format);
     SetPixelFormat(window_dc, suggest_pf_index, &suggested_pixel_format);
 
+    i32 attrib_list[] =
+    {
+        WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+        WGL_CONTEXT_MINOR_VERSION_ARB, 3,
+        0,
+    };
     HGLRC opengl_rc = wglCreateContext(window_dc);
+
     if (opengl_rc)
     {
         if (wglMakeCurrent(window_dc, opengl_rc))
@@ -440,6 +456,24 @@ win32_init_opengl(HWND window_handle)
         ASSERT(false);
     }
 
+    wglCreateContextAttribsARB = 
+       (wglCreateContextAttribsARB_type*)wglGetProcAddress( "wglCreateContextAttribsARB");
+    opengl_rc = wglCreateContextAttribsARB(window_dc, 0, attrib_list);
+
+    if (opengl_rc)
+    {
+        if (wglMakeCurrent(window_dc, opengl_rc))
+        {
+        }
+        else
+        {
+            DEBUG_PRINT("Failed to set current 3.0+ OpenGL context!\n");
+        }
+    }
+    else
+    {
+        DEBUG_PRINT("Failed to create 3.0+ OpenGL context!\n");
+    }
 
 #define LOAD_GL_FUNCTION(ret, name, ...)                                                                    \
     gl##name = (name##proc *)wglGetProcAddress("gl" #name);                                \
@@ -450,8 +484,6 @@ win32_init_opengl(HWND window_handle)
 #undef LOAD_GL_FUNCTION
 
     ReleaseDC(window_handle, window_dc);
-
-    // TODO: pass memory here for opengl to allocate?
 }
 
 internal void
@@ -556,26 +588,43 @@ WinMain(HINSTANCE hinstance,
 
     GameMemory game_memory = {};
     game_memory.permanent_storage_size = MEGABYTES(64);
-    game_memory.temporary_storage_size = MEGABYTES(10);
+    game_memory.temporary_storage_size = MEGABYTES(64);
     game_memory.permanent_storage_index = 0;
 
     game_memory.is_initialized = false;
-    sizet total_size = game_memory.permanent_storage_size + game_memory.temporary_storage_size;
-    game_memory.permanent_storage = calloc(total_size, sizeof(u8));
-    game_memory.temporary_storage =
-        ((u8*)game_memory.permanent_storage +
-         game_memory.permanent_storage_size);
+    game_memory.permanent_storage = calloc(game_memory.permanent_storage_size, sizeof(u8));
+    game_memory.temporary_storage = calloc(game_memory.temporary_storage_size, sizeof(u8));
+
 
     ASSERT(game_memory.permanent_storage);
+    ASSERT(game_memory.temporary_storage);
 
     // NOTE(marko): this needs to be first memory push
-    PUSH_STRUCT(game_memory, GameState);
 
-    game_memory.renderer_init = &opengl_init;
-    game_memory.frame_end = &opengl_frame_end;
-    game_memory.draw_rectangle = &opengl_draw_rectangle;
-    game_memory.draw_cube = &opengl_draw_cube;
+    {
+        GameState* game_state = ALLOCATE(game_memory, GameState);
 
+        game_state->renderer.renderer_init = &opengl_init;
+        game_state->renderer.frame_end = &opengl_frame_end;
+        game_state->renderer.draw_rectangle = &opengl_draw_rectangle;
+        game_state->renderer.draw_cube = &opengl_draw_cube;
+        Renderer* ren = &game_state->renderer;
+
+        DebugFileResult font_file = DEBUG_read_entire_file("../consola.ttf");
+
+        ren->temp_bitmap = ALLOCATE_TEMP_ARRAY(game_memory, u8, 512*512);
+        i32 result = stbtt_BakeFontBitmap((u8*)font_file.data, 
+                             0, 32.0f, ren->temp_bitmap, 
+                             512, 512, 32, 96, 
+                             (stbtt_bakedchar*)ren->char_metrics);
+
+        if (!result)
+        {
+            DEBUG_PRINT("Failed to bake font map\n");
+        }
+
+        DEBUG_free_file_memory(font_file.data);
+    }
 #if defined(GAME_DEBUG)
     game_memory.DEBUG_print = DEBUG_print;
     game_memory.DEBUG_read_entire_file = DEBUG_read_entire_file;
@@ -597,7 +646,7 @@ WinMain(HINSTANCE hinstance,
     LARGE_INTEGER last_counter = win32_get_preformance_counter();
     f32 acumilated_delta_time = 0.0f;
 
-    i16* samples = (i16*)malloc(sound_output.buffer_size);
+    i16* samples = ALLOCATE_ARRAY(game_memory, i16, sound_output.buffer_size);
     b8 sound_is_valid = false;
     b8 sound_is_playing = false;
 
@@ -695,6 +744,9 @@ WinMain(HINSTANCE hinstance,
 
         HDC window_dc = GetDC(window_handle);
         SwapBuffers(window_dc);
+
+        // NOTE(marko): flushing temporary storage
+        //game_memory.temporary_storage_index = 0;
      }
 
     return 0;

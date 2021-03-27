@@ -56,11 +56,11 @@ game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
 extern "C" PLATFORM_API void
 game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
 {
-    GameState* game_state = (GameState*)memory;
+    GameState* game_state = (GameState*)memory->permanent_storage;
 
     if (!memory->is_initialized)
     {
-        memory->renderer_init(&memory->renderer);
+        game_state->renderer.renderer_init(&game_state->renderer);
 
         game_state->tone_hz = 256;
         game_state->tone_volume = 3000;
@@ -69,7 +69,7 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         memory->is_initialized = true;
     }
 
-    Camera* cam = &memory->renderer.camera;
+    Camera* cam = &game_state->renderer.camera;
 
     if (input->move_left.is_down)
     {
@@ -98,20 +98,22 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 extern "C" PLATFORM_API void
 game_render(GameMemory* memory)
 {
+    GameState* game_state = (GameState*)memory->permanent_storage;
+
     if (memory->is_initialized)
     {
+        Renderer* ren = &game_state->renderer;
         /*
         memory->draw_rectangle(&memory->renderer,
         {400.0f, 400.0f}, {200.0f, 300.0f}, {1.0f, 1.0f, 1.0f, 1.0f});
         memory->draw_rectangle(&memory->renderer,
         {100.0f, 400.0f}, {100.0f, 100.0f}, {1.0f, 0.0f, 0.0f, 1.0f});
-        memory->draw_rectangle(&memory->renderer,
-        {500.0f, 700.0f}, {100.0f, 400.0f}, {1.0f, 1.0f, 0.0f, 1.0f});
         */
-        memory->draw_cube(&memory->renderer,
-        {0.0f, 0.0f, 0.0f}, {100.0f, 100.0f, 100.0f}, {0.8f, 0.3f, 0.0f, 1.0f});
+        ren->draw_rectangle(ren, {100.0f, 100.0f}, {200.0f, 200.0f}, {1.0f, 1.0f, 0.0f, 1.0f});
+        ren->draw_rectangle(ren, {500.0f, 700.0f}, {100.0f, 400.0f}, {1.0f, 0.0f, 0.0f, 1.0f});
+        ren->draw_cube(ren, {0.0f, 0.0f, 0.0f}, {100.0f, 100.0f, 100.0f}, {0.8f, 0.3f, 0.0f, 1.0f});
 
-        memory->frame_end(&memory->renderer);
+        ren->frame_end(ren);
     }
 }
 

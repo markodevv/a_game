@@ -304,23 +304,24 @@ mat4_transpose(mat4 matrix)
     return out;
 }
 
-inline mat4
-mat4_orthographic(f32 w, f32 h)
-{
-    mat4 out = {
-        2/w,  0.0f, 0.0f, -1.0f, 
-        0.0f, 2/h,  0.0f, -1.0f,
-        0.0f, 0.0f, 0.1f,  0.0f,
-        0.0f, 0.0f, 0.0f,  1.0f
-    };
-
-    return out;
-}
 
 inline f32
 degrees_to_radians(f32 d) 
 {
     return (d*((f32)PI/180));
+}
+
+inline mat4
+mat4_orthographic(f32 w, f32 h, f32 n, f32 f)
+{
+    mat4 out = {
+        2/w,  0.0f, 0.0f, -1.0f, 
+        0.0f, 2/h,  0.0f, -1.0f,
+        0.0f, 0.0f, -2/(f-n), -(f+n)/(f-n),
+        0.0f, 0.0f, 0.0f,  1.0f
+    };
+
+    return out;
 }
 
 inline mat4

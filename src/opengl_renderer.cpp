@@ -2,6 +2,8 @@
 #include "math.h"
 #define GLDECL WINAPI
 
+#include "renderer.h"
+
 typedef char GLchar;
 typedef ptrdiff_t GLintptr;
 typedef ptrdiff_t GLsizeiptr;
@@ -13,6 +15,7 @@ layout (location = 0) in vec3 att_pos;
 layout (location = 1) in vec3 att_normal;
 layout (location = 2) in vec2 att_uv;
 layout (location = 3) in vec4 att_color;
+layout (location = 4) in float att_tex_id;
 
 out vec3 frag_pos;
 out vec3 normal;
@@ -68,30 +71,42 @@ void main()
 }
 )";
 
-global_variable const char* light_vertex_shader =
+global_variable const char* vertex_shader_2D =
 R"(
 #version 330 core
-layout (location = 0) in vec3 att_pos;
+layout (location = 0) in vec2 att_pos;
+layout (location = 1) in vec2 att_uv;
+layout (location = 2) in vec4 att_color;
+layout (location = 3) in float att_tex_id;
 
-uniform mat4 u_MVP;
+out vec2 uv;
+out vec4 color;
+out float tex_id;
+
+uniform mat4 u_viewproj;
 
 void main()
 {
-   gl_Position = u_MVP *  vec4(att_pos, 1.0f);
+   gl_Position = u_viewproj * vec4(att_pos, -1.0f, 1.0f);
+   uv = att_uv;
+   color = att_color;
+   tex_id = att_tex_id;
 }
 )";
 
-global_variable const char* light_fragment_shader =
+global_variable const char* fragment_shader_2D =
 R"(
 #version 330 core
 
 out vec4 frag_color;
 
-vec4 light_color = {1.0f, 1.0f, 1.0f, 1.0f};
+in vec2 uv;
+in vec4 color;
+in float tex_id;
 
 void main()
 {
-    frag_color = light_color;
+    frag_color = color;
 }
 )";
 
@@ -154,8 +169,9 @@ void main()
     LOAD_GL_FUNCTION(void,      GenVertexArrays,         GLsizei n, GLuint *arrays) \
     LOAD_GL_FUNCTION(void,      BindVertexArray,         GLuint array) \
     LOAD_GL_FUNCTION(void,      DeleteShader,            GLuint shader) \
-    LOAD_GL_FUNCTION(void,      GetProgramInfoLog,      GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog) \
+    LOAD_GL_FUNCTION(void,      GetProgramInfoLog,       GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog) \
     LOAD_GL_FUNCTION(void,      GetProgramiv,            GLuint program, GLenum pname, GLint *params) \
+    LOAD_GL_FUNCTION(void,      ActiveTexture,           GLenum texture) \
 
 
 #define LOAD_GL_FUNCTION(ret, name, ...) typedef ret GLDECL name##proc(__VA_ARGS__); extern name##proc * gl##name;
@@ -317,53 +333,71 @@ opengl_init(Renderer* ren)
 {
     glEnable(GL_DEPTH_TEST);
     ren->shader_program_3D = glCreateProgram();
-    ren->shader_program_light = glCreateProgram();
+    ren->shader_program_2D = glCreateProgram();
 
     opengl_compile_shaders(ren->shader_program_3D, vertex_shader_3D, fragment_shader_3D);
-    opengl_compile_shaders(ren->shader_program_light, light_vertex_shader, light_fragment_shader);
+    opengl_compile_shaders(ren->shader_program_2D, vertex_shader_2D, fragment_shader_2D);
 
 
     glGenVertexArrays(1, &ren->VAO);
 
     glGenBuffers(1, &ren->VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * MAX_VERTICES, NULL, GL_STATIC_DRAW);
 
     glBindVertexArray(ren->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * MAX_VERTICES, NULL, GL_STATIC_DRAW);
     // Vertex layout
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 12 * sizeof(f32), (void*)0);
-    // Enable the vertex atribute;
+    i32 stride = sizeof(f32) * 13;
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
     glEnableVertexAttribArray(0); 
 
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 12 * sizeof(f32), (void*)(3*sizeof(f32)));
-    // Enable the vertex atribute;
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
     glEnableVertexAttribArray(1); 
 
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 12 * sizeof(f32), (void*)(6*sizeof(f32)));
-    // Enable the vertex atribute;
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6*sizeof(f32)));
     glEnableVertexAttribArray(2); 
 
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 12 * sizeof(f32), (void*)(8*sizeof(f32)));
-    // Enable the vertex atribute;
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
     glEnableVertexAttribArray(3); 
 
+    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, stride, (void*)(12*sizeof(f32)));
+    glEnableVertexAttribArray(4); 
+
     glBindVertexArray(0);
 
+    // 2D 
+    ren->camera = {{0.0f, 0.0f, 200.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
 
-    glGenVertexArrays(1, &ren->light_VAO);
+    glGenVertexArrays(1, &ren->VAO_2D);
+    glGenBuffers(1, &ren->VBO_2D);
 
+    glBindVertexArray(ren->VAO_2D);
+    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData2D) * MAX_VERTICES, NULL, GL_STATIC_DRAW);
 
-    glBindVertexArray(ren->light_VAO);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
-    // Enable the vertex atribute;
+    stride = sizeof(f32) * 9;
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, (void*)0);
     glEnableVertexAttribArray(0); 
 
-    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)(2*sizeof(f32)));
+    glEnableVertexAttribArray(1); 
+
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, (void*)(4*sizeof(f32)));
+    glEnableVertexAttribArray(2); 
+
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
+    glEnableVertexAttribArray(3); 
+
+    glActiveTexture(GL_TEXTURE0);
+
+    glGenTextures(1, &ren->font_texture_id);
+    glBindTexture(GL_TEXTURE_2D, ren->font_texture_id);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512, 512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, ren->temp_bitmap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
     glBindVertexArray(0);
-
-
-    ren->camera = {{0.0f, 0.0f, 200.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
 }
 
 internal void
@@ -374,23 +408,25 @@ opengl_draw_rectangle(Renderer* ren, vec2 position, vec2 scale, vec4 color)
     f32 w = scale.x;
     f32 h = scale.y;
 
-    vec3 rectangle_vertices[] =
+    vec2 rectangle_vertices[] =
     {
-        {-0.5f*w+x, -0.5f*h+y, 0.0f},
-        {-0.5f*w+x,  0.5f*h+y, 0.0f},
-        { 0.5f*w+x,  0.5f*h+y, 0.0f},
+        {-0.5f*w+x, -0.5f*h+y},
+        {-0.5f*w+x,  0.5f*h+y},
+        { 0.5f*w+x,  0.5f*h+y},
 
-        {-0.5f*w+x, -0.5f*h+y, 0.0f},
-        { 0.5f*w+x, -0.5f*h+y, 0.0f},
-        { 0.5f*w+x,  0.5f*h+y, 0.0f},
+        {-0.5f*w+x, -0.5f*h+y},
+        { 0.5f*w+x, -0.5f*h+y},
+        { 0.5f*w+x,  0.5f*h+y},
     };
 
 
     for (sizet i = 0; i < ARRAY_COUNT(rectangle_vertices); ++i)
     {
-        ren->vertices_start[ren->vertex_index].position = rectangle_vertices[i];
-        ren->vertices_start[ren->vertex_index].color = color;
-        ren->vertex_index++;
+        ren->vertices_2D[ren->vertex_index_2D].position = rectangle_vertices[i];
+        ren->vertices_2D[ren->vertex_index_2D].color = color;
+        ren->vertices_2D[ren->vertex_index_2D].uv = {};
+        ren->vertices_2D[ren->vertex_index_2D].texture_id = -1.0f;
+        ren->vertex_index_2D++;
     }
 }
 
@@ -421,53 +457,65 @@ opengl_get_uniform_location(i32 shader, char* uniform)
 internal void
 opengl_frame_end(Renderer* ren)
 {
-    glUseProgram(ren->shader_program_3D);
-    local_persist f32 light_z = 10.0f;
-     
-    mat4 view = camera_transform(&ren->camera);
-    mat4 projection = mat4_perspective(1024.0f, 768.0f, 120.0f, 0.1f, 1000.0f);
-    //mat4 projection = mat4_orthographic(1024.0f, 768.0f);
-    mat4 model = mat4_scale({100, 100, 100.0f});
-    mat4 mvp = projection * view * model;
-    mat4 normal_transform = mat4_transpose(mat4_inverse(model));
-    light_z += 0.001f;
-    f32 z = sinf(light_z) * 200.0f;
-    vec3 light_pos = {300.0f, 200.0f, z};
-    i32 mvp_loc, light_loc, view_loc;
-    b8 do_transpose = true;
+    {
+        glUseProgram(ren->shader_program_3D);
+        local_persist f32 light_z = 10.0f;
+         
+        mat4 view = camera_transform(&ren->camera);
+        mat4 projection = mat4_perspective(1024.0f, 768.0f, 120.0f, 0.1f, 1000.0f);
+        //mat4 projection = mat4_orthographic(1024.0f, 768.0f);
+        mat4 model = mat4_scale({100, 100, 100});
+        mat4 mvp = projection * view * model;
+        mat4 normal_transform = mat4_transpose(mat4_inverse(model));
+        light_z += 0.001f;
+        f32 z = sinf(light_z) * 200.0f;
+        vec3 light_pos = {300.0f, 200.0f, z};
 
-    mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
-    glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
+        b8 do_transpose = true;
+        i32 mvp_loc, light_loc, view_loc, normal_loc;
 
-    light_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_light_pos");
-    glUniform3fv(light_loc, 1, (f32*)light_pos.data);
+        mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
+        glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
 
-    view_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_view");
-    glUniform3fv(view_loc, 1, (f32*)ren->camera.position.data);
+        light_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_light_pos");
+        glUniform3fv(light_loc, 1, (f32*)light_pos.data);
 
-    i32 model_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
-    glUniformMatrix4fv(model_loc, 1, do_transpose, (f32*)normal_transform.data);
+        view_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_view");
+        glUniform3fv(view_loc, 1, (f32*)ren->camera.position.data);
 
-    u32 size = sizeof(VertexData) * ren->vertex_index; 
+        normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
+        glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
 
-    glBindVertexArray(ren->VAO);
+        u32 size = sizeof(VertexData) * ren->vertex_index; 
 
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_start); 
-    glDrawArrays(GL_TRIANGLES, 0, ren->vertex_index);
-    ren->vertex_index = 0;
+        glBindVertexArray(ren->VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
 
+        glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_start); 
+        glDrawArrays(GL_TRIANGLES, 0, ren->vertex_index);
+        ren->vertex_index = 0;
 
-    glUseProgram(ren->shader_program_light);
+    }
+    {
+        // NOTE(marko): 2D rendering
+        glUseProgram(ren->shader_program_2D);
 
-    model = (mat4_translate(light_pos) * mat4_scale({100.0f, 100.0f, 100.0f}));
-    mvp = projection * view * model;
+        mat4 view = camera_transform(&ren->camera);
+        //mat4 projection = mat4_perspective(1024.0f, 768.0f, 120.0f, 0.1f, 1000.0f);
+        mat4 projection = mat4_orthographic(1024.0f, 768.0f, 0.1f, 1000.0f);
+        mat4 viewproj = projection;
+        b8 do_transpose = true;
 
-    mvp_loc = opengl_get_uniform_location(ren->shader_program_light, "u_MVP");
-    glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
+        i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");
+        glUniformMatrix4fv(vp_loc, 1, do_transpose, (f32*)viewproj.data);
+        
+        glBindVertexArray(ren->VAO_2D);
+        glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
+        u32 size = sizeof(VertexData2D) * ren->vertex_index_2D;
+        glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_2D); 
+        glDrawArrays(GL_TRIANGLES, 0, ren->vertex_index_2D);
+        ren->vertex_index_2D = 0;
+    }
 
-    glBindVertexArray(ren->light_VAO);
-
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(cube_vertices), cube_vertices);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
