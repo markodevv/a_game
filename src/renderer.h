@@ -1,12 +1,7 @@
 #if !defined(RENDERER_H)
 #define RENDERER_H
+#include "stb_truetype.h"
 
-// NOTE: got this from "stb_truetype.h"
-struct StbBakedChar
-{
-   unsigned short x0,y0,x1,y1; // coordinates of bbox in bitmap
-   float xoff,yoff,xadvance;
-};
 
 
 struct VertexData
@@ -20,7 +15,7 @@ struct VertexData
 
 struct VertexData2D
 {
-    vec2 position;
+    vec3 position;
     vec2 uv;
     vec4 color;
     f32 texture_id;
@@ -52,13 +47,15 @@ camera_transform(Camera* cam)
     return out;
 }
 
-struct Renderer;
-typedef void PlatformDrawRectangle(Renderer* ren, vec2 position, vec2 scale, vec4 color);
-typedef void PlatformRendererEnd(Renderer* ren);
-typedef void PlatformRendererInit(Renderer* ren);
-typedef void PlatformDrawCube(Renderer* ren, vec3 position, vec3 scale, vec4 color);
+struct LoadedBitmap
+{
+    u8* data;
+    i32 width;
+    i32 height;
+};
 
 #define MAX_VERTICES 10000
+#define NUM_ASCII 96
 struct Renderer
 {
     i32 shader_program_3D;
@@ -66,7 +63,6 @@ struct Renderer
     u32 vertex_index;
     u32 VAO;
     u32 VBO;
-    u32 light_VAO;
     Camera camera;
 
     VertexData2D vertices_2D[MAX_VERTICES];
@@ -75,15 +71,35 @@ struct Renderer
     u32 VBO_2D;
     u32 VAO_2D;
 
-    
     u32 font_texture_id;
-    StbBakedChar char_metrics[96];
-    u8* temp_bitmap;
+    f32 font_size;
+    stbtt_bakedchar char_metrics[NUM_ASCII];
 
+    LoadedBitmap font_bitmap;
+
+    i32 screen_width;
+    i32 screen_height;
+};
+
+
+typedef void PlatformDrawRectangle(Renderer* ren, vec3 position, vec2 scale, vec4 color);
+typedef void PlatformDrawText(Renderer* ren, char* text, vec3 position, vec4 color);
+typedef void PlatformRendererInit(Renderer* ren);
+typedef void PlatformRendererBegin(Renderer* ren);
+typedef void PlatformRendererEnd(Renderer* ren);
+typedef void PlatformDrawCube(Renderer* ren, vec3 position, vec3 scale, vec4 color);
+typedef void PlatformTextureTest(Renderer* ren, vec2 position, vec2 scale, vec4 color);
+
+struct RenderCommands
+{
     PlatformRendererInit* renderer_init;
-    PlatformDrawRectangle* draw_rectangle;
-    PlatformRendererEnd* frame_end;
+    PlatformRendererBegin* renderer_begin;
+    PlatformRendererEnd* renderer_end;
+
+    PlatformDrawRectangle* draw_rect;
     PlatformDrawCube* draw_cube;
+    PlatformDrawText* draw_text;
+    PlatformTextureTest* texture_test;
 };
 
 #endif

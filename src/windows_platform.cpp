@@ -37,19 +37,16 @@ typedef size_t sizet;
 
 
 #include "math.h"
+#include "renderer.h"
 #include "game.h"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
-
+#include "opengl_renderer.h"
 #include "opengl_renderer.cpp"
 
+/*
 #define LOAD_GL_FUNCTION(ret, name, ...) name##proc * gl##name;
 GL_FUNCTION_LIST
 #undef LOAD_GL_FUNCTION
+*/
 
 
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
@@ -322,7 +319,7 @@ win32_get_preformance_counter()
 #define AUDIO_SAMPLE_RATE 48000
 
 typedef void (*GameUpdate)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
-typedef void (*GameRender)(GameMemory* memory);
+typedef void (*GameRender)(GameMemory* memory, RenderCommands* render_commands);
 
 struct Win32GameCode
 {
@@ -392,7 +389,6 @@ win32_window_callback(
             i32 width = LOWORD(l_param);
             i32 height = HIWORD(l_param);
             // TODO: this should be in opengl file.
-            glViewport(0, 0, width, height);
         } break;
         case WM_DESTROY:
         {
@@ -475,13 +471,55 @@ win32_init_opengl(HWND window_handle)
         DEBUG_PRINT("Failed to create 3.0+ OpenGL context!\n");
     }
 
-#define LOAD_GL_FUNCTION(ret, name, ...)                                                                    \
-    gl##name = (name##proc *)wglGetProcAddress("gl" #name);                                \
-    if (!gl##name) {                                                                       \
-        DEBUG_PRINT("Function gl" #name " couldn't be loaded.\n"); \
-    }
-    GL_FUNCTION_LIST
-#undef LOAD_GL_FUNCTION
+    
+#define Win32LoadOpenGLFunction(name) \
+    name = (name##proc *)wglGetProcAddress(#name); \
+    if (!#name) \
+    { \
+        DEBUG_PRINT("Function " #name " couldn't be loaded.\n"); \
+    } 
+
+    Win32LoadOpenGLFunction(glAttachShader);
+    Win32LoadOpenGLFunction(glBindBuffer);
+    Win32LoadOpenGLFunction(glBindFramebuffer);
+    Win32LoadOpenGLFunction(glBufferData);
+    Win32LoadOpenGLFunction(glBufferSubData);
+    Win32LoadOpenGLFunction(glCheckFramebufferStatus);
+    Win32LoadOpenGLFunction(glClearBufferfv);
+    Win32LoadOpenGLFunction(glCompileShader);
+    Win32LoadOpenGLFunction(glCreateProgram);
+    Win32LoadOpenGLFunction(glCreateShader);
+    Win32LoadOpenGLFunction(glDeleteBuffers);
+    Win32LoadOpenGLFunction(glDeleteFramebuffers);
+    Win32LoadOpenGLFunction(glEnableVertexAttribArray);
+    Win32LoadOpenGLFunction(glDrawBuffers);
+    Win32LoadOpenGLFunction(glFramebufferTexture2D);
+    Win32LoadOpenGLFunction(glGenBuffers);
+    Win32LoadOpenGLFunction(glGenFramebuffers);
+    Win32LoadOpenGLFunction(glGetAttribLocation);
+    Win32LoadOpenGLFunction(glGetShaderInfoLog);
+    Win32LoadOpenGLFunction(glGetShaderiv);
+    Win32LoadOpenGLFunction(glGetUniformLocation);
+    Win32LoadOpenGLFunction(glLinkProgram);
+    Win32LoadOpenGLFunction(glShaderSource);
+    Win32LoadOpenGLFunction(glUniform1i);
+    Win32LoadOpenGLFunction(glUniform1f);
+    Win32LoadOpenGLFunction(glUniform2f);
+    Win32LoadOpenGLFunction(glUniform4f);
+    Win32LoadOpenGLFunction(glUniform1fv);
+    Win32LoadOpenGLFunction(glUniform2fv);
+    Win32LoadOpenGLFunction(glUniform3fv);
+    Win32LoadOpenGLFunction(glUniformMatrix4fv);
+    Win32LoadOpenGLFunction(glUseProgram);
+    Win32LoadOpenGLFunction(glVertexAttribPointer);
+    Win32LoadOpenGLFunction(glGenVertexArrays);
+    Win32LoadOpenGLFunction(glBindVertexArray);
+    Win32LoadOpenGLFunction(glDeleteShader);
+    Win32LoadOpenGLFunction(glGetProgramInfoLog);
+    Win32LoadOpenGLFunction(glGetProgramiv);
+    Win32LoadOpenGLFunction(glActiveTexture);
+
+
 
     ReleaseDC(window_handle, window_dc);
 }
@@ -590,6 +628,7 @@ WinMain(HINSTANCE hinstance,
     game_memory.permanent_storage_size = MEGABYTES(64);
     game_memory.temporary_storage_size = MEGABYTES(64);
     game_memory.permanent_storage_index = 0;
+    game_memory.temporary_storage_index = 0;
 
     game_memory.is_initialized = false;
     game_memory.permanent_storage = calloc(game_memory.permanent_storage_size, sizeof(u8));
@@ -599,32 +638,16 @@ WinMain(HINSTANCE hinstance,
     ASSERT(game_memory.permanent_storage);
     ASSERT(game_memory.temporary_storage);
 
+    game_memory.render_commands.renderer_init = &opengl_init;
+    game_memory.render_commands.renderer_begin = &opengl_begin_frame;
+    game_memory.render_commands.renderer_end = &opengl_end_frame;
+    game_memory.render_commands.draw_rect = &opengl_draw_rectangle;
+    game_memory.render_commands.draw_cube = &opengl_draw_cube;
+    game_memory.render_commands.draw_text = &opengl_draw_text;
+    game_memory.render_commands.texture_test = &opengl_texture_test;
     // NOTE(marko): this needs to be first memory push
+    ALLOCATE(game_memory, GameState);
 
-    {
-        GameState* game_state = ALLOCATE(game_memory, GameState);
-
-        game_state->renderer.renderer_init = &opengl_init;
-        game_state->renderer.frame_end = &opengl_frame_end;
-        game_state->renderer.draw_rectangle = &opengl_draw_rectangle;
-        game_state->renderer.draw_cube = &opengl_draw_cube;
-        Renderer* ren = &game_state->renderer;
-
-        DebugFileResult font_file = DEBUG_read_entire_file("../consola.ttf");
-
-        ren->temp_bitmap = ALLOCATE_TEMP_ARRAY(game_memory, u8, 512*512);
-        i32 result = stbtt_BakeFontBitmap((u8*)font_file.data, 
-                             0, 32.0f, ren->temp_bitmap, 
-                             512, 512, 32, 96, 
-                             (stbtt_bakedchar*)ren->char_metrics);
-
-        if (!result)
-        {
-            DEBUG_PRINT("Failed to bake font map\n");
-        }
-
-        DEBUG_free_file_memory(font_file.data);
-    }
 #if defined(GAME_DEBUG)
     game_memory.DEBUG_print = DEBUG_print;
     game_memory.DEBUG_read_entire_file = DEBUG_read_entire_file;
@@ -737,14 +760,19 @@ WinMain(HINSTANCE hinstance,
             acumilated_delta_time -= target_sec_per_frame;
             game_input.mouse_scroll.scrolled = false;
         }
-        glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-        game.render(&game_memory);
+        game.render(&game_memory, &game_memory.render_commands);
 
         HDC window_dc = GetDC(window_handle);
         SwapBuffers(window_dc);
 
+        RECT screen_rect;
+        GetClientRect(window_handle, &screen_rect);
+
+        i32 w = screen_rect.right - screen_rect.left;
+        i32 h = screen_rect.bottom - screen_rect.top;
+        game_memory.screen_width = w;
+        game_memory.screen_height = h;
         // NOTE(marko): flushing temporary storage
         //game_memory.temporary_storage_index = 0;
      }

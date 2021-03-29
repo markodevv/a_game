@@ -6,6 +6,8 @@
 struct vec2
 {
     f32 x, y;
+
+    vec2 operator/(f32 a);
 };
 
 struct vec3 
@@ -23,6 +25,7 @@ struct vec3
     vec3 operator+(vec3& other);
     vec3 operator-(vec3& other);
     vec3 operator*(vec3& other);
+    vec3 operator/(f32 a);
 };
 
 struct vec4
@@ -54,6 +57,12 @@ struct mat4
     vec4 operator*(vec4& other);
 };
 
+inline vec2
+vec2::operator/(f32 a)
+{
+    return {x/a, y/a};
+}
+
 inline vec3
 vec3::operator+(vec3& other)
 {
@@ -78,6 +87,12 @@ inline f32
     return data[i];
 }
 
+inline vec3
+vec3::operator/(f32 a)
+{
+    return {x/a, y/a, z/a};
+}
+
 inline f32
 vec3_length(vec3 v)
 {
@@ -94,6 +109,12 @@ vec3_normalized(vec3 v)
     v.z = v.z / len;
 
     return v;
+}
+
+inline vec3
+to_vec3(vec2 v)
+{
+    return {v.x, v.y, 0.0f};
 }
 
 inline vec3
@@ -312,12 +333,12 @@ degrees_to_radians(f32 d)
 }
 
 inline mat4
-mat4_orthographic(f32 w, f32 h, f32 n, f32 f)
+mat4_orthographic(f32 w, f32 h)
 {
     mat4 out = {
         2/w,  0.0f, 0.0f, -1.0f, 
         0.0f, 2/h,  0.0f, -1.0f,
-        0.0f, 0.0f, -2/(f-n), -(f+n)/(f-n),
+        0.0f, 0.0f, 1.0f, 0.0f,
         0.0f, 0.0f, 0.0f,  1.0f
     };
 

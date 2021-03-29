@@ -6,7 +6,6 @@
    $Notice: (C) Copyright 2021. All Rights Reserved. $
    ======================================================================== */
 
-#include "renderer.h"
 
 #ifdef GAME_DEBUG
 #include <stdio.h>
@@ -114,7 +113,10 @@ struct GameMemory
     DebugReadEntireFileFunc* DEBUG_read_entire_file;
     DebugFreeEntireFileFunc* DEBUG_free_file_memory;
     DebugWriteEntireFileFunc* DEBUG_write_entire_file;
-    
+
+    i32 screen_width;
+    i32 screen_height;
+    RenderCommands render_commands;
 };
 
 
@@ -147,6 +149,7 @@ internal DebugFileResult DEBUG_read_entire_file(char* path);
 internal void DEBUG_free_file_memory(void* memory);
 internal b8 DEBUG_write_entire_file(char* file_name, i32 size, void* memory);
 internal void DEBUG_print(char* text);
+
 
 #endif
 

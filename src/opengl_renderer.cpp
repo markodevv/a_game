@@ -1,12 +1,8 @@
 
 #include "math.h"
-#define GLDECL WINAPI
 
-#include "renderer.h"
+#include "stb_truetype.h"
 
-typedef char GLchar;
-typedef ptrdiff_t GLintptr;
-typedef ptrdiff_t GLsizeiptr;
 
 global_variable const char* vertex_shader_3D =
 R"(
@@ -74,7 +70,7 @@ void main()
 global_variable const char* vertex_shader_2D =
 R"(
 #version 330 core
-layout (location = 0) in vec2 att_pos;
+layout (location = 0) in vec3 att_pos;
 layout (location = 1) in vec2 att_uv;
 layout (location = 2) in vec4 att_color;
 layout (location = 3) in float att_tex_id;
@@ -87,7 +83,7 @@ uniform mat4 u_viewproj;
 
 void main()
 {
-   gl_Position = u_viewproj * vec4(att_pos, -1.0f, 1.0f);
+   gl_Position = u_viewproj * vec4(att_pos, 1.0f);
    uv = att_uv;
    color = att_color;
    tex_id = att_tex_id;
@@ -100,83 +96,31 @@ R"(
 
 out vec4 frag_color;
 
+uniform sampler2D u_textures[2];
+
 in vec2 uv;
 in vec4 color;
 in float tex_id;
 
 void main()
 {
-    frag_color = color;
+    if (tex_id == 1)
+    {
+        float alpha = texture(u_textures[0], uv).r;
+		frag_color = vec4(1.0f, 1.0f, 1.0f, alpha);
+    }
+    else if (tex_id == 2)
+    {
+		frag_color = texture(u_textures[1], uv);
+    }
+    else
+    {
+        frag_color = color;
+    }
 }
+
 )";
 
-#define GL_ARRAY_BUFFER                   0x8892 // Acquired from:
-#define GL_ARRAY_BUFFER_BINDING           0x8894 // https://www.opengl.org/registry/api/GL/glext.h
-#define GL_COLOR_ATTACHMENT0              0x8CE0
-#define GL_COMPILE_STATUS                 0x8B81
-#define GL_CURRENT_PROGRAM                0x8B8D
-#define GL_DYNAMIC_DRAW                   0x88E8
-#define GL_ELEMENT_ARRAY_BUFFER           0x8893
-#define GL_ELEMENT_ARRAY_BUFFER_BINDING   0x8895
-#define GL_LINK_STATUS                    0x8B82
-#define GL_FRAGMENT_SHADER                0x8B30
-#define GL_FRAMEBUFFER                    0x8D40
-#define GL_FRAMEBUFFER_COMPLETE           0x8CD5
-#define GL_FUNC_ADD                       0x8006
-#define GL_INVALID_FRAMEBUFFER_OPERATION  0x0506
-#define GL_MAJOR_VERSION                  0x821B
-#define GL_MINOR_VERSION                  0x821C
-#define GL_STATIC_DRAW                    0x88E4
-#define GL_STREAM_DRAW                    0x88E0
-#define GL_TEXTURE0                       0x84C0
-#define GL_VERTEX_SHADER                  0x8B31
-
-#define GL_FUNCTION_LIST \
-    LOAD_GL_FUNCTION(void,      AttachShader,            GLuint program, GLuint shader) \
-    LOAD_GL_FUNCTION(void,      BindBuffer,              GLenum target, GLuint buffer) \
-    LOAD_GL_FUNCTION(void,      BindFramebuffer,         GLenum target, GLuint framebuffer) \
-    LOAD_GL_FUNCTION(void,      BufferData,              GLenum target, GLsizeiptr size, const GLvoid *data, GLenum usage) \
-    LOAD_GL_FUNCTION(void,      BufferSubData,           GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid * data) \
-    LOAD_GL_FUNCTION(GLenum,    CheckFramebufferStatus,  GLenum target) \
-    LOAD_GL_FUNCTION(void,      ClearBufferfv,           GLenum buffer, GLint drawbuffer, const GLfloat * value) \
-    LOAD_GL_FUNCTION(void,      CompileShader,           GLuint shader) \
-    LOAD_GL_FUNCTION(GLuint,    CreateProgram,           void) \
-    LOAD_GL_FUNCTION(GLuint,    CreateShader,            GLenum type) \
-    LOAD_GL_FUNCTION(void,      DeleteBuffers,           GLsizei n, const GLuint *buffers) \
-    LOAD_GL_FUNCTION(void,      DeleteFramebuffers,      GLsizei n, const GLuint *framebuffers) \
-    LOAD_GL_FUNCTION(void,      EnableVertexAttribArray, GLuint index) \
-    LOAD_GL_FUNCTION(void,      DrawBuffers,             GLsizei n, const GLenum *bufs) \
-    LOAD_GL_FUNCTION(void,      FramebufferTexture2D,    GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level) \
-    LOAD_GL_FUNCTION(void,      GenBuffers,              GLsizei n, GLuint *buffers) \
-    LOAD_GL_FUNCTION(void,      GenFramebuffers,         GLsizei n, GLuint * framebuffers) \
-    LOAD_GL_FUNCTION(GLint,     GetAttribLocation,       GLuint program, const GLchar *name) \
-    LOAD_GL_FUNCTION(void,      GetShaderInfoLog,        GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog) \
-    LOAD_GL_FUNCTION(void,      GetShaderiv,             GLuint shader, GLenum pname, GLint *params) \
-    LOAD_GL_FUNCTION(GLint,     GetUniformLocation,      GLuint program, const GLchar *name) \
-    LOAD_GL_FUNCTION(void,      LinkProgram,             GLuint program) \
-    LOAD_GL_FUNCTION(void,      ShaderSource,            GLuint shader, GLsizei count, const GLchar* const *string, const GLint *length) \
-    LOAD_GL_FUNCTION(void,      Uniform1i,               GLint location, GLint v0) \
-    LOAD_GL_FUNCTION(void,      Uniform1f,               GLint location, GLfloat v0) \
-    LOAD_GL_FUNCTION(void,      Uniform2f,               GLint location, GLfloat v0, GLfloat v1) \
-    LOAD_GL_FUNCTION(void,      Uniform4f,               GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3) \
-    LOAD_GL_FUNCTION(void,      Uniform1fv,              GLint location, GLsizei size, const GLfloat* value) \
-    LOAD_GL_FUNCTION(void,      Uniform2fv,              GLint location, GLsizei size, const GLfloat* value) \
-    LOAD_GL_FUNCTION(void,      Uniform3fv,              GLint location, GLsizei size, const GLfloat* value) \
-    LOAD_GL_FUNCTION(void,      Uniform4fv,              GLint location, GLsizei size, const GLfloat* value) \
-    LOAD_GL_FUNCTION(void,      UniformMatrix4fv,        GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) \
-    LOAD_GL_FUNCTION(void,      UseProgram,              GLuint program) \
-    LOAD_GL_FUNCTION(void,      VertexAttribPointer,     GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid * pointer) \
-    LOAD_GL_FUNCTION(void,      GenVertexArrays,         GLsizei n, GLuint *arrays) \
-    LOAD_GL_FUNCTION(void,      BindVertexArray,         GLuint array) \
-    LOAD_GL_FUNCTION(void,      DeleteShader,            GLuint shader) \
-    LOAD_GL_FUNCTION(void,      GetProgramInfoLog,       GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog) \
-    LOAD_GL_FUNCTION(void,      GetProgramiv,            GLuint program, GLenum pname, GLint *params) \
-    LOAD_GL_FUNCTION(void,      ActiveTexture,           GLenum texture) \
-
-
-#define LOAD_GL_FUNCTION(ret, name, ...) typedef ret GLDECL name##proc(__VA_ARGS__); extern name##proc * gl##name;
-GL_FUNCTION_LIST
-#undef LOAD_GL_FUNCTION
 
 global_variable vec3 cube_vertices[] = {
    {-0.5f, -0.5f, -0.5f}, 
@@ -327,6 +271,17 @@ opengl_compile_shaders(i32 shader_program, const char* vertex_shader, const char
     free(info_log);
 }
 
+internal inline i32
+opengl_get_uniform_location(i32 shader, char* uniform)
+{
+    i32 loc = glGetUniformLocation(shader, uniform);
+    if (loc == -1)
+    {
+        DEBUG_PRINT("Failed to get uniform location: %s\n", uniform);
+    }
+    return loc;
+
+}
 
 internal void
 opengl_init(Renderer* ren)
@@ -339,6 +294,7 @@ opengl_init(Renderer* ren)
     opengl_compile_shaders(ren->shader_program_2D, vertex_shader_2D, fragment_shader_2D);
 
 
+    glUseProgram(ren->shader_program_3D);
     glGenVertexArrays(1, &ren->VAO);
 
     glGenBuffers(1, &ren->VBO);
@@ -376,53 +332,64 @@ opengl_init(Renderer* ren)
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
     glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData2D) * MAX_VERTICES, NULL, GL_STATIC_DRAW);
 
-    stride = sizeof(f32) * 9;
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, (void*)0);
+    stride = sizeof(f32) * 10;
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
     glEnableVertexAttribArray(0); 
 
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)(2*sizeof(f32)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
     glEnableVertexAttribArray(1); 
 
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, (void*)(4*sizeof(f32)));
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, (void*)(5*sizeof(f32)));
     glEnableVertexAttribArray(2); 
 
-    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(9*sizeof(f32)));
     glEnableVertexAttribArray(3); 
 
-    glActiveTexture(GL_TEXTURE0);
 
+    glUseProgram(ren->shader_program_2D);
+    glActiveTexture(GL_TEXTURE0);
     glGenTextures(1, &ren->font_texture_id);
     glBindTexture(GL_TEXTURE_2D, ren->font_texture_id);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512, 512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, ren->temp_bitmap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, 512, 512, 0, GL_RED, GL_UNSIGNED_BYTE, ren->font_bitmap.data);
+
+
+    i32 font_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_textures[0]");
+    glUniform1i(font_loc, 0);
 
     glBindVertexArray(0);
+
+    glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 internal void
-opengl_draw_rectangle(Renderer* ren, vec2 position, vec2 scale, vec4 color)
+opengl_draw_rectangle(Renderer* ren, vec3 position, vec2 scale, vec4 color)
 {
-    f32 x = position.x;
-    f32 y = position.y;
-    f32 w = scale.x;
-    f32 h = scale.y;
 
-    vec2 rectangle_vertices[] =
+    vec3 rectangle_vertices[] =
     {
-        {-0.5f*w+x, -0.5f*h+y},
-        {-0.5f*w+x,  0.5f*h+y},
-        { 0.5f*w+x,  0.5f*h+y},
+        {-0.5f, -0.5f, 0.0f},
+        {-0.5f,  0.5f, 0.0f},
+        { 0.5f,  0.5f, 0.0f},
 
-        {-0.5f*w+x, -0.5f*h+y},
-        { 0.5f*w+x, -0.5f*h+y},
-        { 0.5f*w+x,  0.5f*h+y},
+        {-0.5f, -0.5f, 0.0f},
+        { 0.5f, -0.5f, 0.0f},
+        { 0.5f,  0.5f, 0.0f},
     };
+    vec3 scal = to_vec3(scale);
+    position = position + (scal/2);
 
 
     for (sizet i = 0; i < ARRAY_COUNT(rectangle_vertices); ++i)
     {
-        ren->vertices_2D[ren->vertex_index_2D].position = rectangle_vertices[i];
+        ren->vertices_2D[ren->vertex_index_2D].position =      
+                                 rectangle_vertices[i] * scal + position;
         ren->vertices_2D[ren->vertex_index_2D].color = color;
         ren->vertices_2D[ren->vertex_index_2D].uv = {};
         ren->vertices_2D[ren->vertex_index_2D].texture_id = -1.0f;
@@ -442,80 +409,185 @@ opengl_draw_cube(Renderer* ren, vec3 position, vec3 scale, vec4 color)
     }
 }
 
-internal inline i32
-opengl_get_uniform_location(i32 shader, char* uniform)
+
+
+internal void
+opengl_texture_test(Renderer* ren, vec2 position, vec2 scale, vec4 color)
 {
-    i32 loc = glGetUniformLocation(shader, uniform);
-    if (loc == -1)
+    /*
+    f32 x = position.x;
+    f32 y = position.y;
+    f32 w = scale.x;
+    f32 h = scale.y;
+
+    vec2 rectangle_vertices[] =
     {
-        DEBUG_PRINT("Failed to get uniform location: %s\n", uniform);
+        {-0.5f*w+x, -0.5f*h+y},
+        {-0.5f*w+x,  0.5f*h+y},
+        { 0.5f*w+x,  0.5f*h+y},
+
+        {-0.5f*w+x, -0.5f*h+y},
+        { 0.5f*w+x, -0.5f*h+y},
+        { 0.5f*w+x,  0.5f*h+y},
+    };
+    vec2 uv_coords[] =
+    {
+        {0.0f, 1.0f},
+        {0.0f, 0.0f},
+        {1.0f, 0.0f},
+        {0.0f, 1.0f},
+        {1.0f, 1.0f},
+        {1.0f, 0.0f},
+    };
+    for (sizet i = 0; i < ARRAY_COUNT(rectangle_vertices); ++i)
+    {
+        ren->vertices_2D[ren->vertex_index_2D].position = rectangle_vertices[i];
+        ren->vertices_2D[ren->vertex_index_2D].uv = uv_coords[i];
+        ren->vertices_2D[ren->vertex_index_2D].color = color;
+        ren->vertices_2D[ren->vertex_index_2D].texture_id = -1;
+        ren->vertex_index_2D++;
     }
-    return loc;
+    */
+}
+
+internal void
+opengl_draw_text(Renderer* ren, char* text, vec3 position, vec4 color)
+{
+    f32 z = position.z;
+    while(*text)
+    {
+        if (*text >= 32 && *text <= 128)
+        {
+            #define IFLOOR(x) ((int) floor(x))
+            stbtt_aligned_quad q;
+            i32 index = *text-32;
+            stbtt_bakedchar* b = ren->char_metrics + index;
+
+            float d3d_bias = 0.0f;
+            f32 ipw = 1.0f / ren->font_bitmap.width;
+            f32 iph = 1.0f / ren->font_bitmap.height;
+            i32 round_x = IFLOOR((position.x + b->xoff) + 0.5f);
+            i32 round_y = IFLOOR((position.y - b->yoff) + 0.5f);
+
+            q.x0 = round_x + d3d_bias;
+            q.y1 = round_y + d3d_bias;
+            q.x1 = round_x + b->x1 - b->x0 + d3d_bias;
+            q.y0 = round_y - b->y1 + b->y0 + d3d_bias;
+            q.s0 = b->x0 * ipw;
+            q.t0 = b->y0 * iph;
+            q.s1 = b->x1 * ipw;
+            q.t1 = b->y1 * iph;
+
+            position.x += b->xadvance;
+
+            vec3 rectangle_vertices[] =
+            {
+                {q.x0, q.y0, z},
+                {q.x0, q.y1, z},
+                {q.x1, q.y1, z},
+                {q.x0, q.y0, z},
+                {q.x1, q.y1, z},
+                {q.x1, q.y0, z},
+            };
+
+            vec2 uv_coords[] =
+            {
+                {q.s0, q.t1},
+                {q.s0, q.t0},
+                {q.s1, q.t0},
+                {q.s0, q.t1},
+                {q.s1, q.t0},
+                {q.s1, q.t1},
+            };
+
+            for (sizet i = 0; i < ARRAY_COUNT(rectangle_vertices); ++i)
+            {
+                ren->vertices_2D[ren->vertex_index_2D].position = rectangle_vertices[i];
+                ren->vertices_2D[ren->vertex_index_2D].uv = uv_coords[i];
+                ren->vertices_2D[ren->vertex_index_2D].color = color;
+                ren->vertices_2D[ren->vertex_index_2D].texture_id = (f32)ren->font_texture_id;
+                ren->vertex_index_2D++;
+            }
+        }
+        text++;
+    }
+}
+
+internal void
+opengl_begin_frame(Renderer* ren)
+{
+    glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+    local_persist i32 w, h;
+    if (w != ren->screen_width || h != ren->screen_height)
+    {
+        w = ren->screen_width;
+        h = ren->screen_height;
+        glViewport(0, 0, w, h);
+    }
 
 }
 
 internal void
-opengl_frame_end(Renderer* ren)
+opengl_end_frame(Renderer* ren)
 {
-    {
-        glUseProgram(ren->shader_program_3D);
-        local_persist f32 light_z = 10.0f;
-         
-        mat4 view = camera_transform(&ren->camera);
-        mat4 projection = mat4_perspective(1024.0f, 768.0f, 120.0f, 0.1f, 1000.0f);
-        //mat4 projection = mat4_orthographic(1024.0f, 768.0f);
-        mat4 model = mat4_scale({100, 100, 100});
-        mat4 mvp = projection * view * model;
-        mat4 normal_transform = mat4_transpose(mat4_inverse(model));
-        light_z += 0.001f;
-        f32 z = sinf(light_z) * 200.0f;
-        vec3 light_pos = {300.0f, 200.0f, z};
+    // NOTE(marko): 3D renderer
+    glUseProgram(ren->shader_program_3D);
 
-        b8 do_transpose = true;
-        i32 mvp_loc, light_loc, view_loc, normal_loc;
+    mat4 view = camera_transform(&ren->camera);
+    mat4 projection = mat4_perspective(1024.0f, 768.0f, 120.0f, 0.1f, 1000.0f);
+    //mat4 projection = mat4_orthographic(1024.0f, 768.0f);
+    mat4 model = mat4_scale({100, 100, 100});
+    mat4 mvp = projection * view * model;
+    mat4 normal_transform = mat4_transpose(mat4_inverse(model));
 
-        mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
-        glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
+    local_persist f32 light_z = 10.0f;
+    light_z += 0.001f;
+    f32 z = sinf(light_z) * 200.0f;
+    vec3 light_pos = {300.0f, 200.0f, z};
 
-        light_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_light_pos");
-        glUniform3fv(light_loc, 1, (f32*)light_pos.data);
+    b8 do_transpose = true;
+    i32 mvp_loc, light_loc, view_loc, normal_loc;
 
-        view_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_view");
-        glUniform3fv(view_loc, 1, (f32*)ren->camera.position.data);
+    mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
+    glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
 
-        normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
-        glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
+    light_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_light_pos");
+    glUniform3fv(light_loc, 1, (f32*)light_pos.data);
 
-        u32 size = sizeof(VertexData) * ren->vertex_index; 
+    view_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_view");
+    glUniform3fv(view_loc, 1, (f32*)ren->camera.position.data);
 
-        glBindVertexArray(ren->VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
+    normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
+    glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
 
-        glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_start); 
-        glDrawArrays(GL_TRIANGLES, 0, ren->vertex_index);
-        ren->vertex_index = 0;
 
-    }
-    {
-        // NOTE(marko): 2D rendering
-        glUseProgram(ren->shader_program_2D);
+    u32 size = sizeof(VertexData) * ren->vertex_index; 
 
-        mat4 view = camera_transform(&ren->camera);
-        //mat4 projection = mat4_perspective(1024.0f, 768.0f, 120.0f, 0.1f, 1000.0f);
-        mat4 projection = mat4_orthographic(1024.0f, 768.0f, 0.1f, 1000.0f);
-        mat4 viewproj = projection;
-        b8 do_transpose = true;
+    glBindVertexArray(ren->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
 
-        i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");
-        glUniformMatrix4fv(vp_loc, 1, do_transpose, (f32*)viewproj.data);
-        
-        glBindVertexArray(ren->VAO_2D);
-        glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
-        u32 size = sizeof(VertexData2D) * ren->vertex_index_2D;
-        glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_2D); 
-        glDrawArrays(GL_TRIANGLES, 0, ren->vertex_index_2D);
-        ren->vertex_index_2D = 0;
-    }
+    glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_start); 
+    glDrawArrays(GL_TRIANGLES, 0, ren->vertex_index);
+    ren->vertex_index = 0;
+
+    // NOTE(marko): 2D renderer
+    glUseProgram(ren->shader_program_2D);
+
+    view = camera_transform(&ren->camera);
+    projection = mat4_orthographic(1024.0f, 768.0f);
+    mat4 viewproj = projection;
+
+    i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");
+    glUniformMatrix4fv(vp_loc, 1, do_transpose, (f32*)viewproj.data);
+    size = sizeof(VertexData2D) * ren->vertex_index_2D;
+
+    glBindVertexArray(ren->VAO_2D);
+    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_2D); 
+    glDrawArrays(GL_TRIANGLES, 0, ren->vertex_index_2D);
+    ren->vertex_index_2D = 0;
 
 }
 
