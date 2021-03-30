@@ -107,7 +107,7 @@ void main()
     if (tex_id == 1)
     {
         float alpha = texture(u_textures[0], uv).r;
-		frag_color = vec4(1.0f, 1.0f, 1.0f, alpha);
+		frag_color = color * vec4(1.0f, 1.0f, 1.0f, alpha);
     }
     else if (tex_id == 2)
     {
@@ -262,7 +262,7 @@ opengl_compile_shaders(i32 shader_program, const char* vertex_shader, const char
     }
     else
     {
-        DEBUG_PRINT("Successfuly linked shader program\n");
+        SUCCESS_PRINT();
     }
 
 
@@ -286,7 +286,6 @@ opengl_get_uniform_location(i32 shader, char* uniform)
 internal void
 opengl_init(Renderer* ren)
 {
-    glEnable(GL_DEPTH_TEST);
     ren->shader_program_3D = glCreateProgram();
     ren->shader_program_2D = glCreateProgram();
 
@@ -453,6 +452,7 @@ opengl_texture_test(Renderer* ren, vec2 position, vec2 scale, vec4 color)
 internal void
 opengl_draw_text(Renderer* ren, char* text, vec3 position, vec4 color)
 {
+
     f32 z = position.z;
     while(*text)
     {
@@ -536,14 +536,14 @@ opengl_end_frame(Renderer* ren)
     glUseProgram(ren->shader_program_3D);
 
     mat4 view = camera_transform(&ren->camera);
-    mat4 projection = mat4_perspective(1024.0f, 768.0f, 120.0f, 0.1f, 1000.0f);
+    mat4 projection = mat4_perspective((f32)ren->screen_width, (f32)ren->screen_height, 120.0f, 0.1f, 1000.0f);
     //mat4 projection = mat4_orthographic(1024.0f, 768.0f);
     mat4 model = mat4_scale({100, 100, 100});
     mat4 mvp = projection * view * model;
     mat4 normal_transform = mat4_transpose(mat4_inverse(model));
 
-    local_persist f32 light_z = 10.0f;
-    light_z += 0.001f;
+    local_persist f32 light_z = 0.0f;
+    light_z += ren->light_speed;
     f32 z = sinf(light_z) * 200.0f;
     vec3 light_pos = {300.0f, 200.0f, z};
 
@@ -576,7 +576,7 @@ opengl_end_frame(Renderer* ren)
     glUseProgram(ren->shader_program_2D);
 
     view = camera_transform(&ren->camera);
-    projection = mat4_orthographic(1024.0f, 768.0f);
+    projection = mat4_orthographic((f32)ren->screen_width, (f32)ren->screen_height);
     mat4 viewproj = projection;
 
     i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");
@@ -585,6 +585,7 @@ opengl_end_frame(Renderer* ren)
 
     glBindVertexArray(ren->VAO_2D);
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
+
     glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_2D); 
     glDrawArrays(GL_TRIANGLES, 0, ren->vertex_index_2D);
     ren->vertex_index_2D = 0;

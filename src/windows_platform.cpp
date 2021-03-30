@@ -2,10 +2,14 @@
 #include <assert.h>
 #include <stdio.h>
 #include <windows.h>
+#include <windowsx.h>
 #include <wingdi.h>
 #include <dsound.h>
 #include <math.h>
 #include <gl/gl.h>
+#include <stdio.h>
+#include <io.h>
+#include <fcntl.h>
 
 #define WGL_CONTEXT_MAJOR_VERSION_ARB             0x2091
 #define WGL_CONTEXT_MINOR_VERSION_ARB             0x2092
@@ -42,11 +46,6 @@ typedef size_t sizet;
 #include "opengl_renderer.h"
 #include "opengl_renderer.cpp"
 
-/*
-#define LOAD_GL_FUNCTION(ret, name, ...) name##proc * gl##name;
-GL_FUNCTION_LIST
-#undef LOAD_GL_FUNCTION
-*/
 
 
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
@@ -60,12 +59,6 @@ safe_truncate_u64(u64 value)
     ASSERT(value <= 0xFFFFFFFF);
     u32 result = (u32)value;
     return result;
-}
-
-internal void
-DEBUG_print(char* text)
-{
-    OutputDebugString(text);
 }
 
 
@@ -319,7 +312,7 @@ win32_get_preformance_counter()
 #define AUDIO_SAMPLE_RATE 48000
 
 typedef void (*GameUpdate)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
-typedef void (*GameRender)(GameMemory* memory, RenderCommands* render_commands);
+typedef void (*GameRender)(GameMemory* memory, RenderCommands* render_commands, GameInput* input);
 
 struct Win32GameCode
 {
@@ -478,6 +471,8 @@ win32_init_opengl(HWND window_handle)
     { \
         DEBUG_PRINT("Function " #name " couldn't be loaded.\n"); \
     } 
+    // NOTE: Vsync
+    ((BOOL(WINAPI*)(int))wglGetProcAddress("wglSwapIntervalEXT"))(1);
 
     Win32LoadOpenGLFunction(glAttachShader);
     Win32LoadOpenGLFunction(glBindBuffer);
@@ -519,7 +514,7 @@ win32_init_opengl(HWND window_handle)
     Win32LoadOpenGLFunction(glGetProgramiv);
     Win32LoadOpenGLFunction(glActiveTexture);
 
-
+    
 
     ReleaseDC(window_handle, window_dc);
 }
@@ -568,9 +563,36 @@ win32_process_input_messages(GameInput* game_input)
             case WM_MOUSEWHEEL:
             {
                 i32 wheel_delta = GET_WHEEL_DELTA_WPARAM(message.wParam);
+                game_input->mouse.wheel_delta = wheel_delta;
+            } break;
+            case WM_MOUSEMOVE:
+            {
+                /*
+                game_input->mouse.position.x = (f32)GET_X_LPARAM(message.lParam); 
+                game_input->mouse.position.y = (f32)GET_Y_LPARAM(message.lParam); 
+                */
 
-                game_input->mouse_scroll.wheel_delta = wheel_delta;
-                game_input->mouse_scroll.scrolled = true;;
+                game_input->mouse.moved = true;
+                if ((message.wParam & MK_LBUTTON) == MK_LBUTTON)
+                {
+                    game_input->mouse.right_button.is_down = true;
+                }
+            } break;
+            case WM_LBUTTONDOWN:
+            {
+                game_input->mouse.left_button.is_down = true;
+            } break;
+            case WM_RBUTTONDOWN:
+            {
+                game_input->mouse.right_button.is_down = true;
+            } break;
+            case WM_LBUTTONUP:
+            {
+                game_input->mouse.left_button.is_down = false;
+            } break;
+            case WM_RBUTTONUP:
+            {
+                game_input->mouse.right_button.is_down = false;
             } break;
             default:
             {
@@ -582,12 +604,29 @@ win32_process_input_messages(GameInput* game_input)
 
 }
 
+
 i32
 WinMain(HINSTANCE hinstance,
             HINSTANCE prev_hinstance,
             LPSTR cmd_line,
             i32 show_code)
 {
+    AllocConsole();
+
+    HANDLE handle_out = GetStdHandle(STD_OUTPUT_HANDLE);
+    int hCrt = _open_osfhandle((long)handle_out, _O_TEXT);
+    FILE* hf_out = _fdopen(hCrt, "w");
+    setvbuf(hf_out, NULL, _IONBF, 1);
+    *stdout = *hf_out;
+
+    HANDLE handle_in = GetStdHandle(STD_INPUT_HANDLE);
+    hCrt = _open_osfhandle((long) handle_in, _O_TEXT);
+    FILE* hf_in = _fdopen(hCrt, "r");
+    setvbuf(hf_in, NULL, _IONBF, 128);
+    *stdin = *hf_in;
+    freopen("CONOUT$", "w+", stdout);
+
+
     WNDCLASS window_class = {};
     window_class.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
     window_class.lpfnWndProc = win32_window_callback;
@@ -617,6 +656,8 @@ WinMain(HINSTANCE hinstance,
         ASSERT(false);
     }
 
+    printf("HEllo to console :)\n");
+
     Win32GameCode game = win32_load_game_code();
 
     QueryPerformanceFrequency(&global_pref_count_freq);
@@ -627,8 +668,6 @@ WinMain(HINSTANCE hinstance,
     GameMemory game_memory = {};
     game_memory.permanent_storage_size = MEGABYTES(64);
     game_memory.temporary_storage_size = MEGABYTES(64);
-    game_memory.permanent_storage_index = 0;
-    game_memory.temporary_storage_index = 0;
 
     game_memory.is_initialized = false;
     game_memory.permanent_storage = calloc(game_memory.permanent_storage_size, sizeof(u8));
@@ -645,11 +684,8 @@ WinMain(HINSTANCE hinstance,
     game_memory.render_commands.draw_cube = &opengl_draw_cube;
     game_memory.render_commands.draw_text = &opengl_draw_text;
     game_memory.render_commands.texture_test = &opengl_texture_test;
-    // NOTE(marko): this needs to be first memory push
-    ALLOCATE(game_memory, GameState);
 
 #if defined(GAME_DEBUG)
-    game_memory.DEBUG_print = DEBUG_print;
     game_memory.DEBUG_read_entire_file = DEBUG_read_entire_file;
     game_memory.DEBUG_write_entire_file = DEBUG_write_entire_file;
     game_memory.DEBUG_free_file_memory = DEBUG_free_file_memory;
@@ -667,9 +703,8 @@ WinMain(HINSTANCE hinstance,
 
     
     LARGE_INTEGER last_counter = win32_get_preformance_counter();
-    f32 acumilated_delta_time = 0.0f;
 
-    i16* samples = ALLOCATE_ARRAY(game_memory, i16, sound_output.buffer_size);
+    i16* samples = (i16*)calloc(sound_output.buffer_size, sizeof(i16));
     b8 sound_is_valid = false;
     b8 sound_is_playing = false;
 
@@ -678,103 +713,109 @@ WinMain(HINSTANCE hinstance,
     b8 running = true;
     while(running)
     {
-        DWORD bytes_to_write = 0;
 
         win32_process_input_messages(&game_input);
+
+        POINT p; 
+        GetCursorPos(&p);
+        ScreenToClient(window_handle, &p);
+        game_input.mouse.position.x = (f32)p.x;
+        game_input.mouse.position.y = (f32)p.y;
 
 
         LARGE_INTEGER end_count = win32_get_preformance_counter();
         f32 delta_time = win32_get_elapsed_seconds(last_counter, end_count);
         last_counter = win32_get_preformance_counter();
-        acumilated_delta_time += delta_time;
 
-
-        while (acumilated_delta_time >= target_sec_per_frame)
+        if (game_memory.is_initialized)
         {
-            i32 game_dll_write_time = win32_get_last_write_time("game.dll");
-            if (last_game_dll_write_time != game_dll_write_time)
-            {
-                win32_unload_game_code(&game);
-                game = win32_load_game_code();
-                last_game_dll_write_time = game_dll_write_time;
-            }
-
-#if 0
-            DWORD play_cursor;
-            DWORD write_cursor;
-            DWORD byte_offset;
-            DWORD target_cursor;
-            if (global_sound_buffer->GetCurrentPosition(&play_cursor, &write_cursor) == DS_OK)
-            {
-                byte_offset = (sound_output.running_sample_count * sound_output.bytes_per_sample) %
-                              sound_output.buffer_size;
-                target_cursor = ((play_cursor + 
-                                 (sound_output.latency_sample_count * sound_output.bytes_per_sample)) %
-                                 sound_output.buffer_size);
-
-
-                if (byte_offset > target_cursor)
-                {
-                    bytes_to_write = (sound_output.buffer_size - byte_offset);
-                    bytes_to_write += target_cursor;
-                }
-                else 
-                {
-                    bytes_to_write = target_cursor - byte_offset;
-                }
-
-                sound_is_valid = true;
-            }
-            else
-            {
-                // TODO: logging
-                sound_is_valid = false;
-                DEBUG_PRINT("Could not get sound buffer cursor position! \n");
-            }
-
-            GameSoundBuffer sound_buffer = {};
-            sound_buffer.samples_per_sec = sound_output.samples_per_sec;
-            sound_buffer.sample_count = bytes_to_write / sound_output.bytes_per_sample;
-            sound_buffer.samples = samples;
-
-
-
-
-            if (sound_is_valid)
-            {
-                win32_fill_sound_buffer(&sound_output, &sound_buffer, byte_offset, bytes_to_write);
-                if (!sound_is_playing)
-                {
-                    HRESULT hresult = global_sound_buffer->Play(0, 0, DSBPLAY_LOOPING);
-
-                    if (FAILED(hresult))
-                    {
-                        DEBUG_PRINT("Failed to play sound. \n");
-                    }
-                    sound_is_playing = true;
-                }
-            }
-#endif
-
-            game.update(delta_time, &game_memory, NULL, &game_input);
-            acumilated_delta_time -= target_sec_per_frame;
-            game_input.mouse_scroll.scrolled = false;
+            game_memory.debug->game_fps = 1.0f/delta_time;
         }
 
-        game.render(&game_memory, &game_memory.render_commands);
+        i32 game_dll_write_time = win32_get_last_write_time("game.dll");
+        if (last_game_dll_write_time != game_dll_write_time)
+        {
+            win32_unload_game_code(&game);
+            game = win32_load_game_code();
+            last_game_dll_write_time = game_dll_write_time;
+        }
+
+#if 0
+        DWORD bytes_to_write = 0;
+        DWORD play_cursor;
+        DWORD write_cursor;
+        DWORD byte_offset;
+        DWORD target_cursor;
+        if (global_sound_buffer->GetCurrentPosition(&play_cursor, &write_cursor) == DS_OK)
+        {
+            byte_offset = (sound_output.running_sample_count * sound_output.bytes_per_sample) %
+                          sound_output.buffer_size;
+            target_cursor = ((play_cursor + 
+                             (sound_output.latency_sample_count * sound_output.bytes_per_sample)) %
+                             sound_output.buffer_size);
+
+
+            if (byte_offset > target_cursor)
+            {
+                bytes_to_write = (sound_output.buffer_size - byte_offset);
+                bytes_to_write += target_cursor;
+            }
+            else 
+            {
+                bytes_to_write = target_cursor - byte_offset;
+            }
+
+            sound_is_valid = true;
+        }
+        else
+        {
+            // TODO: logging
+            sound_is_valid = false;
+            DEBUG_PRINT("Could not get sound buffer cursor position! \n");
+        }
+
+        GameSoundBuffer sound_buffer = {};
+        sound_buffer.samples_per_sec = sound_output.samples_per_sec;
+        sound_buffer.sample_count = bytes_to_write / sound_output.bytes_per_sample;
+        sound_buffer.samples = samples;
+
+
+
+
+        if (sound_is_valid)
+        {
+            win32_fill_sound_buffer(&sound_output, &sound_buffer, byte_offset, bytes_to_write);
+            if (!sound_is_playing)
+            {
+                HRESULT hresult = global_sound_buffer->Play(0, 0, DSBPLAY_LOOPING);
+
+                if (FAILED(hresult))
+                {
+                    DEBUG_PRINT("Failed to play sound. \n");
+                }
+                sound_is_playing = true;
+            }
+        }
+#endif
+
+        game.update(delta_time, &game_memory, NULL, &game_input);
+        game.render(&game_memory, &game_memory.render_commands, &game_input);
+
+        game_input.mouse.wheel_delta = 0;
+        game_input.mouse.moved = false;
 
         HDC window_dc = GetDC(window_handle);
         SwapBuffers(window_dc);
 
+        //RECT screen_rect;
+        //SystemParametersInfo(SPI_GETWORKAREA, 0, &screen_rect, 0);
         RECT screen_rect;
         GetClientRect(window_handle, &screen_rect);
-
         i32 w = screen_rect.right - screen_rect.left;
         i32 h = screen_rect.bottom - screen_rect.top;
         game_memory.screen_width = w;
         game_memory.screen_height = h;
-        // NOTE(marko): flushing temporary storage
-        //game_memory.temporary_storage_index = 0;
+
      }
 
     return 0;

@@ -38,6 +38,9 @@ typedef size_t sizet;
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
+
+// NOTE: Debug data
+
 internal void
 game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
 {
@@ -71,6 +74,17 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
     Camera* cam = &game_state->renderer.camera;
 
+    if (input->mouse.left_button.is_down)
+    {
+        DEBUG_PRINT("MouseX %f MouseY %f\n",
+             input->mouse.position.x,
+             input->mouse.position.y);
+
+        DEBUG_PRINT("ScreenW %i ScreenH %i\n",
+             memory->screen_width,
+             memory->screen_height);
+    }
+
     if (input->move_left.is_down)
     {
         cam->position.x -= 1.0f;
@@ -87,79 +101,117 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
     {
         cam->position.y -= 1.0f;
     }
-    if (input->mouse_scroll.scrolled)
+    if (input->mouse.wheel_delta)
     {
-        GAME_DEBUG_PRINT(memory, "Mouse scrolled\n");
-        f32 scroll_amount = (f32)input->mouse_scroll.wheel_delta;
+        DEBUG_PRINT("Mouse scrolled\n");
+        f32 scroll_amount = (f32)input->mouse.wheel_delta;
         cam->position.z -= scroll_amount;
     }
 }
 
 inline internal LoadedBitmap
-allocate_bitmap(GameMemory* memory, i32 w, i32 h)
+allocate_bitmap(MemoryArena* memory, i32 w, i32 h)
 {
     LoadedBitmap out;
-    out.data = ALLOCATE_ARRAY((*memory), u8, (w*h));
+    out.data = ALLOCATE(memory, u8, (w*h));
     out.width = w;
     out.height = h;
 
     return out;
 }
 
-internal void
-draw_debug_slider(Renderer* ren, RenderCommands* render_commands, vec3 position)
-{
-    vec2 scale = {100.0f, 20.0f};
-    vec4 color = {0.3f, 0.3f, 0.3f, 1.0f};
-    render_commands->draw_rect(ren, position, scale, color);
-
-    position.x += 2.0f;
-    position.y += 2.0f;
-    position.z -= 0.1f;
-    scale.x -= 4.0f;
-    scale.y -= 6.0f;
-    color.z = 0.666f;
-
-    render_commands->draw_rect(ren, position, scale, color);
-}
+global_variable vec4 ui_color = {0.1f, 0.1f, 0.1f, 1.0f};
+global_variable vec4 hover_color = {0.7f, 0.7f, 0.7f, 1.0f};
+global_variable vec4 clicked_color = {1.0f, 1.0f, 1.0f, 1.0f};
 
 internal void
-draw_debug_menu(Renderer* ren, RenderCommands* render_commands, char* name)
+draw_debug_slider(DebugState* debug, GameInput* input, Renderer* ren, RenderCommands* render_commands, vec3 start_pos, f32 min, f32 max, f32* value, char* var_name)
 {
-    vec4 menu_color = {0.8f, 0.8f, 0.8f, 1.0f};
-    char* menu_items[] =
+    vec2 button_scale = {10.0f, 10.0f};
+    vec2 scale = {100.0f, 10.0f};
+    vec3 position = start_pos;
+
+    render_commands->draw_rect(ren, position, {scale.x+button_scale.x, scale.y}, ui_color);
+    vec3 text_pos = {(start_pos.x+scale.x+button_scale.x), start_pos.y, 0.0f};
+
+    // TODO: make it use our temporary allocation;
+    char *text = (char*)malloc(30);
+    sprintf_s(text, 30, "%.2f", *value);
+    render_commands->draw_text(ren, text, text_pos, {1.0f, 1.0f, 1.0f, 1.0f});
+    free(text);
+
+
+    vec4 color = {0.5f, 0.5f, 0.5f, 0.5f};
+
+    if (debug->active_item.id == value)
     {
-        "fps",
-        "char info",
-        "number",
-    };
-    f32 width = 300.0f, height = 200.0f;
-
-    f32 x = 0.0f;
-    f32 y = 0.0f;
-    f32 z = 0.0f;
-    f32 in = 10.0f;
-
-    render_commands->draw_rect(ren, {x, y, z}, {width, height}, menu_color);
-    z -= 0.1f;
-
-    for (sizet i = 0; i < ARRAY_COUNT(menu_items); ++i)
+        if (button_released(input->mouse.left_button))
+        {
+            debug->active_item = {};
+        }
+        color = clicked_color;
+        f32 slider_x = start_pos.x + (input->mouse.position.x - start_pos.x);
+        slider_x = CLAMP(slider_x,
+                         start_pos.x,
+                         start_pos.x + scale.x);
+        f32 update_value = ((slider_x - start_pos.x)/(scale.x));
+        if (update_value)
+        {
+            *value = max * update_value;
+        }
+        else
+        {
+            *value = min;
+        }
+    }
+    // else if hot
+    else if (debug->hot_item.id == value)
     {
-        render_commands->draw_text(ren,
-                                  menu_items[i], 
-                                  {x + in, height - y - in, z},
-                                  {1.0f, 1.0f, 1.0f, 1.0f});
-        y += ren->font_size;
+        if (button_pressed(input->mouse.left_button))
+        {
+            debug->active_item.id = value;
+        }
+        color = hover_color;
+        debug->hot_item = {};
+    }
+
+    position.x += ((*value)/max) * scale.x;
+
+    render_commands->draw_rect(ren, position, button_scale, color);
+
+    if (point_is_inside(input->mouse.position, position.xy, button_scale))
+    {
+        debug->hot_item.id = value;
     }
 }
 
+
+internal void
+draw_debug_fps(Renderer* ren, RenderCommands* render_commands, DebugState* debug)
+{
+    char* fps_text = "%.2f fps";
+    char out[32];
+    sprintf_s(out, fps_text, debug->game_fps);
+    vec3 position = {0.0f,
+                     (f32)ren->screen_height - ren->font_size,
+                     0.0f};
+
+    render_commands->draw_text(ren, out, position, {1.0f, 1.0f, 1.0f, 1.0f});
+}
+
 extern "C" PLATFORM_API void
-game_render(GameMemory* memory, RenderCommands* render_commands)
+game_render(GameMemory* memory, RenderCommands* render_commands, GameInput* input)
 {
     GameState* game_state = (GameState*)memory->permanent_storage;
 
     if (!memory->is_initialized)
     {
+        init_arena(&game_state->arena, 
+                   (memory->permanent_storage_size - sizeof(GameState)),
+                   (u8*)memory->permanent_storage + sizeof(GameState));
+
+        memory->debug = ALLOCATE(&game_state->arena, DebugState);
+        sub_arena(&game_state->arena, &memory->debug->arena, MEGABYTES(20));
 
         game_state->tone_hz = 256;
         game_state->tone_volume = 3000;
@@ -168,7 +220,7 @@ game_render(GameMemory* memory, RenderCommands* render_commands)
         Renderer* ren = &game_state->renderer;
 
         DebugFileResult font_file = memory->DEBUG_read_entire_file("../consola.ttf");
-        ren->font_bitmap = allocate_bitmap(memory, 512, 512);
+        ren->font_bitmap = allocate_bitmap(&game_state->arena, 512, 512);
 
         ren->font_size = 14.0f;
         i32 result = stbtt_BakeFontBitmap((u8*)font_file.data, 
@@ -181,7 +233,7 @@ game_render(GameMemory* memory, RenderCommands* render_commands)
 
         if (!result)
         {
-            GAME_DEBUG_PRINT(memory, "Failed to bake font map\n");
+            DEBUG_PRINT("Failed to bake font map\n");
         }
 
         render_commands->renderer_init(&game_state->renderer);
@@ -192,21 +244,29 @@ game_render(GameMemory* memory, RenderCommands* render_commands)
     else
     {
         Renderer* ren = &game_state->renderer;
+        // NOTE: flip mouse y axis
+        input->mouse.position.y = ren->screen_height - input->mouse.position.y;
         game_state->renderer.screen_width = memory->screen_width;
         game_state->renderer.screen_height = memory->screen_height;
 
+
         render_commands->renderer_begin(ren);
  
-        draw_debug_menu(ren, render_commands, "Debug Menu");
-        /*
-        memory->draw_rectangle(&memory->renderer,
-        {400.0f, 400.0f}, {200.0f, 300.0f}, {1.0f, 1.0f, 1.0f, 1.0f});
-        memory->draw_rectangle(&memory->renderer,
-        {100.0f, 400.0f}, {100.0f, 100.0f}, {1.0f, 0.0f, 0.0f, 1.0f});
-        ren->draw_rectangle(ren, {100.0f, 100.0f}, {200.0f, 200.0f}, {1.0f, 1.0f, 0.0f, 1.0f});
-        */
+        local_persist f32 var = 0.0f;
+        draw_debug_slider(memory->debug, input, ren, render_commands, {400, 400}, 0.0f, 30.0f, &var, "my variable");
+        local_persist f32 other_var = 0.0f;
+        draw_debug_slider(memory->debug,
+                          input,
+                          ren,
+                          render_commands,
+                          {400, 340},
+                          0.0f, 0.5f, 
+                          &ren->light_speed,
+                          "light speed");
+        draw_debug_fps(ren, render_commands, memory->debug);
+        f32 random_value = 10.0f;
         render_commands->draw_cube(ren, {0.0f, 0.0f, 0.0f}, {100.0f, 100.0f, 100.0f}, {0.8f, 0.3f, 0.0f, 1.0f});
-        render_commands->draw_text(ren, "Hello", {0.0f, (f32)ren->screen_height}, {1.0f, 0.0f, 0.5f, 1.0f});
+        render_commands->draw_rect(ren, {}, {50, 50}, {1.0f, 1.0f, 1.0f, 1.0f});
 
         render_commands->renderer_end(ren);
     }

@@ -2,6 +2,9 @@
 #define MATH_H
 
 #define PI 3.14159265359f
+#define MIN(a,b) (((a)<(b)) ? (a) : (b))
+#define MAX(a,b) (((a)>(b)) ? (a) : (b))
+#define CLAMP(a, min, max) (((a)<=(max)) ? ( ((a)<(min)) ? (min) : (a) ) : (max))
 
 struct vec2
 {
@@ -17,6 +20,11 @@ struct vec3
         struct
         {
             f32 x, y, z;
+        };
+        struct
+        {
+            vec2 xy;
+            f32 z;
         };
         f32 data[3];
     };
@@ -359,6 +367,15 @@ mat4_perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
         0.0f,   0.0f, -1.0f,  0.0f,
     };
     return out;
+}
+
+inline b8
+point_is_inside(vec2 p, vec2 pos, vec2 scale)
+{
+    return (p.x >= pos.x && 
+            p.x <= (pos.x + scale.x) &&
+            p.y >= pos.y &&
+            p.y <= (pos.y + scale.y));
 }
 
 #endif

@@ -6,48 +6,38 @@
    $Notice: (C) Copyright 2021. All Rights Reserved. $
    ======================================================================== */
 
-
-#ifdef GAME_DEBUG
-#include <stdio.h>
-
-#define ASSERT(condition) \
-    if (!(condition)) *(int *)0 = 0 
-
-char DEBUG_string_buffer[5120];
-
-#define DEBUG_PRINT(msg, ...) \
-    sprintf_s(DEBUG_string_buffer, msg, __VA_ARGS__); \
-    DEBUG_print(DEBUG_string_buffer);
-
-#define GAME_DEBUG_PRINT(memory, msg, ...) \
-    sprintf_s(DEBUG_string_buffer, msg, __VA_ARGS__); \
-    memory->DEBUG_print(DEBUG_string_buffer);
-
-#else
-
-#define ASSERT(condition)
-#define DEBUG_PRINT(msg, ...) 
-#define GAME_DEBUG_PRINT(memory, msg, ...) 
-
-
-#endif
+#include "debug.h"
 
 #define KYLOBYTES(n) n*1024
 #define MEGABYTES(n) n*1024*1024
 #define GIGABYTES(n) n*1024*1024*1024
 
-
 #define ARRAY_COUNT(Array) (sizeof(Array) / sizeof((Array)[0]))
+
+internal inline u32
+string_length(char* string)
+{
+    u32 out = 0;
+    while(string)
+    {
+        out++;
+    }
+
+    return out;
+}
 
 struct ButtonState
 {
     b8 is_down;
 };
 
-struct MouseScroll
+struct MouseInput
 {
-    b8 scrolled;
+    vec2 position;
     i32 wheel_delta;
+    b8 moved;
+    ButtonState left_button;
+    ButtonState right_button;
 };
 
 struct GameInput
@@ -65,37 +55,74 @@ struct GameInput
         };
         ButtonState buttons[6];
     };
-    MouseScroll mouse_scroll;
-
+    MouseInput mouse;
 };
 
+inline b8
+button_pressed(ButtonState button)
+{
+    return button.is_down;
+}
+
+inline b8
+button_released(ButtonState button)
+{
+    return !button.is_down;
+}
 
 struct DebugFileResult;
-typedef void DebugPrintFunc(char* text);
 typedef DebugFileResult DebugReadEntireFileFunc(char* path);
 typedef void DebugFreeEntireFileFunc(void* memory);
 typedef b8 DebugWriteEntireFileFunc(char* file_name, i32 size, void* memory);
 
-#define ALLOCATE(arena, type) \
-(type*)(((u8*)arena.permanent_storage) + arena.permanent_storage_index); \
-ASSERT((arena.permanent_storage_size - arena.permanent_storage_index) > sizeof(type)); \
-arena.permanent_storage_index += sizeof(type); 
 
-#define ALLOCATE_ARRAY(arena, type, count) \
-(type*)(((u8*)arena.permanent_storage) + (arena.permanent_storage_index)); \
-ASSERT((arena.permanent_storage_size - arena.permanent_storage_index) > (sizeof(type)*count)); \
-arena.permanent_storage_index += (sizeof(type)*count); 
+struct MemoryArena
+{
+    sizet used;
+    sizet size;
+    u8* base;
+};
 
-#define ALLOCATE_TEMP(arena, type) \
-(type*)(((u8*)arena.temporary_storage) + arena.temporary_storage_index); \
-ASSERT((arena.temporary_storage_size - arena.temporary_storage_index) > sizeof(type)); \
-arena.temporary_storage_index += (sizeof(type));
+struct UiItemId
+{
+    void* id;
+};
 
-#define ALLOCATE_TEMP_ARRAY(arena, type, count) \
-(type*)(((u8*)arena.temporary_storage) + (arena.temporary_storage_index)); \
-ASSERT((arena.temporary_storage_size - arena.temporary_storage_index) > (sizeof(type)*count)); \
-arena.temporary_storage_index += (sizeof(type)*count); 
+struct DebugState
+{
+    MemoryArena arena;
+    f32 game_fps;
 
+    UiItemId hot_item;
+    UiItemId active_item;
+};
+
+#define ALLOCATE(arena, type, ...)  (type *)push_memory(arena, sizeof(type), __VA_ARGS__)
+
+inline void*
+push_memory(MemoryArena* arena, sizet type_size, sizet count = 1)
+{
+    ASSERT((arena->size - arena->used) > (type_size * count));
+    u8* out = arena->base + arena->used;
+    arena->used += type_size * count;
+
+    return out;
+}
+
+inline void
+init_arena(MemoryArena* arena, sizet size, void* base)
+{
+    arena->used = 0;
+    arena->size = size;
+    arena->base = (u8*)base;
+}
+
+inline void
+sub_arena(MemoryArena* main, MemoryArena* sub, sizet size)
+{
+    u8* base = ALLOCATE(main, u8, size);
+    init_arena(sub, size, base);
+}
 
 struct GameMemory
 {
@@ -103,16 +130,17 @@ struct GameMemory
 
     void* permanent_storage;
     sizet permanent_storage_size;
-    sizet permanent_storage_index;
 
     void* temporary_storage;
     sizet temporary_storage_size;
-    sizet temporary_storage_index;
 
-    DebugPrintFunc* DEBUG_print;
+#ifdef GAME_DEBUG
     DebugReadEntireFileFunc* DEBUG_read_entire_file;
     DebugFreeEntireFileFunc* DEBUG_free_file_memory;
     DebugWriteEntireFileFunc* DEBUG_write_entire_file;
+
+    DebugState* debug;
+#endif
 
     i32 screen_width;
     i32 screen_height;
@@ -133,6 +161,7 @@ struct GameState
     i32 tone_hz;
     i32 tone_volume;
 
+    MemoryArena arena;
     Renderer renderer;
 };
 
@@ -148,7 +177,6 @@ struct DebugFileResult
 internal DebugFileResult DEBUG_read_entire_file(char* path);
 internal void DEBUG_free_file_memory(void* memory);
 internal b8 DEBUG_write_entire_file(char* file_name, i32 size, void* memory);
-internal void DEBUG_print(char* text);
 
 
 #endif

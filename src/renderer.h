@@ -54,7 +54,7 @@ struct LoadedBitmap
     i32 height;
 };
 
-#define MAX_VERTICES 10000
+#define MAX_VERTICES 100000
 #define NUM_ASCII 96
 struct Renderer
 {
@@ -79,6 +79,8 @@ struct Renderer
 
     i32 screen_width;
     i32 screen_height;
+
+    f32 light_speed;
 };
 
 
