@@ -6,13 +6,14 @@
    $Notice: (C) Copyright 2021. All Rights Reserved. $
    ======================================================================== */
 
-#include "debug.h"
+
+
+#define ARRAY_COUNT(Array) (sizeof(Array) / sizeof((Array)[0]))
 
 #define KYLOBYTES(n) n*1024
 #define MEGABYTES(n) n*1024*1024
 #define GIGABYTES(n) n*1024*1024*1024
 
-#define ARRAY_COUNT(Array) (sizeof(Array) / sizeof((Array)[0]))
 
 internal inline u32
 string_length(char* string)
@@ -29,6 +30,8 @@ string_length(char* string)
 struct ButtonState
 {
     b8 is_down;
+    b8 released;
+    b8 pressed;
 };
 
 struct MouseInput
@@ -36,8 +39,6 @@ struct MouseInput
     vec2 position;
     i32 wheel_delta;
     b8 moved;
-    ButtonState left_button;
-    ButtonState right_button;
 };
 
 struct GameInput
@@ -52,23 +53,33 @@ struct GameInput
             ButtonState move_down;
             ButtonState move_forward;
             ButtonState move_back;
+            ButtonState pause_button;
+            ButtonState left_mouse_button;
+            ButtonState right_mouse_button;
         };
-        ButtonState buttons[6];
+        ButtonState buttons[9];
     };
     MouseInput mouse;
 };
 
 inline b8
-button_pressed(ButtonState button)
+button_down(ButtonState button)
 {
     return button.is_down;
 }
 
 inline b8
+button_pressed(ButtonState button)
+{
+    return button.pressed;
+}
+
+inline b8
 button_released(ButtonState button)
 {
-    return !button.is_down;
+    return button.released;
 }
+
 
 struct DebugFileResult;
 typedef DebugFileResult DebugReadEntireFileFunc(char* path);
@@ -76,54 +87,15 @@ typedef void DebugFreeEntireFileFunc(void* memory);
 typedef b8 DebugWriteEntireFileFunc(char* file_name, i32 size, void* memory);
 
 
-struct MemoryArena
+internal void
+end_temporary_memory(TemporaryArena* temp_arena)
 {
-    sizet used;
-    sizet size;
-    u8* base;
-};
-
-struct UiItemId
-{
-    void* id;
-};
-
-struct DebugState
-{
-    MemoryArena arena;
-    f32 game_fps;
-
-    UiItemId hot_item;
-    UiItemId active_item;
-};
-
-#define ALLOCATE(arena, type, ...)  (type *)push_memory(arena, sizeof(type), __VA_ARGS__)
-
-inline void*
-push_memory(MemoryArena* arena, sizet type_size, sizet count = 1)
-{
-    ASSERT((arena->size - arena->used) > (type_size * count));
-    u8* out = arena->base + arena->used;
-    arena->used += type_size * count;
-
-    return out;
+    MemoryArena *arena = temp_arena->arena;
+    ASSERT(arena->used >= temp_arena->used);
+    arena->used = temp_arena->used;
 }
 
-inline void
-init_arena(MemoryArena* arena, sizet size, void* base)
-{
-    arena->used = 0;
-    arena->size = size;
-    arena->base = (u8*)base;
-}
-
-inline void
-sub_arena(MemoryArena* main, MemoryArena* sub, sizet size)
-{
-    u8* base = ALLOCATE(main, u8, size);
-    init_arena(sub, size, base);
-}
-
+struct DebugState;
 struct GameMemory
 {
     b8 is_initialized;
@@ -138,13 +110,14 @@ struct GameMemory
     DebugReadEntireFileFunc* DEBUG_read_entire_file;
     DebugFreeEntireFileFunc* DEBUG_free_file_memory;
     DebugWriteEntireFileFunc* DEBUG_write_entire_file;
-
     DebugState* debug;
 #endif
 
     i32 screen_width;
     i32 screen_height;
-    RenderCommands render_commands;
+    RendererProc* renderer_init;
+    RendererProc* renderer_begin;
+    RendererProc* renderer_end;
 };
 
 
@@ -157,12 +130,13 @@ struct GameSoundBuffer
 
 struct GameState
 {
+    MemoryArena arena;
+    MemoryArena temporary_arena;
     f32 t_sine;
     i32 tone_hz;
     i32 tone_volume;
 
-    MemoryArena arena;
-    Renderer renderer;
+    Renderer* renderer;
 };
 
 

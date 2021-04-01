@@ -56,6 +56,12 @@ struct LoadedBitmap
 
 #define MAX_VERTICES 100000
 #define NUM_ASCII 96
+
+struct Renderer;
+typedef void RendererProc(Renderer* ren);
+typedef void RendererProc(Renderer* ren);
+typedef void RendererProc(Renderer* ren);
+
 struct Renderer
 {
     i32 shader_program_3D;
@@ -81,27 +87,10 @@ struct Renderer
     i32 screen_height;
 
     f32 light_speed;
-};
 
-
-typedef void PlatformDrawRectangle(Renderer* ren, vec3 position, vec2 scale, vec4 color);
-typedef void PlatformDrawText(Renderer* ren, char* text, vec3 position, vec4 color);
-typedef void PlatformRendererInit(Renderer* ren);
-typedef void PlatformRendererBegin(Renderer* ren);
-typedef void PlatformRendererEnd(Renderer* ren);
-typedef void PlatformDrawCube(Renderer* ren, vec3 position, vec3 scale, vec4 color);
-typedef void PlatformTextureTest(Renderer* ren, vec2 position, vec2 scale, vec4 color);
-
-struct RenderCommands
-{
-    PlatformRendererInit* renderer_init;
-    PlatformRendererBegin* renderer_begin;
-    PlatformRendererEnd* renderer_end;
-
-    PlatformDrawRectangle* draw_rect;
-    PlatformDrawCube* draw_cube;
-    PlatformDrawText* draw_text;
-    PlatformTextureTest* texture_test;
+    RendererProc* renderer_init;
+    RendererProc* renderer_begin;
+    RendererProc* renderer_end;
 };
 
 #endif

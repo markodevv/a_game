@@ -6,10 +6,10 @@
 #include <wingdi.h>
 #include <dsound.h>
 #include <math.h>
-#include <gl/gl.h>
 #include <stdio.h>
 #include <io.h>
 #include <fcntl.h>
+#include <iostream>
 
 #define WGL_CONTEXT_MAJOR_VERSION_ARB             0x2091
 #define WGL_CONTEXT_MINOR_VERSION_ARB             0x2092
@@ -40,7 +40,10 @@ typedef i8 b8;
 typedef size_t sizet;
 
 
+#include "log.h"
+#include "memory.h"
 #include "math.h"
+#include "debug.h"
 #include "renderer.h"
 #include "game.h"
 #include "opengl_renderer.h"
@@ -52,6 +55,7 @@ typedef size_t sizet;
 typedef DIRECT_SOUND_CREATE(DSC);
 
 global_variable LPDIRECTSOUNDBUFFER global_sound_buffer;
+global_variable b8 global_running = true;
 
 inline internal u32
 safe_truncate_u64(u64 value)
@@ -312,7 +316,7 @@ win32_get_preformance_counter()
 #define AUDIO_SAMPLE_RATE 48000
 
 typedef void (*GameUpdate)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
-typedef void (*GameRender)(GameMemory* memory, RenderCommands* render_commands, GameInput* input);
+typedef void (*GameRender)(GameMemory* memory);
 
 struct Win32GameCode
 {
@@ -381,18 +385,11 @@ win32_window_callback(
         {
             i32 width = LOWORD(l_param);
             i32 height = HIWORD(l_param);
-            // TODO: this should be in opengl file.
-        } break;
-        case WM_DESTROY:
-        {
         } break;
         case WM_CLOSE:
         {
+            PostQuitMessage(0);
         } break;
-        case WM_ACTIVATEAPP:
-        {
-        } break;
-
         default:
         {
             result = DefWindowProc(window, message, w_param, l_param);
@@ -467,9 +464,14 @@ win32_init_opengl(HWND window_handle)
     
 #define Win32LoadOpenGLFunction(name) \
     name = (name##proc *)wglGetProcAddress(#name); \
-    if (!#name) \
+    if (!name) \
     { \
-        DEBUG_PRINT("Function " #name " couldn't be loaded.\n"); \
+        HMODULE module = LoadLibraryA("opengl32.dll"); \
+        name = (name##proc *)GetProcAddress(module, #name); \
+        if (!name) \
+        { \
+            DEBUG_PRINT("Function " #name " couldn't be loaded.\n"); \
+        } \
     } 
     // NOTE: Vsync
     ((BOOL(WINAPI*)(int))wglGetProcAddress("wglSwapIntervalEXT"))(1);
@@ -513,7 +515,17 @@ win32_init_opengl(HWND window_handle)
     Win32LoadOpenGLFunction(glGetProgramInfoLog);
     Win32LoadOpenGLFunction(glGetProgramiv);
     Win32LoadOpenGLFunction(glActiveTexture);
-
+    Win32LoadOpenGLFunction(glGenTextures);
+    Win32LoadOpenGLFunction(glBindTexture);
+    Win32LoadOpenGLFunction(glPixelStorei);
+    Win32LoadOpenGLFunction(glTexParameteri);
+    Win32LoadOpenGLFunction(glTexImage2D);
+    Win32LoadOpenGLFunction(glEnable);
+    Win32LoadOpenGLFunction(glBlendFunc);
+    Win32LoadOpenGLFunction(glClearColor);
+    Win32LoadOpenGLFunction(glClear);
+    Win32LoadOpenGLFunction(glViewport);
+    Win32LoadOpenGLFunction(glDrawArrays);
     
 
     ReleaseDC(window_handle, window_dc);
@@ -522,6 +534,7 @@ win32_init_opengl(HWND window_handle)
 internal void
 win32_process_input_messages(GameInput* game_input)
 {
+
     MSG message;
     while(PeekMessage(&message, 0, 0, 0, PM_REMOVE)) 
     {
@@ -530,6 +543,9 @@ win32_process_input_messages(GameInput* game_input)
             case WM_DESTROY:
             {
             } break;
+            case WM_QUIT:
+                global_running= false;
+                DEBUG_PRINT("Closing game...\n");
             case WM_KEYUP:
             case WM_KEYDOWN:
             {
@@ -537,27 +553,40 @@ win32_process_input_messages(GameInput* game_input)
                 b8 was_down = ((message.lParam & (1 << 30)) != 0);
                 u32 vk_code = (u32)message.wParam;
 
-                if (is_down != was_down)
+                if (is_down == was_down)
+                    break;
+                switch(vk_code)
                 {
-                    switch(vk_code)
+                    case 'A':
                     {
-                        case 'A':
-                        {
-                            game_input->move_left.is_down = is_down;
-                        } break;
-                        case 'D':
-                        {
-                            game_input->move_right.is_down = is_down;
-                        } break;
-                        case 'W':
-                        {
-                            game_input->move_up.is_down = is_down;
-                        } break;
-                        case 'S':
-                        {
-                            game_input->move_down.is_down = is_down;
-                        } break;
-                    }
+                        game_input->move_left.is_down = is_down;
+                        game_input->move_left.pressed = (was_down == 0) && (is_down == 1);
+                        game_input->move_left.released = (was_down == 1) && (is_down == 0);
+                    } break;
+                    case 'D':
+                    {
+                        game_input->move_right.is_down = is_down;
+                        game_input->move_right.pressed = (was_down == 0) && (is_down == 1);
+                        game_input->move_right.released = (was_down == 1) && (is_down == 0);
+                    } break;
+                    case 'W':
+                    {
+                        game_input->move_up.is_down = is_down;
+                        game_input->move_up.pressed = (was_down == 0) && (is_down == 1);
+                        game_input->move_up.released = (was_down == 1) && (is_down == 0);
+                    } break;
+                    case 'S':
+                    {
+                        game_input->move_down.is_down = is_down;
+                        game_input->move_down.pressed = (was_down == 0) && (is_down == 1);
+                        game_input->move_down.released = (was_down == 1) && (is_down == 0);
+                    } break;
+                    case 'P':
+                    {
+                        game_input->pause_button.is_down = is_down;
+                        game_input->pause_button.pressed = (was_down == 0) && (is_down == 1);
+                        game_input->pause_button.released = (was_down == 1) && (is_down == 0);
+                    } break;
                 }
             } break;
             case WM_MOUSEWHEEL:
@@ -575,24 +604,28 @@ win32_process_input_messages(GameInput* game_input)
                 game_input->mouse.moved = true;
                 if ((message.wParam & MK_LBUTTON) == MK_LBUTTON)
                 {
-                    game_input->mouse.right_button.is_down = true;
+                    game_input->right_mouse_button.is_down = true;
                 }
             } break;
             case WM_LBUTTONDOWN:
             {
-                game_input->mouse.left_button.is_down = true;
+                game_input->left_mouse_button.is_down = 1;
+                game_input->left_mouse_button.pressed = 1;
             } break;
             case WM_RBUTTONDOWN:
             {
-                game_input->mouse.right_button.is_down = true;
+                game_input->right_mouse_button.is_down = 1;
+                game_input->right_mouse_button.pressed = 1;
             } break;
             case WM_LBUTTONUP:
             {
-                game_input->mouse.left_button.is_down = false;
+                game_input->left_mouse_button.is_down = 0;
+                game_input->left_mouse_button.released = 1;
             } break;
             case WM_RBUTTONUP:
             {
-                game_input->mouse.right_button.is_down = false;
+                game_input->right_mouse_button.is_down = 0;
+                game_input->right_mouse_button.released = 1;
             } break;
             default:
             {
@@ -677,13 +710,10 @@ WinMain(HINSTANCE hinstance,
     ASSERT(game_memory.permanent_storage);
     ASSERT(game_memory.temporary_storage);
 
-    game_memory.render_commands.renderer_init = &opengl_init;
-    game_memory.render_commands.renderer_begin = &opengl_begin_frame;
-    game_memory.render_commands.renderer_end = &opengl_end_frame;
-    game_memory.render_commands.draw_rect = &opengl_draw_rectangle;
-    game_memory.render_commands.draw_cube = &opengl_draw_cube;
-    game_memory.render_commands.draw_text = &opengl_draw_text;
-    game_memory.render_commands.texture_test = &opengl_texture_test;
+    game_memory.renderer_init = &opengl_init;
+    game_memory.renderer_begin = &opengl_begin_frame;
+    game_memory.renderer_end = &opengl_end_frame;
+
 
 #if defined(GAME_DEBUG)
     game_memory.DEBUG_read_entire_file = DEBUG_read_entire_file;
@@ -710,11 +740,24 @@ WinMain(HINSTANCE hinstance,
 
     i32 last_game_dll_write_time = win32_get_last_write_time("game.dll");
 
-    b8 running = true;
-    while(running)
+    b8 paused = false;
+    while(global_running)
     {
 
+        for (sizet i = 0; i < ARRAY_COUNT(game_input.buttons); ++i)
+        {
+            game_input.buttons[i].released = 0;
+            game_input.buttons[i].pressed = 0;
+        }
+        game_input.mouse.wheel_delta = 0;
+        game_input.mouse.moved = false;
+
         win32_process_input_messages(&game_input);
+
+        if (button_pressed(game_input.pause_button))
+        {
+            paused = !paused;
+        }
 
         POINT p; 
         GetCursorPos(&p);
@@ -798,17 +841,16 @@ WinMain(HINSTANCE hinstance,
         }
 #endif
 
-        game.update(delta_time, &game_memory, NULL, &game_input);
-        game.render(&game_memory, &game_memory.render_commands, &game_input);
+        if (!paused)
+        {
+            game.update(delta_time, &game_memory, NULL, &game_input);
+            game.render(&game_memory);
+        }
 
-        game_input.mouse.wheel_delta = 0;
-        game_input.mouse.moved = false;
 
         HDC window_dc = GetDC(window_handle);
         SwapBuffers(window_dc);
 
-        //RECT screen_rect;
-        //SystemParametersInfo(SPI_GETWORKAREA, 0, &screen_rect, 0);
         RECT screen_rect;
         GetClientRect(window_handle, &screen_rect);
         i32 w = screen_rect.right - screen_rect.left;
@@ -818,6 +860,8 @@ WinMain(HINSTANCE hinstance,
 
      }
 
-    return 0;
+     system("pause");
+
+     return 0;
 }
         

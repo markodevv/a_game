@@ -120,7 +120,7 @@ vec3_normalized(vec3 v)
 }
 
 inline vec3
-to_vec3(vec2 v)
+V3(vec2 v)
 {
     return {v.x, v.y, 0.0f};
 }

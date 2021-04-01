@@ -1,36 +1,45 @@
 #if !defined(DEBUG_H)
 #define DEBUG_H
 
-#define FBLACK      "\033[30;"
-#define FRED        "\033[31;"
-#define FGREEN      "\033[32;"
-#define FYELLOW     "\033[33;"
-#define FBLUE       "\033[34;"
-#define FPURPLE     "\033[35;"
-#define D_FGREEN    "\033[6;"
-#define FWHITE      "\033[7;"
-#define FCYAN       "\x1b[36m"
-#define FNONE        "\033[0m"
-#define Cyan "\033[0;36m"
 
-#ifdef GAME_DEBUG
-#include <stdio.h>
+struct UiItemId
+{
+    void* id;
+};
 
-#define ASSERT(condition) \
-    if (!(condition)) *(int *)0 = 0 
+enum InteractableUiItemType
+{
+    INTERACTABLE_UI_ITEM_TYPE_CLICK,
+    INTERACTABLE_UI_ITEM_TYPE_DRAG,
+};
 
-
-#define DEBUG_PRINT(msg, ...) \
-printf(msg, __VA_ARGS__) 
-
-#define SUCCESS_PRINT() \
-printf("SUCCESS\n")
-
-#else
-
-#define ASSERT(condition)
-#define DEBUG_PRINT(msg, ...) 
+struct InteractableUiItem
+{
+    InteractableUiItemType type;
+    vec2 pos;
+    vec2 size;
+    UiItemId id;
+    InteractableUiItem *next_item;
+};
 
 
-#endif
+struct InteractableUiItemList
+{
+    InteractableUiItem* head;
+    InteractableUiItem* tail;
+};
+
+struct DebugState
+{
+    MemoryArena arena;
+    TemporaryArena temporary_arena;
+
+    InteractableUiItemList ui_item_list;
+    InteractableUiItem hot_item;
+    InteractableUiItem active_item;
+
+    f32 game_fps;
+    vec2 mouse_position;
+};
+
 #endif
