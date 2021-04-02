@@ -140,11 +140,7 @@ opengl_compile_shaders(i32 shader_program, const char* vertex_shader, const char
     if (!success)
     {
         glGetShaderInfoLog(vs, 5120, NULL, info_log);
-        DEBUG_PRINT("Failed to compile vertex shader: \n%s \n", info_log);
-    }
-    else
-    {
-        DEBUG_PRINT("Compiled Vertex Shader:\n%s\n", vertex_shader);
+        DEBUG_PRINT("Failed to compile vertex shader: \n%s", info_log);
     }
 
     u32 fs = glCreateShader(GL_FRAGMENT_SHADER);
@@ -156,11 +152,7 @@ opengl_compile_shaders(i32 shader_program, const char* vertex_shader, const char
     if (!success)
     {
         glGetShaderInfoLog(fs, 5120, NULL, info_log);
-        DEBUG_PRINT("Failed to compile fragment shader: \n%s \n", info_log);
-    }
-    else
-    {
-        DEBUG_PRINT("Compiled Fragment Shader:\n%s\n", fragment_shader);
+        DEBUG_PRINT("Failed to compile fragment shader: \n%s", info_log);
     }
 
     glAttachShader(shader_program, vs);
@@ -171,11 +163,7 @@ opengl_compile_shaders(i32 shader_program, const char* vertex_shader, const char
     if(!success)
     {
         glGetProgramInfoLog(shader_program, 5120, NULL, info_log);
-        DEBUG_PRINT("Failed to link shader \n%s \n", info_log);
-    }
-    else
-    {
-        SUCCESS_PRINT();
+        DEBUG_PRINT("Failed to link shader \n%s", info_log);
     }
 
 

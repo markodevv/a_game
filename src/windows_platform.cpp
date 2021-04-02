@@ -659,7 +659,6 @@ WinMain(HINSTANCE hinstance,
     *stdin = *hf_in;
     freopen("CONOUT$", "w+", stdout);
 
-
     WNDCLASS window_class = {};
     window_class.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
     window_class.lpfnWndProc = win32_window_callback;
@@ -688,8 +687,14 @@ WinMain(HINSTANCE hinstance,
     {
         ASSERT(false);
     }
-
-    printf("HEllo to console :)\n");
+    BOOL result = SetWindowPos(window_handle,
+                               HWND_TOP,
+                               60,
+                               60,
+                               0,
+                               0,
+                               SWP_NOSIZE);
+    ASSERT(result);
 
     Win32GameCode game = win32_load_game_code();
 

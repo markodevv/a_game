@@ -9,15 +9,13 @@ struct UiItemId
 
 enum InteractableUiItemType
 {
-    INTERACTABLE_UI_ITEM_TYPE_CLICK,
-    INTERACTABLE_UI_ITEM_TYPE_DRAG,
+    INTERACTABLE_TYPE_CLICK = 1,
+    INTERACTABLE_TYPE_DRAG = 2,
 };
 
 struct InteractableUiItem
 {
     InteractableUiItemType type;
-    vec2 pos;
-    vec2 size;
     UiItemId id;
     InteractableUiItem *next_item;
 };
@@ -36,10 +34,16 @@ struct DebugState
 
     InteractableUiItemList ui_item_list;
     InteractableUiItem hot_item;
-    InteractableUiItem active_item;
+    InteractableUiItem next_hot_item;
+    InteractableUiItem interacting_item;
+
+    vec2 draw_cursor;
+    vec2 prev_draw_cursor;
 
     f32 game_fps;
-    vec2 mouse_position;
+    vec2 mouse_pos;
+    vec2 prev_mouse_pos;
+    vec2 menu_pos;
 };
 
 #endif

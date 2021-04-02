@@ -11,6 +11,8 @@ struct vec2
     f32 x, y;
 
     vec2 operator/(f32 a);
+    vec2 operator+(vec2& other);
+    vec2 operator-(vec2& other);
 };
 
 struct vec3 
@@ -69,6 +71,18 @@ inline vec2
 vec2::operator/(f32 a)
 {
     return {x/a, y/a};
+}
+
+inline vec2
+vec2::operator+(vec2& other)
+{
+    return {other.x+x, other.y+y};
+}
+
+inline vec2
+vec2::operator-(vec2& other)
+{
+    return {x-other.x, y-other.y};
 }
 
 inline vec3

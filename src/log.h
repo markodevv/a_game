@@ -3,7 +3,6 @@
 
 #ifdef GAME_DEBUG
 #include <stdio.h>
-
 #define ASSERT(condition) \
     if (!(condition)) *(int *)0 = 0 
 

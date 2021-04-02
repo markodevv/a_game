@@ -187,26 +187,17 @@ game_render(GameMemory* memory)
         debug_begin(memory->debug);
 
         local_persist f32 var = 0.0f;
-        draw_debug_slider(ren, memory->debug, {400, 400}, 0.0f, 30.0f, &var, "my variable");
-        draw_debug_slider(ren, 
-                          memory->debug,
-                          {400, 340},
-                          0.0f, 0.5f, 
-                          &ren->light_speed,
-                          "light speed");
-        if (draw_debug_button(ren,
-                          memory->debug,
-                          {500.0f, 500.0f},
-                          {70.0f, 20.0f},
-                          "button 1"))
+        debug_menu_begin(ren, memory->debug, {100, 200}, {400, 300}, "Main Menu");
+
+        draw_debug_slider(ren, memory->debug, 0.0f, 30.0f, &var, "my variable"); 
+        debug_menu_newline(ren, memory->debug);
+        draw_debug_slider(ren, memory->debug, 0.0f, 0.5f, &ren->light_speed, "light speed");
+
+        if (draw_debug_button(ren, memory->debug, "button 1"))
         {
             DEBUG_PRINT("button 1 clicked");
         }
-        if (draw_debug_button(ren,
-                          memory->debug,
-                          {500.0f, 450.0f},
-                          {70.0f, 20.0f},
-                          "button 2"))
+        if (draw_debug_button(ren, memory->debug, "button 2"))
         {
             DEBUG_PRINT("button 2 clicked");
         }
