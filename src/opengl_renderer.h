@@ -490,6 +490,7 @@ OpenGLFunction(void,     glPixelStorei,             GLenum pnamel, GLint param);
 OpenGLFunction(void,     glTexParameteri,           GLenum target, GLenum pname, GLint param);
 OpenGLFunction(void,     glTexImage2D,	            GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid * data);
 OpenGLFunction(void,     glEnable,                  GLenum cap);
+OpenGLFunction(void,     glDisable,                  GLenum cap);
 OpenGLFunction(void,     glBlendFunc,               GLenum sfactor, GLenum dfactor);
 OpenGLFunction(void,     glClearColor,              GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 OpenGLFunction(void,     glClear,                   GLbitfield mask);

@@ -77,11 +77,14 @@ struct Renderer
     u32 VBO_2D;
     u32 VAO_2D;
 
-    u32 font_texture_id;
-    f32 font_size;
-    stbtt_bakedchar char_metrics[NUM_ASCII];
+    vec3 light_pos;
 
+    // TODO: this should be in DebugState
     LoadedBitmap font_bitmap;
+    stbtt_bakedchar char_metrics[NUM_ASCII];
+    f32 font_size;
+    u32 font_texture_id;
+    //
 
     i32 screen_width;
     i32 screen_height;

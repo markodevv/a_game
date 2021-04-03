@@ -179,8 +179,6 @@ game_render(GameMemory* memory)
 {
         GameState* game_state = (GameState*)memory->permanent_storage;
         Renderer* ren = game_state->renderer;
-        // NOTE: flip mouse y axis
-
 
         ren->renderer_begin(ren);
  
@@ -201,13 +199,14 @@ game_render(GameMemory* memory)
         {
             DEBUG_PRINT("button 2 clicked");
         }
+        debug_menu_newline(ren, memory->debug);
+        draw_debug_slider(ren, memory->debug, -400.0f, 400.0f, &ren->light_pos.z, "light pos"); 
 
         draw_debug_fps(ren, memory->debug);
 
 
         f32 random_value = 10.0f;
         draw_cube(ren, {0.0f, 0.0f, 0.0f}, {100.0f, 100.0f, 100.0f}, {0.8f, 0.3f, 0.0f, 1.0f});
-        draw_rect(ren, {}, {50, 50}, {1.0f, 1.0f, 1.0f, 1.0f});
 
         ren->renderer_end(ren);
 }

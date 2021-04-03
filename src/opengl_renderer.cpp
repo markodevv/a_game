@@ -23,12 +23,13 @@ uniform mat4 u_normal_trans;
 
 void main()
 {
-   uv = att_uv;
-   color = att_color;
-   frag_pos = att_pos;
-   normal = mat3(u_normal_trans) * att_normal;
+    vec4 frag = u_MVP *  vec4(att_pos, 1.0f);
+    uv = att_uv;
+    color = att_color;
+    normal = mat3(u_normal_trans) * att_normal;
+    gl_Position = frag;
 
-   gl_Position = u_MVP *  vec4(att_pos, 1.0f);
+    frag_pos = frag.xyz;
 }
 )";
 
@@ -47,11 +48,13 @@ uniform vec3 u_view;
 uniform vec3 u_light_pos;
 
 float ambient_strength = 0.1f;
-float specular_strength = 0.5f;
+float specular_strength = 0.3f;
 vec3 light_color = {1.0f, 1.0f, 1.0f};
 
 void main()
 {
+    vec4 obj_color = color;
+
     vec3 norm = normalize(normal);
     vec3 ambient = light_color * ambient_strength;
 
@@ -59,13 +62,14 @@ void main()
     vec3 diffuse = light_color * max(dot(light_dir, norm), 0.0f);
 
     vec3 view_dir = normalize(u_view - frag_pos);
-    vec3 reflected = reflect(light_dir, norm);
+    vec3 reflected = reflect(-light_dir, norm);
 
     vec3 spec = light_color * 
                 pow(max(dot(reflected, view_dir), 0.0f), 32) *
                 specular_strength;
 
-    frag_color = color * vec4(diffuse + ambient + spec, 1.0f);
+
+    frag_color = obj_color * vec4(diffuse + ambient + spec, 1.0f);
 }
 )";
 
@@ -289,19 +293,23 @@ internal void
 opengl_end_frame(Renderer* ren)
 {
     // NOTE(marko): 3D renderer
+    glEnable(GL_DEPTH_TEST);
     glUseProgram(ren->shader_program_3D);
 
     mat4 view = camera_transform(&ren->camera);
-    mat4 projection = mat4_perspective((f32)ren->screen_width, (f32)ren->screen_height, 120.0f, 0.1f, 1000.0f);
+    mat4 projection = mat4_perspective((f32)ren->screen_width,
+                                       (f32)ren->screen_height,
+                                       120.0f, 1.0f, 1000.0f);
     //mat4 projection = mat4_orthographic(1024.0f, 768.0f);
-    mat4 model = mat4_scale({100, 100, 100});
+    local_persist f32 temp = 0.0f;
+    temp += 0.05f;
+
+    mat4 model = mat4_rotate(sinf(temp) * 100, {0.0f, 1.0f, 0.0f}) * mat4_scale({100, 100, 100});
     mat4 mvp = projection * view * model;
     mat4 normal_transform = mat4_transpose(mat4_inverse(model));
 
-    local_persist f32 light_z = 0.0f;
-    light_z += ren->light_speed;
-    f32 z = sinf(light_z) * 200.0f;
-    vec3 light_pos = {300.0f, 200.0f, z};
+    ren->light_pos.x = 100.0f;
+    ren->light_pos.y = 200.0f;
 
     b8 do_transpose = true;
     i32 mvp_loc, light_loc, view_loc, normal_loc;
@@ -310,7 +318,8 @@ opengl_end_frame(Renderer* ren)
     glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
 
     light_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_light_pos");
-    glUniform3fv(light_loc, 1, (f32*)light_pos.data);
+    glUniform3fv(light_loc, 1, (f32*)ren->light_pos.data);
+
 
     view_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_view");
     glUniform3fv(view_loc, 1, (f32*)ren->camera.position.data);
@@ -328,6 +337,7 @@ opengl_end_frame(Renderer* ren)
     glDrawArrays(GL_TRIANGLES, 0, ren->vertex_index);
     ren->vertex_index = 0;
 
+    glDisable(GL_DEPTH_TEST);
     // NOTE(marko): 2D renderer
     glUseProgram(ren->shader_program_2D);
 

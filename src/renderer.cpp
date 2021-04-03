@@ -1,93 +1,3 @@
-global_variable vec3 cube_vertices[] = {
-   {-0.5f, -0.5f, -0.5f}, 
-   { 0.5f, -0.5f, -0.5f}, 
-   { 0.5f,  0.5f, -0.5f}, 
-   { 0.5f,  0.5f, -0.5f}, 
-   {-0.5f,  0.5f, -0.5f}, 
-   {-0.5f, -0.5f, -0.5f}, 
-
-   {-0.5f, -0.5f,  0.5f}, 
-   { 0.5f, -0.5f,  0.5f}, 
-   { 0.5f,  0.5f,  0.5f}, 
-   { 0.5f,  0.5f,  0.5f}, 
-   {-0.5f,  0.5f,  0.5f}, 
-   {-0.5f, -0.5f,  0.5f}, 
-
-   {-0.5f,  0.5f,  0.5f}, 
-   {-0.5f,  0.5f, -0.5f}, 
-   {-0.5f, -0.5f, -0.5f}, 
-   {-0.5f, -0.5f, -0.5f}, 
-   {-0.5f, -0.5f,  0.5f}, 
-   {-0.5f,  0.5f,  0.5f}, 
-
-   { 0.5f,  0.5f,  0.5f}, 
-   { 0.5f,  0.5f, -0.5f}, 
-   { 0.5f, -0.5f, -0.5f}, 
-   { 0.5f, -0.5f, -0.5f}, 
-   { 0.5f, -0.5f,  0.5f}, 
-   { 0.5f,  0.5f,  0.5f}, 
-
-   {-0.5f, -0.5f, -0.5f}, 
-   { 0.5f, -0.5f, -0.5f}, 
-   { 0.5f, -0.5f,  0.5f}, 
-   { 0.5f, -0.5f,  0.5f}, 
-   {-0.5f, -0.5f,  0.5f}, 
-   {-0.5f, -0.5f, -0.5f}, 
-
-   {-0.5f,  0.5f, -0.5f}, 
-   { 0.5f,  0.5f, -0.5f}, 
-   { 0.5f,  0.5f,  0.5f}, 
-   { 0.5f,  0.5f,  0.5f}, 
-   {-0.5f,  0.5f,  0.5f}, 
-   {-0.5f,  0.5f, -0.5f}, 
-};
-
-global_variable vec3 cube_normals[] =
-{
-   { 0.0f,  0.0f,  -1.0f}, 
-   { 0.0f,  0.0f,  -1.0f}, 
-   { 0.0f,  0.0f,  -1.0f}, 
-   { 0.0f,  0.0f,  -1.0f}, 
-   { 0.0f,  0.0f,  -1.0f}, 
-   { 0.0f,  0.0f,  -1.0f}, 
-
-   { 0.0f,  0.0f,  1.0f}, 
-   { 0.0f,  0.0f,  1.0f}, 
-   { 0.0f,  0.0f,  1.0f}, 
-   { 0.0f,  0.0f,  1.0f}, 
-   { 0.0f,  0.0f,  1.0f}, 
-   { 0.0f,  0.0f,  1.0f}, 
-
-   { -1.0f,  0.0f,  0.0f}, 
-   { -1.0f,  0.0f,  0.0f}, 
-   { -1.0f,  0.0f,  0.0f}, 
-   { -1.0f,  0.0f,  0.0f}, 
-   { -1.0f,  0.0f,  0.0f}, 
-   { -1.0f,  0.0f,  0.0f}, 
-
-   { 1.0f,  0.0f,  0.0f}, 
-   { 1.0f,  0.0f,  0.0f}, 
-   { 1.0f,  0.0f,  0.0f}, 
-   { 1.0f,  0.0f,  0.0f}, 
-   { 1.0f,  0.0f,  0.0f}, 
-   { 1.0f,  0.0f,  0.0f}, 
-
-   { 0.0f,  -1.0f,  0.0f}, 
-   { 0.0f,  -1.0f,  0.0f}, 
-   { 0.0f,  -1.0f,  0.0f}, 
-   { 0.0f,  -1.0f,  0.0f}, 
-   { 0.0f,  -1.0f,  0.0f}, 
-   { 0.0f,  -1.0f,  0.0f}, 
-
-   { 0.0f,  1.0f,  0.0f}, 
-   { 0.0f,  1.0f,  0.0f}, 
-   { 0.0f,  1.0f,  0.0f}, 
-   { 0.0f,  1.0f,  0.0f}, 
-   { 0.0f,  1.0f,  0.0f}, 
-   { 0.0f,  1.0f,  0.0f}, 
-};
-
-
 
 enum TextAlign
 {
@@ -192,7 +102,6 @@ draw_debug_text(Renderer* ren,
 internal void
 draw_rect(Renderer* ren, vec3 position, vec2 scale, vec4 color)
 {
-
     vec3 rectangle_vertices[] =
     {
         {-0.5f, -0.5f, 0.0f},
@@ -217,14 +126,58 @@ draw_rect(Renderer* ren, vec3 position, vec2 scale, vec4 color)
         ren->vertex_index_2D++;
     }
 }
+vec3 cube_vertices[] = {
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+         0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+
+         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
+    };
 
 internal void
 draw_cube(Renderer* ren, vec3 position, vec3 scale, vec4 color)
 {
-    for (sizet i = 0; i < ARRAY_COUNT(cube_vertices); i++)
+    sizet vertex_count = ARRAY_COUNT(cube_vertices);
+    for (sizet i = 0; i < vertex_count; i+=2)
     {
         ren->vertices_start[ren->vertex_index].position = cube_vertices[i];
-        ren->vertices_start[ren->vertex_index].normal = cube_normals[i];
+        ren->vertices_start[ren->vertex_index].normal = cube_vertices[i+1];
         ren->vertices_start[ren->vertex_index].color = color;
         ren->vertex_index++;
     }

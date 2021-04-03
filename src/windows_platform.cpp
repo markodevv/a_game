@@ -521,6 +521,7 @@ win32_init_opengl(HWND window_handle)
     Win32LoadOpenGLFunction(glTexParameteri);
     Win32LoadOpenGLFunction(glTexImage2D);
     Win32LoadOpenGLFunction(glEnable);
+    Win32LoadOpenGLFunction(glDisable);
     Win32LoadOpenGLFunction(glBlendFunc);
     Win32LoadOpenGLFunction(glClearColor);
     Win32LoadOpenGLFunction(glClear);

@@ -164,6 +164,7 @@ draw_debug_button(Renderer* ren,
 internal void
 draw_debug_slider(Renderer* ren, 
                   DebugState* debug, 
+// TODO: not working with negative values
                   f32 min,
                   f32 max, 
                   f32* value, 
@@ -175,6 +176,7 @@ draw_debug_slider(Renderer* ren,
     vec2 button_position = debug->draw_cursor;
     vec2 button_size = {10.0f, 10.0f};
 
+    f32 range = max - min;
 
 
     vec4 color = {0.5f, 0.5f, 0.5f, 0.5f};
@@ -186,19 +188,12 @@ draw_debug_slider(Renderer* ren,
         {
             color = clicked_color;
         }
-        f32 slider_x = pos.x + (debug->mouse_pos.x - pos.x);
-        slider_x = CLAMP(slider_x,
-                         pos.x,
-                         pos.x + size.x);
-        f32 update_value = ((slider_x - pos.x)/(size.x));
-        if (update_value)
-        {
-            *value = max * update_value;
-        }
-        else
-        {
-            *value = min;
-        }
+        f32 slide_amount = (debug->mouse_pos.x - pos.x);
+        slide_amount = CLAMP(slide_amount, 0.0f, size.x);
+
+        f32 update_value = slide_amount / size.x;
+
+        *value = (range * update_value) + min;
     }
     else if (equals(debug->next_hot_item.id, {value}))
     {
@@ -215,7 +210,7 @@ draw_debug_slider(Renderer* ren,
     draw_debug_text(ren, text, V3(text_pos));
 
 
-    button_position.x += ((*value)/max) * size.x;
+    button_position.x += (((*value)-min)/range) * size.x;
     draw_rect(ren, V3(button_position), button_size, color);
 
     if (point_is_inside(debug->mouse_pos,
@@ -258,6 +253,7 @@ debug_menu_begin(Renderer* ren,
     if (equals(debug->interacting_item.id, {menu_name}))
     {
         debug->menu_pos = debug->menu_pos + (debug->mouse_pos - debug->prev_mouse_pos);
+        color = clicked_color;
     }
     else if (equals(debug->next_hot_item.id, {menu_name}))
     {
