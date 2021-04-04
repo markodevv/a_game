@@ -1,8 +1,8 @@
 @echo off
 
-set win32_compiler_flags=-DEBUG -Gm- -GR- -EHa- -Od -Oi -WX -W3 -wd4996 -wd4311 -wd4302 -wd4201 -wd4100 -wd4189 -DGAME_DEBUG=1 -FC -Z7 -MTd -nologo
-set win32_linker_flags=/INCREMENTAL:NO /OPT:REF opengl32.lib winmm.lib user32.lib gdi32.lib shell32.lib dsound.lib
-set game_linker_flags=/INCREMENTAL:NO /OPT:REF /PDB:game_%random%.pdb
+set win32_compiler_flags=-I ..\third_party\assimp\include -DEBUG -Gm- -GR- -EHa- -Od -Oi -WX -W3 -wd4996 -wd4311 -wd4302 -wd4201 -wd4100 -wd4189 -DGAME_DEBUG=1 -FC -Z7 -MTd -nologo
+set win32_linker_flags=/INCREMENTAL:NO /OPT:REF  opengl32.lib winmm.lib user32.lib gdi32.lib shell32.lib dsound.lib assimp-vc142-mt.lib
+set game_linker_flags=/INCREMENTAL:NO /OPT:REF /PDB:game_%random%.pdb 
 
 
 IF NOT EXIST ..\build mkdir ..\build

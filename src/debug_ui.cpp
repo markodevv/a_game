@@ -108,7 +108,7 @@ draw_debug_button(Renderer* ren,
     }
 
 
-    draw_rect(ren, V3(button_pos), button_size, button_color);
+    draw_rect(ren, V3(button_pos, 0.0f), button_size, button_color);
     vec3 text_pos = {
         button_pos.x + (button_size.x / 2.0f),
         button_pos.y + (button_size.y / 4.0f),
@@ -152,7 +152,7 @@ draw_debug_slider(Renderer* ren,
         name_copy[MAX_NAME_LEN-2] = '.';
     }
 
-    draw_debug_text(ren, name_copy, V3(pos));
+    draw_debug_text(ren, name_copy, V3(pos, 0.0f));
     pos.x += max_name_x;
 
     vec2 button_position = pos;
@@ -183,16 +183,16 @@ draw_debug_slider(Renderer* ren,
         color = hover_color;
     }
 
-    draw_rect(ren, V3(pos), {size.x+button_size.x, size.y}, ui_color);
+    draw_rect(ren, V3(pos, 0.0f), {size.x+button_size.x, size.y}, ui_color);
     vec2 text_pos = {(pos.x+size.x+button_size.x), pos.y};
 
 
     char *text = PushMemory(&debug->arena, char, 30);
     sprintf_s(text, 30, "%.2f", *value);
-    draw_debug_text(ren, text, V3(text_pos));
+    draw_debug_text(ren, text, V3(text_pos, 0.0f));
 
     button_position.x += (((*value)-min)/range) * size.x;
-    draw_rect(ren, V3(button_position), button_size, color);
+    draw_rect(ren, V3(button_position, 0.0f), button_size, color);
 
     if (point_is_inside(debug->mouse_pos, button_position, button_size))
     {
@@ -224,7 +224,7 @@ internal void
 debug_vec3_slider(Renderer* ren, DebugState* debug, vec3* v, char* name)
 {
     debug_menu_newline(ren, debug);
-    draw_debug_text(ren, name, V3(debug->draw_cursor));
+    draw_debug_text(ren, name, V3(debug->draw_cursor, 0.0f));
     debug_menu_newline(ren, debug);
 
     draw_debug_slider(ren, debug, 0.0f, 1.0f, &v->x, "x");
@@ -259,13 +259,13 @@ debug_menu_begin(Renderer* ren,
     debug->prev_draw_cursor = pos;
     vec2 header_size = {size.x, ren->font_size + 5.0f};
     vec2 header_pos = {pos.x, pos.y + size.y - header_size.y};
-    draw_rect(ren, V3(pos), size, {0.5f, 0.5f, 0.5f, 0.5f});
-    draw_rect(ren, V3(header_pos), header_size, color);
+    draw_rect(ren, V3(pos, 0.0f), size, {0.5f, 0.5f, 0.5f, 0.5f});
+    draw_rect(ren, V3(header_pos, 0.0f), header_size, color);
 
     pos = header_pos;
     pos.x += size.x / 2.0f;
     pos.y += 5.0f;
-    draw_debug_text(ren, menu_name, V3(pos), TEXT_ALIGN_MIDDLE);
+    draw_debug_text(ren, menu_name, V3(pos, 0.0f), TEXT_ALIGN_MIDDLE);
 
     debug->prev_draw_cursor.y += size.y - 2.0f * header_size.y;
     debug->prev_draw_cursor.x += X_PADDING;

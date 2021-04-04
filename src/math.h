@@ -1,7 +1,7 @@
 #if !defined(MATH_H)
 #define MATH_H
 
-#define PI 3.14159265359f
+#define PI_F 3.14159265359f
 #define MIN(a,b) (((a)<(b)) ? (a) : (b))
 #define MAX(a,b) (((a)>(b)) ? (a) : (b))
 #define CLAMP(a, min, max) (((a)<=(max)) ? ( ((a)<(min)) ? (min) : (a) ) : (max))
@@ -138,15 +138,39 @@ vec3_normalized(vec3 v)
 }
 
 inline vec3
-V3(vec2 v)
+V3(f32 x, f32 y, f32 z)
 {
-    return {v.x, v.y, 0.0f};
+    return {x, y, z};
+}
+
+inline vec3
+V3(vec2 v, f32 z)
+{
+    return {v.x, v.y, z};
+}
+
+inline vec3
+V3(f32 n)
+{
+    return {n, n, n};
+}
+
+inline vec4
+V4(f32 x, f32 y, f32 z, f32 w)
+{
+    return {x, y, z ,w};
 }
 
 inline vec4
 V4(vec3 v, f32 w)
 {
     return {v.x, v.y, v.z, w};
+}
+
+inline vec4
+V4(f32 n)
+{
+    return {n, n, n, n};
 }
 
 inline vec3
@@ -275,7 +299,7 @@ mat4_translate(vec3 v)
 inline mat4
 mat4_rotate(f32 angle, vec3 v)
 {
-    f32 radians = angle * PI / 180;
+    f32 radians = angle * PI_F / 180;
     f32 cos = cosf(radians);
     f32 sin = sinf(radians);
 
@@ -361,7 +385,7 @@ mat4_transpose(mat4 matrix)
 inline f32
 degrees_to_radians(f32 d) 
 {
-    return (d*((f32)PI/180));
+    return (d*((f32)PI_F/180));
 }
 
 inline mat4

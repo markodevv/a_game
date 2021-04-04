@@ -377,17 +377,44 @@ opengl_end_frame(Renderer* ren)
     set_light_uniform(ren->shader_program_3D, &ren->light);
 
 
-    u32 size = sizeof(VertexData) * ren->vertex_index; 
+    u32 size = sizeof(VertexData) * ren->batch_size;
 
     glBindVertexArray(ren->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
 
     glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_start); 
-    glDrawArrays(GL_TRIANGLES, 0, ren->vertex_index);
+    glDrawArrays(GL_TRIANGLES, 0, ren->batch_size);
+    ren->vertex_index = 0;
+    //
+
+    model = mat4_translate(V3(300, 0, 0)) * mat4_scale(V3(100, 100, 100));
+    mvp = ren->projection * ren->view * model;
+    normal_transform = mat4_transpose(mat4_inverse(model));
+
+
+    ren->light_pos.x = 100.0f;
+    ren->light_pos.y = 200.0f;
+
+    do_transpose = true;
+
+
+    mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
+    glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
+
+    normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
+    glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
+
+    set_material_uniform(ren->shader_program_3D, &ren->jade);
+    set_light_uniform(ren->shader_program_3D, &ren->light);
+
+    glBufferSubData(GL_ARRAY_BUFFER, size, size, ren->vertices_start + ren->batch_size); 
+    glDrawArrays(GL_TRIANGLES, 0, ren->batch_size);
     ren->vertex_index = 0;
 
-    glDisable(GL_DEPTH_TEST);
+
     // NOTE(marko): 2D renderer
+
+    glDisable(GL_DEPTH_TEST);
     glUseProgram(ren->shader_program_2D);
 
     ren->projection = mat4_orthographic((f32)ren->screen_width, (f32)ren->screen_height);

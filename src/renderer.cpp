@@ -122,7 +122,7 @@ draw_rect(Renderer* ren, vec3 position, vec2 scale, vec4 color)
         { 0.5f, -0.5f, 0.0f},
         { 0.5f,  0.5f, 0.0f},
     };
-    vec3 scal = V3(scale);
+    vec3 scal = V3(scale, 0.0f);
     position = position + (scal/2);
 
 
@@ -191,6 +191,7 @@ draw_cube(Renderer* ren, vec3 position, vec3 scale, vec4 color)
         ren->vertices_start[ren->vertex_index].color = color;
         ren->vertex_index++;
     }
+    ren->batch_size += (i32)vertex_count;
 }
 
 

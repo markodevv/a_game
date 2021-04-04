@@ -49,6 +49,9 @@ typedef size_t sizet;
 #include "opengl_renderer.h"
 #include "opengl_renderer.cpp"
 
+#include <assimp/cimport.h>        // Plain-C interface
+#include <assimp/scene.h>          // Output data structure
+#include <assimp/postprocess.h>    // Post processing flags
 
 
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
@@ -752,6 +755,14 @@ WinMain(HINSTANCE hinstance,
     i32 last_game_dll_write_time = win32_get_last_write_time("game.dll");
 
     b8 paused = false;
+    // ASSIMP 
+
+    const aiScene* scene = aiImportFile("../head.obj", aiProcess_CalcTangentSpace |
+                                              aiProcess_Triangulate               |
+                                              aiProcess_JoinIdenticalVertices     |
+                                              aiProcess_SortByPType);
+
+
     while(global_running)
     {
 
@@ -875,4 +886,3 @@ WinMain(HINSTANCE hinstance,
 
      return 0;
 }
-        

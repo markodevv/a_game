@@ -112,6 +112,9 @@ struct Renderer
     Material material;
     Light light;
 
+    Material jade;
+    i32 batch_size;
+
     // TODO: this should be in DebugState
     LoadedBitmap font_bitmap;
     stbtt_bakedchar char_metrics[NUM_ASCII];

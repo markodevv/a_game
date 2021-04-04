@@ -33,7 +33,6 @@ typedef size_t sizet;
 #include "renderer.cpp"
 #include "debug_ui.cpp"
 
-
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -62,10 +61,10 @@ game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
         samples++;
         *samples = sample_value;
         samples++;
-        game_state->t_sine += 2.0f * PI * (1.0f / (f32)wave_period);
-        if (game_state->t_sine > 2.0f * PI)
+        game_state->t_sine += 2.0f * PI_F * (1.0f / (f32)wave_period);
+        if (game_state->t_sine > 2.0f * PI_F)
         {
-            game_state->t_sine -= 2.0f * PI;
+            game_state->t_sine -= 2.0f * PI_F;
         }
     }
 }
@@ -113,6 +112,15 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         ren->material.specular = {0.5f, 0.5f, 0.5f};
         ren->material.shininess = 32.0f;
 
+        ren->jade.ambient = V3(0.191f, 0.073f, 0.025f);
+        ren->jade.diffuse = V3(0.703f, 0.27f, 0.082f);
+        ren->jade.specular = V3(0.256f, 0.138f, 0.086f);
+        ren->jade.shininess = 0.6f;
+
+        ren->light.ambient = V3(1.0f);
+        ren->light.diffuse = V3(1.0f);
+        ren->light.specular = V3(1.0f);
+
         ren->renderer_init = memory->renderer_init;
         ren->renderer_begin = memory->renderer_begin;
         ren->renderer_end = memory->renderer_end;
@@ -145,6 +153,9 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         memory->DEBUG_free_file_memory(font_file.data);
         memory->is_initialized = true;
+
+
+
     }
 
     Camera* cam = &game_state->renderer->camera;
