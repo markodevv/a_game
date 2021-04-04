@@ -18,10 +18,26 @@
 internal inline u32
 string_length(char* string)
 {
-    u32 out = 0;
-    while(string)
+    u32 len = 0;
+    while(string[len])
     {
-        out++;
+        len++;
+    }
+
+    return len;
+}
+
+internal inline char*
+string_copy(MemoryArena* arena, char* str)
+{
+    u32 len = string_length(str);
+
+    char* out = PushMemory(arena, char, len+1);
+    out[len] = '\0';
+
+    for (sizet i = 0; i < len; ++i)
+    {
+        out[i] = str[i];
     }
 
     return out;
@@ -60,6 +76,7 @@ struct GameInput
         ButtonState buttons[9];
     };
     MouseInput mouse;
+    char character;
 };
 
 inline b8

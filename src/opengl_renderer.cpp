@@ -37,6 +37,21 @@ global_variable const char* fragment_shader_3D =
 R"(
 #version 330 core
 
+struct Material
+{
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+};
+
+struct Light
+{
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+
 out vec4 frag_color;
 
 in vec3 frag_pos;
@@ -46,30 +61,32 @@ in vec4 color;
 
 uniform vec3 u_view;
 uniform vec3 u_light_pos;
+uniform Material u_material;
+uniform Light u_light;
 
-float ambient_strength = 0.1f;
-float specular_strength = 0.3f;
-vec3 light_color = {1.0f, 1.0f, 1.0f};
 
 void main()
 {
+    vec3 ambient, specular, diffuse;
+
     vec4 obj_color = color;
 
+    ambient = u_light.ambient * u_material.ambient;
+
     vec3 norm = normalize(normal);
-    vec3 ambient = light_color * ambient_strength;
 
     vec3 light_dir = normalize(u_light_pos - frag_pos);
-    vec3 diffuse = light_color * max(dot(light_dir, norm), 0.0f);
+    float diff = max(dot(light_dir, norm), 0.0f);
+    diffuse = u_light.diffuse * (u_material.diffuse * diff);
 
     vec3 view_dir = normalize(u_view - frag_pos);
     vec3 reflected = reflect(-light_dir, norm);
 
-    vec3 spec = light_color * 
-                pow(max(dot(reflected, view_dir), 0.0f), 32) *
-                specular_strength;
+    float spec = pow(max(dot(reflected, view_dir), 0.0f), u_material.shininess);
+    specular = u_light.specular * (u_material.specular * spec);
 
 
-    frag_color = obj_color * vec4(diffuse + ambient + spec, 1.0f);
+    frag_color = vec4(diffuse + ambient + specular, 1.0f);
 }
 )";
 
@@ -287,6 +304,38 @@ opengl_begin_frame(Renderer* ren)
         glViewport(0, 0, w, h);
     }
 
+    ren->view = camera_transform(&ren->camera);
+    ren->projection = mat4_perspective((f32)ren->screen_width,
+                                       (f32)ren->screen_height,
+                                       120.0f, 1.0f, 1000.0f);
+}
+
+internal void
+set_material_uniform(u32 shader, Material* material)
+{
+    i32 amb, spec, diff, shin;
+    amb = opengl_get_uniform_location(shader, "u_material.ambient");
+    spec = opengl_get_uniform_location(shader, "u_material.specular");
+    diff = opengl_get_uniform_location(shader, "u_material.diffuse");
+    shin = opengl_get_uniform_location(shader, "u_material.shininess");
+
+    glUniform3fv(amb, 1, material->ambient.data);
+    glUniform3fv(spec, 1, material->specular.data);
+    glUniform3fv(diff, 1, material->diffuse.data);
+    glUniform1f(shin, material->shininess);
+}
+
+internal void
+set_light_uniform(u32 shader, Light* light)
+{
+    i32 amb, spec, diff;
+    amb = opengl_get_uniform_location(shader, "u_light.ambient");
+    spec = opengl_get_uniform_location(shader, "u_light.specular");
+    diff = opengl_get_uniform_location(shader, "u_light.diffuse");
+
+    glUniform3fv(amb, 1, light->ambient.data);
+    glUniform3fv(spec, 1, light->specular.data);
+    glUniform3fv(diff, 1, light->diffuse.data);
 }
 
 internal void
@@ -296,17 +345,14 @@ opengl_end_frame(Renderer* ren)
     glEnable(GL_DEPTH_TEST);
     glUseProgram(ren->shader_program_3D);
 
-    mat4 view = camera_transform(&ren->camera);
-    mat4 projection = mat4_perspective((f32)ren->screen_width,
-                                       (f32)ren->screen_height,
-                                       120.0f, 1.0f, 1000.0f);
     //mat4 projection = mat4_orthographic(1024.0f, 768.0f);
     local_persist f32 temp = 0.0f;
     temp += 0.05f;
 
     mat4 model = mat4_rotate(sinf(temp) * 100, {0.0f, 1.0f, 0.0f}) * mat4_scale({100, 100, 100});
-    mat4 mvp = projection * view * model;
+    mat4 mvp = ren->projection * ren->view * model;
     mat4 normal_transform = mat4_transpose(mat4_inverse(model));
+
 
     ren->light_pos.x = 100.0f;
     ren->light_pos.y = 200.0f;
@@ -314,18 +360,21 @@ opengl_end_frame(Renderer* ren)
     b8 do_transpose = true;
     i32 mvp_loc, light_loc, view_loc, normal_loc;
 
+
     mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
     glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
 
     light_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_light_pos");
     glUniform3fv(light_loc, 1, (f32*)ren->light_pos.data);
 
-
     view_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_view");
     glUniform3fv(view_loc, 1, (f32*)ren->camera.position.data);
 
     normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
     glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
+
+    set_material_uniform(ren->shader_program_3D, &ren->material);
+    set_light_uniform(ren->shader_program_3D, &ren->light);
 
 
     u32 size = sizeof(VertexData) * ren->vertex_index; 
@@ -341,9 +390,8 @@ opengl_end_frame(Renderer* ren)
     // NOTE(marko): 2D renderer
     glUseProgram(ren->shader_program_2D);
 
-    view = camera_transform(&ren->camera);
-    projection = mat4_orthographic((f32)ren->screen_width, (f32)ren->screen_height);
-    mat4 viewproj = projection;
+    ren->projection = mat4_orthographic((f32)ren->screen_width, (f32)ren->screen_height);
+    mat4 viewproj = ren->projection;
 
     i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");
     glUniformMatrix4fv(vp_loc, 1, do_transpose, (f32*)viewproj.data);

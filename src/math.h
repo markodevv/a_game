@@ -46,6 +46,10 @@ struct vec4
         {
             f32 x, y, z, w;
         };
+        struct
+        {
+            vec3 xyz;
+        };
         f32 data[4];
     };
 
@@ -137,6 +141,12 @@ inline vec3
 V3(vec2 v)
 {
     return {v.x, v.y, 0.0f};
+}
+
+inline vec4
+V4(vec3 v, f32 w)
+{
+    return {v.x, v.y, v.z, w};
 }
 
 inline vec3

@@ -2,7 +2,20 @@
 #define RENDERER_H
 #include "stb_truetype.h"
 
+struct Material
+{
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    f32 shininess;
+};
 
+struct Light
+{
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
 
 struct VertexData
 {
@@ -20,6 +33,7 @@ struct VertexData2D
     vec4 color;
     f32 texture_id;
 };
+
 
 struct Camera
 {
@@ -54,7 +68,7 @@ struct LoadedBitmap
     i32 height;
 };
 
-#define MAX_VERTICES 100000
+#define MAX_VERTICES 10000
 #define NUM_ASCII 96
 
 struct Renderer;
@@ -62,8 +76,22 @@ typedef void RendererProc(Renderer* ren);
 typedef void RendererProc(Renderer* ren);
 typedef void RendererProc(Renderer* ren);
 
+struct RenderGroup
+{
+    u32 num_vertieces;
+    VertexData *vertices;
+    mat4 transform;
+
+    RenderGroup* next_group;
+};
+
+
 struct Renderer
 {
+    MemoryArena arena;
+
+    RenderGroup* render_groups;
+
     i32 shader_program_3D;
     VertexData vertices_start[MAX_VERTICES];
     u32 vertex_index;
@@ -77,13 +105,19 @@ struct Renderer
     u32 VBO_2D;
     u32 VAO_2D;
 
+    mat4 projection;
+    mat4 view;
+
     vec3 light_pos;
+    Material material;
+    Light light;
 
     // TODO: this should be in DebugState
     LoadedBitmap font_bitmap;
     stbtt_bakedchar char_metrics[NUM_ASCII];
     f32 font_size;
     u32 font_texture_id;
+    f32 x_advance;
     //
 
     i32 screen_width;
@@ -96,4 +130,26 @@ struct Renderer
     RendererProc* renderer_end;
 };
 
+internal void
+push_render_group(Renderer* ren, u32 num_vertieces)
+{
+    RenderGroup* render_group = PushMemory(&ren->arena, RenderGroup);
+    render_group->vertices = PushMemory(&ren->arena, VertexData, num_vertieces);
+    render_group->next_group = 0;
+     
+    if (!ren->render_groups)
+    {
+        ren->render_groups = render_group;
+    }
+    else
+    {
+        RenderGroup* node = ren->render_groups;
+        while(node->next_group)
+        {
+            node = node->next_group;
+        }
+        node->next_group = render_group;
+    }
+
+}
 #endif

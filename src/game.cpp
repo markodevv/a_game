@@ -70,6 +70,8 @@ game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
     }
 }
 
+
+
 inline internal LoadedBitmap
 allocate_bitmap(MemoryArena* memory, i32 w, i32 h)
 {
@@ -80,6 +82,8 @@ allocate_bitmap(MemoryArena* memory, i32 w, i32 h)
 
     return out;
 }
+
+
 
 extern "C" PLATFORM_API void
 game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
@@ -95,10 +99,6 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         init_arena(&game_state->temporary_arena, 
                    (memory->temporary_storage_size - sizeof(GameState)),
                    (u8*)memory->temporary_storage);
-
-        memory->debug = PushMemory(&game_state->arena, DebugState);
-        sub_arena(&game_state->arena, &memory->debug->arena, MEGABYTES(20));
-
         game_state->renderer = PushMemory(&game_state->arena, Renderer);
 
         game_state->tone_hz = 256;
@@ -106,9 +106,20 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         game_state->t_sine = 0.0f;
 
         Renderer* ren = game_state->renderer;
+        sub_arena(&game_state->arena, &ren->arena, MEGABYTES(32));
+
+        ren->material.ambient = {1.0f, 0.5f, 0.31f};
+        ren->material.diffuse = {1.0f, 0.5f, 0.31f};
+        ren->material.specular = {0.5f, 0.5f, 0.5f};
+        ren->material.shininess = 32.0f;
+
         ren->renderer_init = memory->renderer_init;
         ren->renderer_begin = memory->renderer_begin;
         ren->renderer_end = memory->renderer_end;
+
+
+        memory->debug = PushMemory(&game_state->arena, DebugState);
+        sub_arena(&game_state->arena, &memory->debug->arena, MEGABYTES(6));
 
         DebugFileResult font_file = memory->DEBUG_read_entire_file("../consola.ttf");
 
@@ -123,6 +134,7 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
                              ren->font_bitmap.height,
                              32, NUM_ASCII, 
                              ren->char_metrics);
+        ren->x_advance = (ren->char_metrics + 32)->xadvance;
 
         if (!result)
         {
@@ -159,7 +171,6 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         cam->position.z -= scroll_amount * delta_time * 10;
     }
 
-
     Renderer* ren = game_state->renderer;
     input->mouse.position.y = ren->screen_height - input->mouse.position.y;
     ren->screen_width = memory->screen_width;
@@ -167,47 +178,50 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
     process_debug_ui_interactions(memory->debug, input);
 
-    debug_end(memory->debug);
 }
-
-
-
 
 
 extern "C" PLATFORM_API void
 game_render(GameMemory* memory)
 {
-        GameState* game_state = (GameState*)memory->permanent_storage;
-        Renderer* ren = game_state->renderer;
+    GameState* game_state = (GameState*)memory->permanent_storage;
+    Renderer* ren = game_state->renderer;
 
-        ren->renderer_begin(ren);
- 
-        debug_begin(memory->debug);
-
-        local_persist f32 var = 0.0f;
-        debug_menu_begin(ren, memory->debug, {100, 200}, {400, 300}, "Main Menu");
-
-        draw_debug_slider(ren, memory->debug, 0.0f, 30.0f, &var, "my variable"); 
-        debug_menu_newline(ren, memory->debug);
-        draw_debug_slider(ren, memory->debug, 0.0f, 0.5f, &ren->light_speed, "light speed");
-
-        if (draw_debug_button(ren, memory->debug, "button 1"))
-        {
-            DEBUG_PRINT("button 1 clicked");
-        }
-        if (draw_debug_button(ren, memory->debug, "button 2"))
-        {
-            DEBUG_PRINT("button 2 clicked");
-        }
-        debug_menu_newline(ren, memory->debug);
-        draw_debug_slider(ren, memory->debug, -400.0f, 400.0f, &ren->light_pos.z, "light pos"); 
-
-        draw_debug_fps(ren, memory->debug);
+    ren->renderer_begin(ren);
 
 
-        f32 random_value = 10.0f;
-        draw_cube(ren, {0.0f, 0.0f, 0.0f}, {100.0f, 100.0f, 100.0f}, {0.8f, 0.3f, 0.0f, 1.0f});
+    local_persist f32 var = 0.0f;
+    debug_menu_begin(ren, memory->debug, {100, 200}, {400, (f32)ren->screen_height}, "Main Menu");
 
-        ren->renderer_end(ren);
+    draw_debug_fps(ren, memory->debug);
+
+    draw_debug_slider(ren, memory->debug, 0.0f, 30.0f, &var, "my variable"); 
+    debug_menu_newline(ren, memory->debug);
+    draw_debug_slider(ren, memory->debug, 0.0f, 0.5f, &ren->light_speed, "light speed");
+
+    if (draw_debug_button(ren, memory->debug, "button 1"))
+    {
+        DEBUG_PRINT("button 1 clicked");
+    }
+    if (draw_debug_button(ren, memory->debug, "button 2"))
+    {
+        DEBUG_PRINT("button 2 clicked");
+    }
+    debug_menu_newline(ren, memory->debug);
+
+    draw_debug_slider(ren, memory->debug, -400.0f, 400.0f, &ren->light_pos.z, "light z"); 
+
+
+    debug_vec3_slider(ren, memory->debug, &ren->light.ambient, "light.ambient");
+    debug_vec3_slider(ren, memory->debug, &ren->light.diffuse, "light.diffuse");
+    debug_vec3_slider(ren, memory->debug, &ren->light.specular, "light.specular");
+
+
+
+    f32 random_value = 10.0f;
+    draw_cube(ren, {0.0f, 0.0f, 0.0f}, {100.0f, 100.0f, 100.0f}, {0.8f, 0.3f, 0.0f, 1.0f});
+    draw_cube(ren, ren->light_pos, {50.0f, 50.0f, 50.0f}, {1.0f, 1.0f, 1.0f, 1.0f});
+
+    ren->renderer_end(ren);
 }
 

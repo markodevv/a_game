@@ -1,9 +1,19 @@
-
 enum TextAlign
 {
     TEXT_ALIGN_MIDDLE,
     TEXT_ALIGN_LEFT,
 };
+
+internal void 
+render_group_begin(Renderer* ren, mat4 transform)
+{
+};
+
+internal void 
+render_group_end(Renderer* ren)
+{
+};
+
 
 internal vec2
 text_box_size(Renderer* ren, char* text)

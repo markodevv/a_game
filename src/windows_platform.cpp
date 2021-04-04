@@ -506,6 +506,7 @@ win32_init_opengl(HWND window_handle)
     Win32LoadOpenGLFunction(glUniform1fv);
     Win32LoadOpenGLFunction(glUniform2fv);
     Win32LoadOpenGLFunction(glUniform3fv);
+    Win32LoadOpenGLFunction(glUniform4fv);
     Win32LoadOpenGLFunction(glUniformMatrix4fv);
     Win32LoadOpenGLFunction(glUseProgram);
     Win32LoadOpenGLFunction(glVertexAttribPointer);
@@ -541,8 +542,9 @@ win32_process_input_messages(GameInput* game_input)
     {
         switch(message.message)
         {
-            case WM_DESTROY:
+            case WM_CHAR:
             {
+                game_input->character = (char)message.wParam;
             } break;
             case WM_QUIT:
                 global_running= false;
@@ -589,6 +591,8 @@ win32_process_input_messages(GameInput* game_input)
                         game_input->pause_button.released = (was_down == 1) && (is_down == 0);
                     } break;
                 }
+                TranslateMessage(&message);
+                DispatchMessageA(&message);
             } break;
             case WM_MOUSEWHEEL:
             {
@@ -633,6 +637,7 @@ win32_process_input_messages(GameInput* game_input)
                 TranslateMessage(&message);
                 DispatchMessageA(&message);
             } break;
+
         }
     }
 
