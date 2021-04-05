@@ -2,6 +2,7 @@
 #define RENDERER_H
 #include "stb_truetype.h"
 
+
 struct Material
 {
     vec3 ambient;
@@ -40,6 +41,24 @@ struct Camera
     vec3 position;
     vec3 direction;
     vec3 up;
+};
+
+struct Mesh
+{
+    VertexData* vertices;
+    u32* indices;
+
+    u32 num_vertices;
+    u32 num_indices;
+
+    u32 VAO, VBO, EBO;
+};
+
+struct Model
+{
+    b8 loaded_to_gpu;
+    Mesh* meshes;
+    u32 num_meshes;
 };
 
 inline mat4
@@ -94,14 +113,14 @@ struct Renderer
 
     i32 shader_program_3D;
     VertexData vertices_start[MAX_VERTICES];
-    u32 vertex_index;
+    u32 vertex_count;
     u32 VAO;
     u32 VBO;
     Camera camera;
 
     VertexData2D vertices_2D[MAX_VERTICES];
     i32 shader_program_2D;
-    u32 vertex_index_2D;
+    u32 vertex_count_2D;
     u32 VBO_2D;
     u32 VAO_2D;
 
@@ -122,6 +141,7 @@ struct Renderer
     u32 font_texture_id;
     f32 x_advance;
     //
+    Model* model;
 
     i32 screen_width;
     i32 screen_height;

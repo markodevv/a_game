@@ -102,6 +102,7 @@ struct DebugFileResult;
 typedef DebugFileResult DebugReadEntireFileFunc(char* path);
 typedef void DebugFreeEntireFileFunc(void* memory);
 typedef b8 DebugWriteEntireFileFunc(char* file_name, i32 size, void* memory);
+typedef Model* DebugLoad3DModel(MemoryArena* arena, char* name);
 
 
 internal void
@@ -127,6 +128,7 @@ struct GameMemory
     DebugReadEntireFileFunc* DEBUG_read_entire_file;
     DebugFreeEntireFileFunc* DEBUG_free_file_memory;
     DebugWriteEntireFileFunc* DEBUG_write_entire_file;
+    DebugLoad3DModel* DEBUG_load_3D_model;
     DebugState* debug;
 #endif
 
@@ -168,7 +170,6 @@ struct DebugFileResult
 internal DebugFileResult DEBUG_read_entire_file(char* path);
 internal void DEBUG_free_file_memory(void* memory);
 internal b8 DEBUG_write_entire_file(char* file_name, i32 size, void* memory);
-
 
 #endif
 

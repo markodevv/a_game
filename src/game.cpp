@@ -24,6 +24,10 @@ typedef double f64;
 typedef i8 b8;
 typedef size_t sizet;
 
+#include <assimp/cimport.h>        // Plain-C interface
+#include <assimp/scene.h>          // Output data structure
+#include <assimp/postprocess.h>    // Post processing flags
+
 #include "log.h"
 #include "math.h"
 #include "memory.h"
@@ -41,6 +45,7 @@ typedef size_t sizet;
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
+
 
 
 // NOTE: Debug data
@@ -105,7 +110,7 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         game_state->t_sine = 0.0f;
 
         Renderer* ren = game_state->renderer;
-        sub_arena(&game_state->arena, &ren->arena, MEGABYTES(32));
+        sub_arena(&game_state->temporary_arena, &ren->arena, MEGABYTES(64));
 
         ren->material.ambient = {1.0f, 0.5f, 0.31f};
         ren->material.diffuse = {1.0f, 0.5f, 0.31f};
@@ -121,6 +126,8 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         ren->light.diffuse = V3(1.0f);
         ren->light.specular = V3(1.0f);
 
+        ren->model = memory->DEBUG_load_3D_model(&ren->arena, "../IronMan.obj");
+
         ren->renderer_init = memory->renderer_init;
         ren->renderer_begin = memory->renderer_begin;
         ren->renderer_end = memory->renderer_end;
@@ -132,9 +139,8 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         DebugFileResult font_file = memory->DEBUG_read_entire_file("../consola.ttf");
 
         ren->font_bitmap = allocate_bitmap(&game_state->arena, 512, 512);
-
-
         ren->font_size = 14.0f;
+
         i32 result = stbtt_BakeFontBitmap((u8*)font_file.data, 
                              0, ren->font_size,
                              ren->font_bitmap.data, 
@@ -153,8 +159,6 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         memory->DEBUG_free_file_memory(font_file.data);
         memory->is_initialized = true;
-
-
 
     }
 
@@ -231,7 +235,6 @@ game_render(GameMemory* memory)
 
     f32 random_value = 10.0f;
     draw_cube(ren, {0.0f, 0.0f, 0.0f}, {100.0f, 100.0f, 100.0f}, {0.8f, 0.3f, 0.0f, 1.0f});
-    draw_cube(ren, ren->light_pos, {50.0f, 50.0f, 50.0f}, {1.0f, 1.0f, 1.0f, 1.0f});
 
     ren->renderer_end(ren);
 }

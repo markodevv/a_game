@@ -20,6 +20,10 @@ wglCreateContextAttribsARB_type *wglCreateContextAttribsARB;
 #define global_variable static 
 #define local_persist static
 
+#include <assimp/cimport.h>        // Plain-C interface
+#include <assimp/scene.h>          // Output data structure
+#include <assimp/postprocess.h>    // Post processing flags
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -49,9 +53,6 @@ typedef size_t sizet;
 #include "opengl_renderer.h"
 #include "opengl_renderer.cpp"
 
-#include <assimp/cimport.h>        // Plain-C interface
-#include <assimp/scene.h>          // Output data structure
-#include <assimp/postprocess.h>    // Post processing flags
 
 
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
@@ -646,6 +647,50 @@ win32_process_input_messages(GameInput* game_input)
 
 }
 
+internal Model*
+DEBUG_load_3D_model(MemoryArena* arena, char* name)
+{
+    const aiScene* scene = aiImportFile(name, aiProcess_CalcTangentSpace |
+                                              aiProcess_Triangulate      |
+                                              aiProcess_SortByPType);
+    if (!scene)
+    {
+        DEBUG_PRINT("%s", aiGetErrorString());
+        return 0;
+    }
+
+
+    Model* out = PushMemory(arena, Model);
+    out->num_meshes = scene->mNumMeshes;
+    out->meshes = PushMemory(arena, Mesh, out->num_meshes);
+
+    for (u32 mesh_index = 0; mesh_index < out->num_meshes; ++mesh_index)
+    {
+        aiMesh* mesh = scene->mMeshes[mesh_index];
+
+        out->meshes[mesh_index].num_vertices = mesh->mNumVertices;
+        out->meshes[mesh_index].vertices = PushMemory(arena, VertexData, mesh->mNumVertices);
+        VertexData* vertices = out->meshes[mesh_index].vertices;
+
+
+        for (u32 vertex_index = 0; vertex_index < mesh->mNumVertices; ++vertex_index)
+        {
+            vertices->position.x = mesh->mVertices[vertex_index].x;
+            vertices->position.y = mesh->mVertices[vertex_index].y;
+            vertices->position.z = mesh->mVertices[vertex_index].z;
+
+            vertices->normal.x = mesh->mNormals[vertex_index].x;
+            vertices->normal.y = mesh->mNormals[vertex_index].y;
+            vertices->normal.z = mesh->mNormals[vertex_index].z;
+
+            ++vertices;
+        }
+    }
+
+    aiReleaseImport(scene);
+
+    return out;
+}
 
 i32
 WinMain(HINSTANCE hinstance,
@@ -714,7 +759,7 @@ WinMain(HINSTANCE hinstance,
 
     GameMemory game_memory = {};
     game_memory.permanent_storage_size = MEGABYTES(64);
-    game_memory.temporary_storage_size = MEGABYTES(64);
+    game_memory.temporary_storage_size = MEGABYTES(128);
 
     game_memory.is_initialized = false;
     game_memory.permanent_storage = calloc(game_memory.permanent_storage_size, sizeof(u8));
@@ -733,6 +778,7 @@ WinMain(HINSTANCE hinstance,
     game_memory.DEBUG_read_entire_file = DEBUG_read_entire_file;
     game_memory.DEBUG_write_entire_file = DEBUG_write_entire_file;
     game_memory.DEBUG_free_file_memory = DEBUG_free_file_memory;
+    game_memory.DEBUG_load_3D_model = DEBUG_load_3D_model;
 #endif
 
     Win32SoundState sound_output = {};
@@ -757,10 +803,6 @@ WinMain(HINSTANCE hinstance,
     b8 paused = false;
     // ASSIMP 
 
-    const aiScene* scene = aiImportFile("../head.obj", aiProcess_CalcTangentSpace |
-                                              aiProcess_Triangulate               |
-                                              aiProcess_JoinIdenticalVertices     |
-                                              aiProcess_SortByPType);
 
 
     while(global_running)

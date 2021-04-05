@@ -98,11 +98,11 @@ draw_debug_text(Renderer* ren,
 
             for (sizet i = 0; i < ARRAY_COUNT(rectangle_vertices); ++i)
             {
-                ren->vertices_2D[ren->vertex_index_2D].position = rectangle_vertices[i];
-                ren->vertices_2D[ren->vertex_index_2D].uv = uv_coords[i];
-                ren->vertices_2D[ren->vertex_index_2D].color = color;
-                ren->vertices_2D[ren->vertex_index_2D].texture_id = (f32)ren->font_texture_id;
-                ren->vertex_index_2D++;
+                ren->vertices_2D[ren->vertex_count_2D].position = rectangle_vertices[i];
+                ren->vertices_2D[ren->vertex_count_2D].uv = uv_coords[i];
+                ren->vertices_2D[ren->vertex_count_2D].color = color;
+                ren->vertices_2D[ren->vertex_count_2D].texture_id = (f32)ren->font_texture_id;
+                ren->vertex_count_2D++;
             }
         }
         text++;
@@ -128,12 +128,12 @@ draw_rect(Renderer* ren, vec3 position, vec2 scale, vec4 color)
 
     for (sizet i = 0; i < ARRAY_COUNT(rectangle_vertices); ++i)
     {
-        ren->vertices_2D[ren->vertex_index_2D].position =      
+        ren->vertices_2D[ren->vertex_count_2D].position =      
                                  rectangle_vertices[i] * scal + position;
-        ren->vertices_2D[ren->vertex_index_2D].color = color;
-        ren->vertices_2D[ren->vertex_index_2D].uv = {};
-        ren->vertices_2D[ren->vertex_index_2D].texture_id = -1.0f;
-        ren->vertex_index_2D++;
+        ren->vertices_2D[ren->vertex_count_2D].color = color;
+        ren->vertices_2D[ren->vertex_count_2D].uv = {};
+        ren->vertices_2D[ren->vertex_count_2D].texture_id = -1.0f;
+        ren->vertex_count_2D++;
     }
 }
 vec3 cube_vertices[] = {
@@ -186,12 +186,11 @@ draw_cube(Renderer* ren, vec3 position, vec3 scale, vec4 color)
     sizet vertex_count = ARRAY_COUNT(cube_vertices);
     for (sizet i = 0; i < vertex_count; i+=2)
     {
-        ren->vertices_start[ren->vertex_index].position = cube_vertices[i];
-        ren->vertices_start[ren->vertex_index].normal = cube_vertices[i+1];
-        ren->vertices_start[ren->vertex_index].color = color;
-        ren->vertex_index++;
+        ren->vertices_start[ren->vertex_count].position = cube_vertices[i];
+        ren->vertices_start[ren->vertex_count].normal = cube_vertices[i+1];
+        ren->vertices_start[ren->vertex_count].color = color;
+        ren->vertex_count++;
     }
-    ren->batch_size += (i32)vertex_count;
 }
 
 
@@ -225,11 +224,11 @@ texture_test(Renderer* ren, vec2 position, vec2 scale, vec4 color)
     };
     for (sizet i = 0; i < ARRAY_COUNT(rectangle_vertices); ++i)
     {
-        ren->vertices_2D[ren->vertex_index_2D].position = rectangle_vertices[i];
-        ren->vertices_2D[ren->vertex_index_2D].uv = uv_coords[i];
-        ren->vertices_2D[ren->vertex_index_2D].color = color;
-        ren->vertices_2D[ren->vertex_index_2D].texture_id = -1;
-        ren->vertex_index_2D++;
+        ren->vertices_2D[ren->vertex_count_2D].position = rectangle_vertices[i];
+        ren->vertices_2D[ren->vertex_count_2D].uv = uv_coords[i];
+        ren->vertices_2D[ren->vertex_count_2D].color = color;
+        ren->vertices_2D[ren->vertex_count_2D].texture_id = -1;
+        ren->vertex_count_2D++;
     }
     */
 }

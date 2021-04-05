@@ -265,8 +265,6 @@ opengl_init(Renderer* ren)
 
     glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(9*sizeof(f32)));
     glEnableVertexAttribArray(3); 
-
-
     glUseProgram(ren->shader_program_2D);
     glActiveTexture(GL_TEXTURE0);
     glGenTextures(1, &ren->font_texture_id);
@@ -284,6 +282,46 @@ opengl_init(Renderer* ren)
     glUniform1i(font_loc, 0);
 
     glBindVertexArray(0);
+
+    // NOTE: testing
+
+    if (!ren->model->loaded_to_gpu)
+    {
+        stride = sizeof(f32) * 13;
+        for (u32 mesh_index = 0; mesh_index < ren->model->num_meshes; ++mesh_index)
+        {
+            Mesh* mesh = &ren->model->meshes[mesh_index];
+
+            glGenVertexArrays(1, &mesh->VAO);
+            glGenBuffers(1, &mesh->VBO);
+
+            glBindVertexArray(mesh->VAO);
+            glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
+            u32 size = sizeof(VertexData) * mesh->num_vertices;
+            glBufferData(GL_ARRAY_BUFFER, size, (void*)mesh->vertices, GL_STATIC_DRAW);
+
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+            glEnableVertexAttribArray(0); 
+
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
+            glEnableVertexAttribArray(1); 
+
+            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6*sizeof(f32)));
+            glEnableVertexAttribArray(2); 
+
+            glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
+            glEnableVertexAttribArray(3); 
+
+            glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, stride, (void*)(12*sizeof(f32)));
+            glEnableVertexAttribArray(4); 
+
+            glBindVertexArray(0);
+
+            ren->model->loaded_to_gpu = 1;
+        }
+    }
+
+    //
 
     glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -377,17 +415,17 @@ opengl_end_frame(Renderer* ren)
     set_light_uniform(ren->shader_program_3D, &ren->light);
 
 
-    u32 size = sizeof(VertexData) * ren->batch_size;
 
     glBindVertexArray(ren->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
 
+    u32 size = sizeof(VertexData) * ren->vertex_count;
     glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_start); 
-    glDrawArrays(GL_TRIANGLES, 0, ren->batch_size);
-    ren->vertex_index = 0;
+    glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count);
     //
-
-    model = mat4_translate(V3(300, 0, 0)) * mat4_scale(V3(100, 100, 100));
+    // Other cube
+    //
+    model = mat4_translate(V3(300, 0, 0)) * mat4_scale(V3(50, 50, 50));
     mvp = ren->projection * ren->view * model;
     normal_transform = mat4_transpose(mat4_inverse(model));
 
@@ -407,10 +445,26 @@ opengl_end_frame(Renderer* ren)
     set_material_uniform(ren->shader_program_3D, &ren->jade);
     set_light_uniform(ren->shader_program_3D, &ren->light);
 
-    glBufferSubData(GL_ARRAY_BUFFER, size, size, ren->vertices_start + ren->batch_size); 
-    glDrawArrays(GL_TRIANGLES, 0, ren->batch_size);
-    ren->vertex_index = 0;
+    //glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_start); 
+    glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count);
+    ren->vertex_count = 0;
 
+    for (u32 i = 0; i < ren->model->num_meshes; ++i)
+    {
+        model = mat4_translate(V3(-100, 0, 0)) * mat4_scale(V3(1, 1, 1));
+        mvp = ren->projection * ren->view * model;
+        normal_transform = mat4_transpose(mat4_inverse(model));
+        mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
+        glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
+
+        normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
+        glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
+
+        Mesh* mesh = &ren->model->meshes[i];
+        glBindVertexArray(mesh->VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
+        glDrawArrays(GL_TRIANGLES, 0, mesh->num_vertices);
+    }
 
     // NOTE(marko): 2D renderer
 
@@ -422,14 +476,14 @@ opengl_end_frame(Renderer* ren)
 
     i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");
     glUniformMatrix4fv(vp_loc, 1, do_transpose, (f32*)viewproj.data);
-    size = sizeof(VertexData2D) * ren->vertex_index_2D;
+    size = sizeof(VertexData2D) * ren->vertex_count_2D;
 
     glBindVertexArray(ren->VAO_2D);
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
 
     glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_2D); 
-    glDrawArrays(GL_TRIANGLES, 0, ren->vertex_index_2D);
-    ren->vertex_index_2D = 0;
+    glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count_2D);
+    ren->vertex_count_2D = 0;
 
 }
 
