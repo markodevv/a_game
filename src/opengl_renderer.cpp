@@ -297,6 +297,15 @@ opengl_init(Renderer* ren)
 
             glBindVertexArray(mesh->VAO);
             glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
+
+            if (mesh->indices)
+            {
+                glGenBuffers(1, &mesh->EBO);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
+                u32 size = mesh->num_indices * sizeof(u32);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, (void*)mesh->indices, GL_STATIC_DRAW);
+            }
+
             u32 size = sizeof(VertexData) * mesh->num_vertices;
             glBufferData(GL_ARRAY_BUFFER, size, (void*)mesh->vertices, GL_STATIC_DRAW);
 
@@ -448,22 +457,29 @@ opengl_end_frame(Renderer* ren)
     //glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_start); 
     glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count);
     ren->vertex_count = 0;
+    model = mat4_translate(V3(-100, 0, 0)) * mat4_scale(V3(1, 1, 1));
+    mvp = ren->projection * ren->view * model;
+    normal_transform = mat4_transpose(mat4_inverse(model));
+
+    mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
+    glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
+    normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
+    glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
 
     for (u32 i = 0; i < ren->model->num_meshes; ++i)
     {
-        model = mat4_translate(V3(-100, 0, 0)) * mat4_scale(V3(1, 1, 1));
-        mvp = ren->projection * ren->view * model;
-        normal_transform = mat4_transpose(mat4_inverse(model));
-        mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
-        glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
-
-        normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
-        glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
-
         Mesh* mesh = &ren->model->meshes[i];
         glBindVertexArray(mesh->VAO);
         glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
-        glDrawArrays(GL_TRIANGLES, 0, mesh->num_vertices);
+        if (mesh->indices)
+        {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
+            glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, 0);
+        }
+        else
+        {
+            glDrawArrays(GL_TRIANGLES, 0, mesh->num_vertices);
+        }
     }
 
     // NOTE(marko): 2D renderer

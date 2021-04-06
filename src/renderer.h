@@ -46,9 +46,9 @@ struct Camera
 struct Mesh
 {
     VertexData* vertices;
-    u32* indices;
-
     u32 num_vertices;
+
+    u32* indices;
     u32 num_indices;
 
     u32 VAO, VBO, EBO;

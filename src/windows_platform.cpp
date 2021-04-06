@@ -532,6 +532,7 @@ win32_init_opengl(HWND window_handle)
     Win32LoadOpenGLFunction(glClear);
     Win32LoadOpenGLFunction(glViewport);
     Win32LoadOpenGLFunction(glDrawArrays);
+    Win32LoadOpenGLFunction(glDrawElements);
     
 
     ReleaseDC(window_handle, window_dc);
@@ -684,6 +685,25 @@ DEBUG_load_3D_model(MemoryArena* arena, char* name)
             vertices->normal.z = mesh->mNormals[vertex_index].z;
 
             ++vertices;
+        }
+
+        u32 num_indices = 0;
+        for (u32 i = 0; i < mesh->mNumFaces; ++i)
+        {
+            num_indices += mesh->mFaces->mNumIndices;
+        }
+        out->meshes[mesh_index].num_indices = num_indices;
+        out->meshes[mesh_index].indices = PushMemory(arena, u32, num_indices);
+
+        u32 indices_index = 0;
+        for (u32 i = 0; i < mesh->mNumFaces; ++i)
+        {
+            aiFace* face = mesh->mFaces + i;
+            for (u32 j = 0; j < face->mNumIndices; ++j)
+            {
+                out->meshes[mesh_index].indices[indices_index] = face->mIndices[j];
+                indices_index++;
+            }
         }
     }
 
