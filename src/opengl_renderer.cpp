@@ -427,7 +427,6 @@ opengl_end_frame(Renderer* ren)
 
     glBindVertexArray(ren->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
-
     u32 size = sizeof(VertexData) * ren->vertex_count;
     glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_start); 
     glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count);
@@ -444,7 +443,6 @@ opengl_end_frame(Renderer* ren)
 
     do_transpose = true;
 
-
     mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
     glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
 
@@ -454,10 +452,13 @@ opengl_end_frame(Renderer* ren)
     set_material_uniform(ren->shader_program_3D, &ren->jade);
     set_light_uniform(ren->shader_program_3D, &ren->light);
 
-    //glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_start); 
     glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count);
     ren->vertex_count = 0;
-    model = mat4_translate(V3(-100, 0, 0)) * mat4_scale(V3(1, 1, 1));
+     
+    // Model
+    model = mat4_translate(V3(-200, 0, 0)) *
+            mat4_rotate(-90, V3(1, 0, 0)) *
+            mat4_scale(V3(1, 1, 1));
     mvp = ren->projection * ren->view * model;
     normal_transform = mat4_transpose(mat4_inverse(model));
 
@@ -470,10 +471,8 @@ opengl_end_frame(Renderer* ren)
     {
         Mesh* mesh = &ren->model->meshes[i];
         glBindVertexArray(mesh->VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
         if (mesh->indices)
         {
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
             glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, 0);
         }
         else

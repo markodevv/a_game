@@ -180,9 +180,23 @@ internal b8 DEBUG_write_entire_file(char* file_name, i32 size, void* memory);
 
 // TODO LIST:
 /*
--3D batched renderer
--collision detection
--asset loading
--memory management
+-3D renderer
+    -asset loading
+       -material loading
+       -texture loading
+    -3D model render with textures
+    -3D model render with material maps
+    -Scenes
+
+-Debug
+    -Edit boxes
+    -Scene gizmos
+    -Profiler
+
+
+-Collision detection
+
+-Memory management
+    -variable size allocator
 */
 

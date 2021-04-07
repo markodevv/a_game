@@ -47,6 +47,7 @@ struct Mesh
 {
     VertexData* vertices;
     u32 num_vertices;
+    u32 material_index;
 
     u32* indices;
     u32 num_indices;

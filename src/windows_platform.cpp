@@ -648,6 +648,7 @@ win32_process_input_messages(GameInput* game_input)
 
 }
 
+
 internal Model*
 DEBUG_load_3D_model(MemoryArena* arena, char* name)
 {
@@ -657,9 +658,8 @@ DEBUG_load_3D_model(MemoryArena* arena, char* name)
     if (!scene)
     {
         DEBUG_PRINT("%s", aiGetErrorString());
-        return 0;
+        ASSERT(0);
     }
-
 
     Model* out = PushMemory(arena, Model);
     out->num_meshes = scene->mNumMeshes;
@@ -673,6 +673,7 @@ DEBUG_load_3D_model(MemoryArena* arena, char* name)
         out->meshes[mesh_index].vertices = PushMemory(arena, VertexData, mesh->mNumVertices);
         VertexData* vertices = out->meshes[mesh_index].vertices;
 
+        out->meshes[mesh_index].material_index = mesh->mMaterialIndex;
 
         for (u32 vertex_index = 0; vertex_index < mesh->mNumVertices; ++vertex_index)
         {
@@ -707,7 +708,18 @@ DEBUG_load_3D_model(MemoryArena* arena, char* name)
         }
     }
 
-    aiReleaseImport(scene);
+    for (u32 mat_index = 0; mat_index < scene->mNumMaterials; ++mat_index)
+    {
+        aiString path;
+        aiReturn result = aiGetMaterialTexture(scene->mMaterials[mat_index],
+                             aiTextureType_DIFFUSE, 
+                             0,
+                             &path);
+        result = { };
+    }
+
+    // TODO:
+    //aiReleaseImport(scene);
 
     return out;
 }

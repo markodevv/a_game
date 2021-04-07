@@ -126,7 +126,8 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         ren->light.diffuse = V3(1.0f);
         ren->light.specular = V3(1.0f);
 
-        ren->model = memory->DEBUG_load_3D_model(&ren->arena, "../IronMan.obj");
+        ren->model = memory->DEBUG_load_3D_model(&ren->arena, "../assets/forest_guard/mesh/mesh.fbx");
+        //ren->model = memory->DEBUG_load_3D_model(&ren->arena, "../assets/head.obj");
 
         ren->renderer_init = memory->renderer_init;
         ren->renderer_begin = memory->renderer_begin;
