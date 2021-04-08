@@ -137,6 +137,13 @@ vec3_normalized(vec3 v)
     return v;
 }
 
+
+inline vec2
+V2(f32 x, f32 y)
+{
+    return {x, y};
+}
+
 inline vec3
 V3(f32 x, f32 y, f32 z)
 {

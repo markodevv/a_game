@@ -264,6 +264,7 @@ typedef int GLclampx;
 /*      GL_FIXED */
 
 /* PixelFormat */
+#define GL_R8                             0x8229
 #define GL_RED                            0x1903
 #define GL_ALPHA                          0x1906
 #define GL_RGB                            0x1907

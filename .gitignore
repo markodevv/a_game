@@ -8,6 +8,10 @@ compile_commands.json
 *.sln
 bin/
 
+#Assets
+*.blend
+*.fbx
+
 
 # Prerequisites
 *.d
@@ -17,6 +21,7 @@ bin/
 *.lo
 *.o
 *.obj
+
 
 # Precompiled Headers
 *.gch

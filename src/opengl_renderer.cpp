@@ -11,7 +11,6 @@ layout (location = 0) in vec3 att_pos;
 layout (location = 1) in vec3 att_normal;
 layout (location = 2) in vec2 att_uv;
 layout (location = 3) in vec4 att_color;
-layout (location = 4) in float att_tex_id;
 
 out vec3 frag_pos;
 out vec3 normal;
@@ -63,6 +62,7 @@ uniform vec3 u_view;
 uniform vec3 u_light_pos;
 uniform Material u_material;
 uniform Light u_light;
+uniform sampler2D u_textures[32];
 
 
 void main()
@@ -127,12 +127,12 @@ in float tex_id;
 
 void main()
 {
-    if (tex_id == 1)
+    if (tex_id == 0)
     {
         float alpha = texture(u_textures[0], uv).r;
 		frag_color = color * vec4(1.0f, 1.0f, 1.0f, alpha);
     }
-    else if (tex_id == 2)
+    else if (tex_id == 1)
     {
 		frag_color = texture(u_textures[1], uv);
     }
@@ -206,6 +206,53 @@ opengl_get_uniform_location(i32 shader, char* uniform)
 }
 
 internal void
+opengl_load_texture(Texture* texture, u32 slot, u32* texture_id)
+{
+    glActiveTexture(GL_TEXTURE0 + slot);
+    glGenTextures(1, texture_id);
+    glBindTexture(GL_TEXTURE_2D, *texture_id);
+
+    u32 gl_channels = 0;
+    u32 image_format = 0;
+
+    if (texture->channels == 4)
+    {
+        gl_channels = GL_RGBA;
+        image_format = GL_RGBA;
+    }
+    else if (texture->channels == 3)
+    {
+        gl_channels = GL_RGB;
+        image_format = GL_RGB;
+    }
+    else if (texture->channels == 1)
+    {
+        gl_channels = GL_RED;
+        image_format = GL_RED;
+    }
+    else
+    {
+        ASSERT(false);
+    }
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D,
+                 0, 
+                 image_format,
+                 texture->width,
+                 texture->height,
+                 0,
+                 gl_channels,
+                 GL_UNSIGNED_BYTE, 
+                 texture->data);
+
+}
+
+
+internal void
 opengl_init(Renderer* ren)
 {
     ren->shader_program_3D = glCreateProgram();
@@ -224,7 +271,7 @@ opengl_init(Renderer* ren)
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * MAX_VERTICES, NULL, GL_STATIC_DRAW);
     // Vertex layout
-    i32 stride = sizeof(f32) * 13;
+    i32 stride = sizeof(f32) * 12;
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
     glEnableVertexAttribArray(0); 
@@ -238,56 +285,11 @@ opengl_init(Renderer* ren)
     glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
     glEnableVertexAttribArray(3); 
 
-    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, stride, (void*)(12*sizeof(f32)));
-    glEnableVertexAttribArray(4); 
-
     glBindVertexArray(0);
-
-    // 2D 
-    ren->camera = {{0.0f, 0.0f, 200.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
-
-    glGenVertexArrays(1, &ren->VAO_2D);
-    glGenBuffers(1, &ren->VBO_2D);
-
-    glBindVertexArray(ren->VAO_2D);
-    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData2D) * MAX_VERTICES, NULL, GL_STATIC_DRAW);
-
-    stride = sizeof(f32) * 10;
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
-    glEnableVertexAttribArray(0); 
-
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
-    glEnableVertexAttribArray(1); 
-
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, (void*)(5*sizeof(f32)));
-    glEnableVertexAttribArray(2); 
-
-    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(9*sizeof(f32)));
-    glEnableVertexAttribArray(3); 
-    glUseProgram(ren->shader_program_2D);
-    glActiveTexture(GL_TEXTURE0);
-    glGenTextures(1, &ren->font_texture_id);
-    glBindTexture(GL_TEXTURE_2D, ren->font_texture_id);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, 512, 512, 0, GL_RED, GL_UNSIGNED_BYTE, ren->font_bitmap.data);
-
-
-    i32 font_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_textures[0]");
-    glUniform1i(font_loc, 0);
-
-    glBindVertexArray(0);
-
-    // NOTE: testing
 
     if (!ren->model->loaded_to_gpu)
     {
-        stride = sizeof(f32) * 13;
+        stride = sizeof(f32) * 12;
         for (u32 mesh_index = 0; mesh_index < ren->model->num_meshes; ++mesh_index)
         {
             Mesh* mesh = &ren->model->meshes[mesh_index];
@@ -321,16 +323,62 @@ opengl_init(Renderer* ren)
             glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
             glEnableVertexAttribArray(3); 
 
-            glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, stride, (void*)(12*sizeof(f32)));
-            glEnableVertexAttribArray(4); 
-
             glBindVertexArray(0);
 
             ren->model->loaded_to_gpu = 1;
         }
+
+        char texture_uniform_name[] = {"u_textures[-]"};
+
+        for (u32 tex_id = 0; tex_id < ren->num_textures; ++tex_id)
+        {
+            opengl_load_texture(&ren->loaded_textures[tex_id], 
+                                ren->slot, 
+                                &ren->loaded_textures[tex_id].id);;
+            texture_uniform_name[11] = '0' + tex_id;
+            i32 loc= opengl_get_uniform_location(ren->shader_program_3D, 
+                                                 texture_uniform_name);
+            glUniform1i(loc, tex_id);
+            ++ren->slot;
+        }
+
     }
 
-    //
+
+
+    // 2D 
+
+    glGenVertexArrays(1, &ren->VAO_2D);
+    glGenBuffers(1, &ren->VBO_2D);
+
+    glBindVertexArray(ren->VAO_2D);
+    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData2D) * MAX_VERTICES, NULL, GL_STATIC_DRAW);
+
+    stride = sizeof(f32) * 10;
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+    glEnableVertexAttribArray(0); 
+
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
+    glEnableVertexAttribArray(1); 
+
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, (void*)(5*sizeof(f32)));
+    glEnableVertexAttribArray(2); 
+
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(9*sizeof(f32)));
+    glEnableVertexAttribArray(3); 
+
+
+    glUseProgram(ren->shader_program_2D);
+    opengl_load_texture(&ren->font_texture, 0, &ren->font_texture_id);;
+    DEBUG_PRINT("font texture id %i", ren->font_texture_id);
+
+
+    i32 font_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_textures[0]");
+    glUniform1i(font_loc, 0);
+
+    glBindVertexArray(0);
+
 
     glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -388,99 +436,84 @@ set_light_uniform(u32 shader, Light* light)
 internal void
 opengl_end_frame(Renderer* ren)
 {
-    // NOTE(marko): 3D renderer
-    glEnable(GL_DEPTH_TEST);
-    glUseProgram(ren->shader_program_3D);
-
-    //mat4 projection = mat4_orthographic(1024.0f, 768.0f);
-    local_persist f32 temp = 0.0f;
-    temp += 0.05f;
-
-    mat4 model = mat4_rotate(sinf(temp) * 100, {0.0f, 1.0f, 0.0f}) * mat4_scale({100, 100, 100});
-    mat4 mvp = ren->projection * ren->view * model;
-    mat4 normal_transform = mat4_transpose(mat4_inverse(model));
-
-
-    ren->light_pos.x = 100.0f;
-    ren->light_pos.y = 200.0f;
-
-    b8 do_transpose = true;
-    i32 mvp_loc, light_loc, view_loc, normal_loc;
-
-
-    mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
-    glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
-
-    light_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_light_pos");
-    glUniform3fv(light_loc, 1, (f32*)ren->light_pos.data);
-
-    view_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_view");
-    glUniform3fv(view_loc, 1, (f32*)ren->camera.position.data);
-
-    normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
-    glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
-
-    set_material_uniform(ren->shader_program_3D, &ren->material);
-    set_light_uniform(ren->shader_program_3D, &ren->light);
-
-
-
-    glBindVertexArray(ren->VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
-    u32 size = sizeof(VertexData) * ren->vertex_count;
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_start); 
-    glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count);
-    //
-    // Other cube
-    //
-    model = mat4_translate(V3(300, 0, 0)) * mat4_scale(V3(50, 50, 50));
-    mvp = ren->projection * ren->view * model;
-    normal_transform = mat4_transpose(mat4_inverse(model));
-
-
-    ren->light_pos.x = 100.0f;
-    ren->light_pos.y = 200.0f;
-
-    do_transpose = true;
-
-    mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
-    glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
-
-    normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
-    glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
-
-    set_material_uniform(ren->shader_program_3D, &ren->jade);
-    set_light_uniform(ren->shader_program_3D, &ren->light);
-
-    glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count);
-    ren->vertex_count = 0;
-     
-    // Model
-    model = mat4_translate(V3(-200, 0, 0)) *
-            mat4_rotate(-90, V3(1, 0, 0)) *
-            mat4_scale(V3(1, 1, 1));
-    mvp = ren->projection * ren->view * model;
-    normal_transform = mat4_transpose(mat4_inverse(model));
-
-    mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
-    glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
-    normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
-    glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
-
-    for (u32 i = 0; i < ren->model->num_meshes; ++i)
     {
-        Mesh* mesh = &ren->model->meshes[i];
-        glBindVertexArray(mesh->VAO);
-        if (mesh->indices)
+        // NOTE(marko): 3D renderer
+        glEnable(GL_DEPTH_TEST);
+        glUseProgram(ren->shader_program_3D);
+
+        //mat4 projection = mat4_orthographic(1024.0f, 768.0f);
+        local_persist f32 temp = 0.0f;
+        temp += 0.05f;
+
+        mat4 model = mat4_rotate(sinf(temp) * 100, {0.0f, 1.0f, 0.0f}) * mat4_scale({100, 100, 100});
+        mat4 mvp = ren->projection * ren->view * model;
+        mat4 normal_transform = mat4_transpose(mat4_inverse(model));
+
+
+        ren->light_pos.x = 100.0f;
+        ren->light_pos.y = 200.0f;
+
+        b8 do_transpose = true;
+        i32 mvp_loc, light_loc, view_loc, normal_loc;
+
+
+        mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
+        glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
+
+        light_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_light_pos");
+        glUniform3fv(light_loc, 1, (f32*)ren->light_pos.data);
+
+        view_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_view");
+        glUniform3fv(view_loc, 1, (f32*)ren->camera.position.data);
+
+        normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
+        glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
+
+        set_material_uniform(ren->shader_program_3D, &ren->material);
+        set_light_uniform(ren->shader_program_3D, &ren->light);
+
+
+        glBindVertexArray(ren->VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
+        u32 size = sizeof(VertexData) * ren->vertex_count;
+        glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_start); 
+        glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count);
+
+        ren->vertex_count = 0;
+
+        // Model
+        if (ren->model)
         {
-            glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, 0);
-        }
-        else
-        {
-            glDrawArrays(GL_TRIANGLES, 0, mesh->num_vertices);
+            model = mat4_translate(V3(-200, 0, 0)) *
+                    mat4_scale(V3(10, 10, 10));
+            mvp = ren->projection * ren->view * model;
+            normal_transform = mat4_transpose(mat4_inverse(model));
+
+            mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
+            glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
+            normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
+            glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
+
+            for (u32 i = 0; i < ren->model->num_meshes; ++i)
+            {
+                Mesh* mesh = &ren->model->meshes[i];
+                glBindVertexArray(mesh->VAO);
+                glBindTexture(GL_TEXTURE_2D, mesh->texture_index);
+
+                set_material_uniform(ren->shader_program_3D, &mesh->material);
+                if (mesh->indices)
+                {
+                    glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, 0);
+                }
+                else
+                {
+                    glDrawArrays(GL_TRIANGLES, 0, mesh->num_vertices);
+                }
+            }
+
         }
     }
-
+     
     // NOTE(marko): 2D renderer
 
     glDisable(GL_DEPTH_TEST);
@@ -488,13 +521,16 @@ opengl_end_frame(Renderer* ren)
 
     ren->projection = mat4_orthographic((f32)ren->screen_width, (f32)ren->screen_height);
     mat4 viewproj = ren->projection;
+    b8 do_transpose = true;
 
     i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");
     glUniformMatrix4fv(vp_loc, 1, do_transpose, (f32*)viewproj.data);
-    size = sizeof(VertexData2D) * ren->vertex_count_2D;
+    u32 size = sizeof(VertexData2D) * ren->vertex_count_2D;
 
     glBindVertexArray(ren->VAO_2D);
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
+
+    glBindTexture(GL_TEXTURE_2D, ren->font_texture_id);
 
     glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_2D); 
     glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count_2D);

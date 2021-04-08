@@ -53,6 +53,11 @@ typedef size_t sizet;
 #include "opengl_renderer.h"
 #include "opengl_renderer.cpp"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
@@ -650,7 +655,7 @@ win32_process_input_messages(GameInput* game_input)
 
 
 internal Model*
-DEBUG_load_3D_model(MemoryArena* arena, char* name)
+DEBUG_load_3D_model(MemoryArena* arena, Renderer* ren, char* name)
 {
     const aiScene* scene = aiImportFile(name, aiProcess_CalcTangentSpace |
                                               aiProcess_Triangulate      |
@@ -667,59 +672,112 @@ DEBUG_load_3D_model(MemoryArena* arena, char* name)
 
     for (u32 mesh_index = 0; mesh_index < out->num_meshes; ++mesh_index)
     {
-        aiMesh* mesh = scene->mMeshes[mesh_index];
+        aiMesh* ai_mesh = scene->mMeshes[mesh_index];
+        Mesh* mesh = out->meshes + mesh_index;
 
-        out->meshes[mesh_index].num_vertices = mesh->mNumVertices;
-        out->meshes[mesh_index].vertices = PushMemory(arena, VertexData, mesh->mNumVertices);
+        out->meshes[mesh_index].num_vertices = ai_mesh->mNumVertices;
+        out->meshes[mesh_index].vertices = PushMemory(arena, VertexData, ai_mesh->mNumVertices);
         VertexData* vertices = out->meshes[mesh_index].vertices;
 
-        out->meshes[mesh_index].material_index = mesh->mMaterialIndex;
-
-        for (u32 vertex_index = 0; vertex_index < mesh->mNumVertices; ++vertex_index)
+        for (u32 vertex_index = 0; vertex_index < ai_mesh->mNumVertices; ++vertex_index)
         {
-            vertices->position.x = mesh->mVertices[vertex_index].x;
-            vertices->position.y = mesh->mVertices[vertex_index].y;
-            vertices->position.z = mesh->mVertices[vertex_index].z;
+            vertices->position = V3(ai_mesh->mVertices[vertex_index].x,
+                                    ai_mesh->mVertices[vertex_index].y,
+                                    ai_mesh->mVertices[vertex_index].z);
 
-            vertices->normal.x = mesh->mNormals[vertex_index].x;
-            vertices->normal.y = mesh->mNormals[vertex_index].y;
-            vertices->normal.z = mesh->mNormals[vertex_index].z;
+            vertices->normal = V3(ai_mesh->mNormals[vertex_index].x,
+                                  ai_mesh->mNormals[vertex_index].y,
+                                  ai_mesh->mNormals[vertex_index].z);
+
+            if (ai_mesh->mTextureCoords[0])
+            {
+                vertices->uv = V2(ai_mesh->mTextureCoords[0][vertex_index].x,
+                                  ai_mesh->mTextureCoords[0][vertex_index].y);
+            }
 
             ++vertices;
         }
 
         u32 num_indices = 0;
-        for (u32 i = 0; i < mesh->mNumFaces; ++i)
+        for (u32 i = 0; i < ai_mesh->mNumFaces; ++i)
         {
-            num_indices += mesh->mFaces->mNumIndices;
+            num_indices += ai_mesh->mFaces->mNumIndices;
         }
         out->meshes[mesh_index].num_indices = num_indices;
         out->meshes[mesh_index].indices = PushMemory(arena, u32, num_indices);
 
         u32 indices_index = 0;
-        for (u32 i = 0; i < mesh->mNumFaces; ++i)
+        for (u32 i = 0; i < ai_mesh->mNumFaces; ++i)
         {
-            aiFace* face = mesh->mFaces + i;
+            aiFace* face = ai_mesh->mFaces + i;
             for (u32 j = 0; j < face->mNumIndices; ++j)
             {
-                out->meshes[mesh_index].indices[indices_index] = face->mIndices[j];
+                mesh->indices[indices_index] = face->mIndices[j];
                 indices_index++;
             }
         }
+
+        if (ai_mesh->mMaterialIndex >= 0)
+        {
+            aiMaterial* material = scene->mMaterials[ai_mesh->mMaterialIndex];
+            aiColor4D c = {0.0f, 0.0f, 0.0f, 0.0f};
+            f32 shininess = 0;
+
+             for (u32 i = 0; 
+                  i < aiGetMaterialTextureCount(material, aiTextureType_DIFFUSE);
+                  ++i)
+             {
+
+
+                 aiString str;
+                 aiGetMaterialTexture(material, aiTextureType_DIFFUSE, i, &str);
+                 char* image_name = const_cast<char*>(str.C_Str());
+                 b8 skip = false;
+
+                 for (u32 j = 0; j < ren->num_textures; ++j)
+                 {
+                     // If texture already loaded
+                     if (string_equals(ren->loaded_textures[j].name, image_name))
+                     {
+                         skip = true;
+                     }
+                 }
+
+                 if (!skip)
+                 {
+                     Texture* texture = ren->loaded_textures + ren->num_textures;
+                     texture->name = string_copy(arena, image_name);
+                     mesh->texture_index = ren->num_textures;
+
+                     TemporaryArena temp_memory = begin_temporary_memory(arena);
+
+                     char* image_path = PushMemory(arena, char, 256);
+                     string_copy(image_path, name, last_backslash_index(name) + 1);
+                     string_append(image_path, image_name, (u32)str.length);
+
+                     DebugFileResult file = DEBUG_read_entire_file(image_path);
+
+                     texture->data = stbi_load_from_memory((u8*)file.data,
+                                                                file.size,
+                                                                &texture->width,
+                                                                &texture->height, 
+                                                                &texture->channels,
+                                                                0);
+
+                     DEBUG_free_file_memory(file.data);
+
+                     end_temporary_memory(&temp_memory);
+
+                     ++ren->num_textures;
+                 }
+
+
+                 u32 test = 0;
+             }
+        }
     }
 
-    for (u32 mat_index = 0; mat_index < scene->mNumMaterials; ++mat_index)
-    {
-        aiString path;
-        aiReturn result = aiGetMaterialTexture(scene->mMaterials[mat_index],
-                             aiTextureType_DIFFUSE, 
-                             0,
-                             &path);
-        result = { };
-    }
-
-    // TODO:
-    //aiReleaseImport(scene);
+    aiReleaseImport(scene);
 
     return out;
 }

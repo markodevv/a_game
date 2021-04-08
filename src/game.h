@@ -14,7 +14,6 @@
 #define MEGABYTES(n) n*1024*1024
 #define GIGABYTES(n) n*1024*1024*1024
 
-
 internal inline u32
 string_length(char* string)
 {
@@ -27,21 +26,95 @@ string_length(char* string)
     return len;
 }
 
-internal inline char*
-string_copy(MemoryArena* arena, char* str)
+internal inline b8
+string_equals(char* s1, char* s2)
 {
-    u32 len = string_length(str);
+    u32 len = string_length(s1);
 
-    char* out = PushMemory(arena, char, len+1);
-    out[len] = '\0';
-
-    for (sizet i = 0; i < len; ++i)
+    for (u32 i = 0; i < len; ++i)
     {
-        out[i] = str[i];
+        if (s1[i] != s2[i])
+        {
+            return false;
+        }
     }
+
+    return true;
+}
+
+
+internal inline i32
+last_backslash_index(char* str)
+{
+    u32 len = (i32)string_length(str);
+    for(u32 i = len-1; i >= 0; --i)
+    {
+        if (str[i] == '/')
+        {
+            return i;
+        }
+    }
+    ASSERT(false);
+    return -1;
+}
+
+
+internal inline u32
+string_copy(char* dest, char* src)
+{
+    u32 len = string_length(src);
+
+    for (u32 i = 0; i < len; ++i)
+    {
+        dest[i] = src[i];
+    }
+    dest[len] = '\0';
+
+    return len;
+}
+
+internal inline u32
+string_copy(char* dest, char* src, u32 num_chars)
+{
+
+    for (u32 i = 0; i < num_chars; ++i)
+    {
+        dest[i] = src[i];
+    }
+    dest[num_chars] = '\0';
+
+    return num_chars;
+}
+
+internal inline char*
+string_copy(MemoryArena* arena, char* src)
+{
+    u32 len = string_length(src);
+    char* out = PushMemory(arena, char, len + 1);
+
+    for (u32 i = 0; i < len; ++i)
+    {
+        out[i] = src[i];
+    }
+    out[len] = '\0';
 
     return out;
 }
+
+internal inline u32
+string_append(char* dest, char* src, u32 num_chars)
+{
+    u32 len = string_length(dest);
+
+    for (u32 i = 0; i < num_chars; ++i)
+    {
+        dest[len+i] = src[i];
+    }
+    dest[len+num_chars] = '\0';
+
+    return len+num_chars;
+}
+
 
 struct ButtonState
 {
@@ -102,16 +175,9 @@ struct DebugFileResult;
 typedef DebugFileResult DebugReadEntireFileFunc(char* path);
 typedef void DebugFreeEntireFileFunc(void* memory);
 typedef b8 DebugWriteEntireFileFunc(char* file_name, i32 size, void* memory);
-typedef Model* DebugLoad3DModel(MemoryArena* arena, char* name);
+typedef Model* DebugLoad3DModel(MemoryArena* arena, Renderer* ren, char* name);
 
 
-internal void
-end_temporary_memory(TemporaryArena* temp_arena)
-{
-    MemoryArena *arena = temp_arena->arena;
-    ASSERT(arena->used >= temp_arena->used);
-    arena->used = temp_arena->used;
-}
 
 struct DebugState;
 struct GameMemory

@@ -24,7 +24,6 @@ struct VertexData
     vec3 normal;
     vec2 uv;
     vec4 color;
-    f32 texture_id;
 };
 
 struct VertexData2D
@@ -43,14 +42,25 @@ struct Camera
     vec3 up;
 };
 
+struct Texture
+{
+    char* name;
+    void* data;
+    i32 width, height, channels;
+    u32 id;
+};
+
 struct Mesh
 {
     VertexData* vertices;
     u32 num_vertices;
-    u32 material_index;
 
     u32* indices;
     u32 num_indices;
+
+    u32 texture_index;
+
+    Material material;
 
     u32 VAO, VBO, EBO;
 };
@@ -128,15 +138,19 @@ struct Renderer
     mat4 projection;
     mat4 view;
 
+    u32 slot;
+
     vec3 light_pos;
     Material material;
     Light light;
 
     Material jade;
-    i32 batch_size;
+
+    Texture loaded_textures[32];
+    u32 num_textures;
 
     // TODO: this should be in DebugState
-    LoadedBitmap font_bitmap;
+    Texture font_texture;
     stbtt_bakedchar char_metrics[NUM_ASCII];
     f32 font_size;
     u32 font_texture_id;

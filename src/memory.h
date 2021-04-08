@@ -51,4 +51,12 @@ begin_temporary_memory(MemoryArena* arena)
     return out;
 }
 
+internal void
+end_temporary_memory(TemporaryArena* temp_arena)
+{
+    MemoryArena *arena = temp_arena->arena;
+    ASSERT(arena->used >= temp_arena->used);
+    arena->used = temp_arena->used;
+}
+
 #endif

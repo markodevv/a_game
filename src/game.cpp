@@ -37,11 +37,6 @@ typedef size_t sizet;
 #include "renderer.cpp"
 #include "debug_ui.cpp"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
@@ -76,15 +71,15 @@ game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
 
 
 
-inline internal LoadedBitmap
-allocate_bitmap(MemoryArena* memory, i32 w, i32 h)
+inline internal Texture
+allocate_texture(MemoryArena* memory, i32 w, i32 h)
 {
-    LoadedBitmap out;
-    out.data = PushMemory(memory, u8, (w*h));
-    out.width = w;
-    out.height = h;
+    Texture texture;
+    texture.data = PushMemory(memory, u8, (w*h));
+    texture.width = w;
+    texture.height = h;
 
-    return out;
+    return texture;
 }
 
 
@@ -126,8 +121,11 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         ren->light.diffuse = V3(1.0f);
         ren->light.specular = V3(1.0f);
 
-        ren->model = memory->DEBUG_load_3D_model(&ren->arena, "../assets/IronMan.obj");
-        //ren->model = memory->DEBUG_load_3D_model(&ren->arena, "../assets/head.obj");
+        ren->camera = {{0.0f, 0.0f, 200.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
+
+        //ren->model = memory->DEBUG_load_3D_model(&ren->arena, "../assets/mandalorian.obj");
+        //ren->model = memory->DEBUG_load_3D_model(&ren->arena, "../assets/casa/casa.obj");
+        ren->model = memory->DEBUG_load_3D_model(&ren->arena, ren, "../assets/backpack/backpack.obj");
 
         ren->renderer_init = memory->renderer_init;
         ren->renderer_begin = memory->renderer_begin;
@@ -139,14 +137,15 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         DebugFileResult font_file = memory->DEBUG_read_entire_file("../consola.ttf");
 
-        ren->font_bitmap = allocate_bitmap(&game_state->arena, 512, 512);
+        ren->font_texture = allocate_texture(&ren->arena, 512, 512);
+        ren->font_texture.channels = 1;
         ren->font_size = 14.0f;
 
         i32 result = stbtt_BakeFontBitmap((u8*)font_file.data, 
                              0, ren->font_size,
-                             ren->font_bitmap.data, 
-                             ren->font_bitmap.width, 
-                             ren->font_bitmap.height,
+                             (u8*)ren->font_texture.data, 
+                             ren->font_texture.width, 
+                             ren->font_texture.height,
                              32, NUM_ASCII, 
                              ren->char_metrics);
         ren->x_advance = (ren->char_metrics + 32)->xadvance;
@@ -167,24 +166,24 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
     if (button_down(input->move_left))
     {
-        cam->position.x -= 1.0f;
+        cam->position.x -= 5.0f;
     }
     if (button_down(input->move_right))
     {
-        cam->position.x += 1.0f;
+        cam->position.x += 5.0f;
     }
     if (button_down(input->move_up))
     {
-        cam->position.y += 1.0f;
+        cam->position.y += 5.0f;
     }
     if (button_down(input->move_down))
     {
-        cam->position.y -= 1.0f;
+        cam->position.y -= 5.0f;
     }
     if (input->mouse.wheel_delta)
     {
         f32 scroll_amount = (f32)input->mouse.wheel_delta;
-        cam->position.z -= scroll_amount * delta_time * 10;
+        cam->position.z -= scroll_amount * delta_time * 15;
     }
 
     Renderer* ren = game_state->renderer;

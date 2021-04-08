@@ -60,8 +60,8 @@ draw_debug_text(Renderer* ren,
             stbtt_bakedchar* b = ren->char_metrics + index;
 
             float d3d_bias = 0.0f;
-            f32 ipw = 1.0f / ren->font_bitmap.width;
-            f32 iph = 1.0f / ren->font_bitmap.height;
+            f32 ipw = 1.0f / ren->font_texture.width;
+            f32 iph = 1.0f / ren->font_texture.height;
             i32 round_x = IFLOOR((position.x + b->xoff) + 0.5f);
             i32 round_y = IFLOOR((position.y - b->yoff) + 0.5f);
 
@@ -101,7 +101,8 @@ draw_debug_text(Renderer* ren,
                 ren->vertices_2D[ren->vertex_count_2D].position = rectangle_vertices[i];
                 ren->vertices_2D[ren->vertex_count_2D].uv = uv_coords[i];
                 ren->vertices_2D[ren->vertex_count_2D].color = color;
-                ren->vertices_2D[ren->vertex_count_2D].texture_id = (f32)ren->font_texture_id;
+                // NOTE: this coresponds to sampler2D array index in shader
+                ren->vertices_2D[ren->vertex_count_2D].texture_id = 0;
                 ren->vertex_count_2D++;
             }
         }
@@ -178,7 +179,7 @@ vec3 cube_vertices[] = {
          0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
         -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
-    };
+};
 
 internal void
 draw_cube(Renderer* ren, vec3 position, vec3 scale, vec4 color)
