@@ -653,9 +653,66 @@ win32_process_input_messages(GameInput* game_input)
 
 }
 
+internal b8
+load_material_texture(MemoryArena* arena, 
+                      Model* model,
+                      char* path,
+                      aiMaterial* material, 
+                      aiTextureType texture_type)
+{
+
+    b8 result = false;
+    aiString str;
+    if (aiGetMaterialTexture(material, texture_type, 0, &str) == AI_SUCCESS)
+    {
+        result = true;
+        b8 skip = false;
+        char* image_name = const_cast<char*>(str.C_Str());
+
+        for (u32 j = 0; j < model->num_textures; ++j)
+        {
+            // If texture already loaded
+            if (string_equals(model->loaded_textures[j].name, image_name))
+            {
+                skip = true;
+            }
+        }
+
+        if (!skip)
+        {
+            Texture* texture = model->loaded_textures + model->num_textures;
+            texture->name = string_copy(arena, image_name);
+
+            TemporaryArena temp_memory = begin_temporary_memory(arena);
+
+            char* image_path = PushMemory(arena, char, 256);
+            string_copy(image_path, path, last_backslash_index(path) + 1);
+            string_append(image_path, image_name, (u32)str.length);
+
+            DebugFileResult file = DEBUG_read_entire_file(image_path);
+
+            texture->data = stbi_load_from_memory((u8*)file.data,
+                                                       file.size,
+                                                       &texture->width,
+                                                       &texture->height, 
+                                                       &texture->channels,
+                                                       0);
+
+            DEBUG_free_file_memory(file.data);
+
+            end_temporary_memory(&temp_memory);
+
+            ++model->num_textures;
+        }
+
+    }
+
+    return result;
+}
+
 
 internal Model*
-DEBUG_load_3D_model(MemoryArena* arena, Renderer* ren, char* name)
+DEBUG_load_3D_model(MemoryArena* arena, char* name)
 {
     const aiScene* scene = aiImportFile(name, aiProcess_CalcTangentSpace |
                                               aiProcess_Triangulate      |
@@ -689,11 +746,15 @@ DEBUG_load_3D_model(MemoryArena* arena, Renderer* ren, char* name)
                                   ai_mesh->mNormals[vertex_index].y,
                                   ai_mesh->mNormals[vertex_index].z);
 
+            vertices->color = V4(1.0f);
+
             if (ai_mesh->mTextureCoords[0])
             {
                 vertices->uv = V2(ai_mesh->mTextureCoords[0][vertex_index].x,
                                   ai_mesh->mTextureCoords[0][vertex_index].y);
             }
+
+            vertices->texture_id = 1;
 
             ++vertices;
         }
@@ -720,60 +781,15 @@ DEBUG_load_3D_model(MemoryArena* arena, Renderer* ren, char* name)
         if (ai_mesh->mMaterialIndex >= 0)
         {
             aiMaterial* material = scene->mMaterials[ai_mesh->mMaterialIndex];
-            aiColor4D c = {0.0f, 0.0f, 0.0f, 0.0f};
-            f32 shininess = 0;
+            if (load_material_texture(arena, out, name, material, aiTextureType_DIFFUSE))
+            {
+                mesh->material_textures[TEXTURE_DIFFUSE] = true;
+            }
 
-             for (u32 i = 0; 
-                  i < aiGetMaterialTextureCount(material, aiTextureType_DIFFUSE);
-                  ++i)
-             {
-
-
-                 aiString str;
-                 aiGetMaterialTexture(material, aiTextureType_DIFFUSE, i, &str);
-                 char* image_name = const_cast<char*>(str.C_Str());
-                 b8 skip = false;
-
-                 for (u32 j = 0; j < ren->num_textures; ++j)
-                 {
-                     // If texture already loaded
-                     if (string_equals(ren->loaded_textures[j].name, image_name))
-                     {
-                         skip = true;
-                     }
-                 }
-
-                 if (!skip)
-                 {
-                     Texture* texture = ren->loaded_textures + ren->num_textures;
-                     texture->name = string_copy(arena, image_name);
-                     mesh->texture_index = ren->num_textures;
-
-                     TemporaryArena temp_memory = begin_temporary_memory(arena);
-
-                     char* image_path = PushMemory(arena, char, 256);
-                     string_copy(image_path, name, last_backslash_index(name) + 1);
-                     string_append(image_path, image_name, (u32)str.length);
-
-                     DebugFileResult file = DEBUG_read_entire_file(image_path);
-
-                     texture->data = stbi_load_from_memory((u8*)file.data,
-                                                                file.size,
-                                                                &texture->width,
-                                                                &texture->height, 
-                                                                &texture->channels,
-                                                                0);
-
-                     DEBUG_free_file_memory(file.data);
-
-                     end_temporary_memory(&temp_memory);
-
-                     ++ren->num_textures;
-                 }
-
-
-                 u32 test = 0;
-             }
+            if (load_material_texture(arena, out, name, material, aiTextureType_SPECULAR))
+            {
+                mesh->material_textures[TEXTURE_SPECULAR] = true;
+            }
         }
     }
 

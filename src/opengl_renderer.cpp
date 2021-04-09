@@ -11,11 +11,13 @@ layout (location = 0) in vec3 att_pos;
 layout (location = 1) in vec3 att_normal;
 layout (location = 2) in vec2 att_uv;
 layout (location = 3) in vec4 att_color;
+layout (location = 4) in float att_texid;
 
 out vec3 frag_pos;
 out vec3 normal;
 out vec2 uv;
 out vec4 color;
+out float tex_id;
 
 uniform mat4 u_MVP;
 uniform mat4 u_normal_trans;
@@ -26,6 +28,8 @@ void main()
     uv = att_uv;
     color = att_color;
     normal = mat3(u_normal_trans) * att_normal;
+    tex_id = att_texid;
+
     gl_Position = frag;
 
     frag_pos = frag.xyz;
@@ -57,6 +61,7 @@ in vec3 frag_pos;
 in vec3 normal;
 in vec2 uv;
 in vec4 color;
+in float tex_id;
 
 uniform vec3 u_view;
 uniform vec3 u_light_pos;
@@ -69,7 +74,6 @@ void main()
 {
     vec3 ambient, specular, diffuse;
 
-    vec4 obj_color = color;
 
     ambient = u_light.ambient * u_material.ambient;
 
@@ -86,7 +90,19 @@ void main()
     specular = u_light.specular * (u_material.specular * spec);
 
 
-    frag_color = vec4(diffuse + ambient + specular, 1.0f);
+    if (tex_id)
+    {
+        vec4 sp = vec4(u_light.specular, 1.0f) * (texture(u_textures[1], uv) * spec);
+        sp.a = 1;
+        vec4 dif = vec4(u_light.diffuse, 1.0f) * (texture(u_textures[0], uv) * diff);
+        dif.a = 1;
+
+        frag_color = (sp + dif);
+    }
+    else
+    {
+        frag_color = vec4(diffuse + ambient + specular, 1.0f);
+    }
 }
 )";
 
@@ -212,23 +228,23 @@ opengl_load_texture(Texture* texture, u32 slot, u32* texture_id)
     glGenTextures(1, texture_id);
     glBindTexture(GL_TEXTURE_2D, *texture_id);
 
-    u32 gl_channels = 0;
-    u32 image_format = 0;
+    u32 external_format = 0;
+    u32 internal_format = 0;
 
     if (texture->channels == 4)
     {
-        gl_channels = GL_RGBA;
-        image_format = GL_RGBA;
+        external_format = GL_RGBA;
+        internal_format = GL_RGBA8;
     }
     else if (texture->channels == 3)
     {
-        gl_channels = GL_RGB;
-        image_format = GL_RGB;
+        external_format = GL_RGB;
+        internal_format = GL_RGB8;
     }
     else if (texture->channels == 1)
     {
-        gl_channels = GL_RED;
-        image_format = GL_RED;
+        external_format = GL_RED;
+        internal_format = GL_R8;
     }
     else
     {
@@ -241,11 +257,11 @@ opengl_load_texture(Texture* texture, u32 slot, u32* texture_id)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D,
                  0, 
-                 image_format,
+                 internal_format,
                  texture->width,
                  texture->height,
                  0,
-                 gl_channels,
+                 external_format,
                  GL_UNSIGNED_BYTE, 
                  texture->data);
 
@@ -271,7 +287,7 @@ opengl_init(Renderer* ren)
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * MAX_VERTICES, NULL, GL_STATIC_DRAW);
     // Vertex layout
-    i32 stride = sizeof(f32) * 12;
+    i32 stride = sizeof(f32) * 13;
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
     glEnableVertexAttribArray(0); 
@@ -285,12 +301,17 @@ opengl_init(Renderer* ren)
     glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
     glEnableVertexAttribArray(3); 
 
+    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, stride, (void*)(12*sizeof(f32)));
+    glEnableVertexAttribArray(4); 
+
     glBindVertexArray(0);
 
     if (!ren->model->loaded_to_gpu)
     {
-        stride = sizeof(f32) * 12;
-        for (u32 mesh_index = 0; mesh_index < ren->model->num_meshes; ++mesh_index)
+        stride = sizeof(f32) * 13;
+        Model* model = ren->model;
+
+        for (u32 mesh_index = 0; mesh_index < model->num_meshes; ++mesh_index)
         {
             Mesh* mesh = &ren->model->meshes[mesh_index];
 
@@ -323,6 +344,9 @@ opengl_init(Renderer* ren)
             glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
             glEnableVertexAttribArray(3); 
 
+            glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, stride, (void*)(12*sizeof(f32)));
+            glEnableVertexAttribArray(4); 
+
             glBindVertexArray(0);
 
             ren->model->loaded_to_gpu = 1;
@@ -330,11 +354,11 @@ opengl_init(Renderer* ren)
 
         char texture_uniform_name[] = {"u_textures[-]"};
 
-        for (u32 tex_id = 0; tex_id < ren->num_textures; ++tex_id)
+        for (u32 tex_id = 0; tex_id < model->num_textures; ++tex_id)
         {
-            opengl_load_texture(&ren->loaded_textures[tex_id], 
+            opengl_load_texture(&model->loaded_textures[tex_id], 
                                 ren->slot, 
-                                &ren->loaded_textures[tex_id].id);;
+                                &model->loaded_textures[tex_id].id);;
             texture_uniform_name[11] = '0' + tex_id;
             i32 loc= opengl_get_uniform_location(ren->shader_program_3D, 
                                                  texture_uniform_name);
@@ -494,13 +518,23 @@ opengl_end_frame(Renderer* ren)
             normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
             glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
 
+
             for (u32 i = 0; i < ren->model->num_meshes; ++i)
             {
                 Mesh* mesh = &ren->model->meshes[i];
                 glBindVertexArray(mesh->VAO);
-                glBindTexture(GL_TEXTURE_2D, mesh->texture_index);
 
-                set_material_uniform(ren->shader_program_3D, &mesh->material);
+                // Should check if model has particular textures and bind those
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, ren->model->loaded_textures[TEXTURE_DIFFUSE].id);
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, ren->model->loaded_textures[TEXTURE_SPECULAR].id);
+
+                // This is for testing purpose
+                set_material_uniform(ren->shader_program_3D, &ren->material);
+                set_light_uniform(ren->shader_program_3D, &ren->light);
+
+                //set_material_uniform(ren->shader_program_3D, &mesh->material);
                 if (mesh->indices)
                 {
                     glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, 0);
@@ -530,6 +564,7 @@ opengl_end_frame(Renderer* ren)
     glBindVertexArray(ren->VAO_2D);
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
 
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, ren->font_texture_id);
 
     glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_2D); 

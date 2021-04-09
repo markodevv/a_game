@@ -125,7 +125,7 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         //ren->model = memory->DEBUG_load_3D_model(&ren->arena, "../assets/mandalorian.obj");
         //ren->model = memory->DEBUG_load_3D_model(&ren->arena, "../assets/casa/casa.obj");
-        ren->model = memory->DEBUG_load_3D_model(&ren->arena, ren, "../assets/backpack/backpack.obj");
+        ren->model = memory->DEBUG_load_3D_model(&ren->arena, "../assets/backpack/backpack.obj");
 
         ren->renderer_init = memory->renderer_init;
         ren->renderer_begin = memory->renderer_begin;

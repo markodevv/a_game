@@ -2,6 +2,12 @@
 #define RENDERER_H
 #include "stb_truetype.h"
 
+enum TextureType
+{
+    TEXTURE_DIFFUSE,
+    TEXTURE_SPECULAR,
+    TEXTURE_AMBIENT,
+};
 
 struct Material
 {
@@ -24,6 +30,7 @@ struct VertexData
     vec3 normal;
     vec2 uv;
     vec4 color;
+    f32 texture_id;
 };
 
 struct VertexData2D
@@ -58,7 +65,7 @@ struct Mesh
     u32* indices;
     u32 num_indices;
 
-    u32 texture_index;
+    b8 material_textures[4];
 
     Material material;
 
@@ -70,6 +77,9 @@ struct Model
     b8 loaded_to_gpu;
     Mesh* meshes;
     u32 num_meshes;
+
+    Texture loaded_textures[8];
+    u32 num_textures;
 };
 
 inline mat4
@@ -146,8 +156,6 @@ struct Renderer
 
     Material jade;
 
-    Texture loaded_textures[32];
-    u32 num_textures;
 
     // TODO: this should be in DebugState
     Texture font_texture;

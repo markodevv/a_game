@@ -175,7 +175,7 @@ struct DebugFileResult;
 typedef DebugFileResult DebugReadEntireFileFunc(char* path);
 typedef void DebugFreeEntireFileFunc(void* memory);
 typedef b8 DebugWriteEntireFileFunc(char* file_name, i32 size, void* memory);
-typedef Model* DebugLoad3DModel(MemoryArena* arena, Renderer* ren, char* name);
+typedef Model* DebugLoad3DModel(MemoryArena* arena, char* name);
 
 
 
