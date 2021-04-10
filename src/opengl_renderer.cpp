@@ -267,6 +267,69 @@ opengl_load_texture(Texture* texture, u32 slot, u32* texture_id)
 
 }
 
+global_variable u32 texture_slot;
+
+internal void
+opengl_load_model_to_gpu(u32 shader, Model* model)
+{
+    u32 stride = sizeof(f32) * 13;
+
+    for (u32 mesh_index = 0; mesh_index < model->num_meshes; ++mesh_index)
+    {
+        Mesh* mesh = &model->meshes[mesh_index];
+
+        glGenVertexArrays(1, &mesh->VAO);
+        glGenBuffers(1, &mesh->VBO);
+
+        glBindVertexArray(mesh->VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
+
+        if (mesh->indices)
+        {
+            glGenBuffers(1, &mesh->EBO);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
+            u32 size = mesh->num_indices * sizeof(u32);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, (void*)mesh->indices, GL_STATIC_DRAW);
+        }
+
+        u32 size = sizeof(VertexData) * mesh->num_vertices;
+        glBufferData(GL_ARRAY_BUFFER, size, (void*)mesh->vertices, GL_STATIC_DRAW);
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+        glEnableVertexAttribArray(0); 
+
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
+        glEnableVertexAttribArray(1); 
+
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6*sizeof(f32)));
+        glEnableVertexAttribArray(2); 
+
+        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
+        glEnableVertexAttribArray(3); 
+
+        glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, stride, (void*)(12*sizeof(f32)));
+        glEnableVertexAttribArray(4); 
+
+        glBindVertexArray(0);
+
+    }
+
+    char texture_uniform_name[] = {"u_textures[-]"};
+
+    u32 slot = 0;
+    for (u32 tex_id = 0; tex_id < model->num_textures; ++tex_id)
+    {
+        opengl_load_texture(&model->loaded_textures[tex_id], 
+                            texture_slot,
+                            &model->loaded_textures[tex_id].id);
+        texture_uniform_name[11] = '0' + tex_id;
+        i32 loc = opengl_get_uniform_location(shader,
+                                              texture_uniform_name);
+        glUniform1i(loc, tex_id);
+        texture_slot++;
+    }
+}
+
 
 internal void
 opengl_init(Renderer* ren)
@@ -306,68 +369,10 @@ opengl_init(Renderer* ren)
 
     glBindVertexArray(0);
 
-    if (!ren->model->loaded_to_gpu)
-    {
-        stride = sizeof(f32) * 13;
-        Model* model = ren->model;
 
-        for (u32 mesh_index = 0; mesh_index < model->num_meshes; ++mesh_index)
-        {
-            Mesh* mesh = &ren->model->meshes[mesh_index];
 
-            glGenVertexArrays(1, &mesh->VAO);
-            glGenBuffers(1, &mesh->VBO);
-
-            glBindVertexArray(mesh->VAO);
-            glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
-
-            if (mesh->indices)
-            {
-                glGenBuffers(1, &mesh->EBO);
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
-                u32 size = mesh->num_indices * sizeof(u32);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, (void*)mesh->indices, GL_STATIC_DRAW);
-            }
-
-            u32 size = sizeof(VertexData) * mesh->num_vertices;
-            glBufferData(GL_ARRAY_BUFFER, size, (void*)mesh->vertices, GL_STATIC_DRAW);
-
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
-            glEnableVertexAttribArray(0); 
-
-            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
-            glEnableVertexAttribArray(1); 
-
-            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6*sizeof(f32)));
-            glEnableVertexAttribArray(2); 
-
-            glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
-            glEnableVertexAttribArray(3); 
-
-            glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, stride, (void*)(12*sizeof(f32)));
-            glEnableVertexAttribArray(4); 
-
-            glBindVertexArray(0);
-
-            ren->model->loaded_to_gpu = 1;
-        }
-
-        char texture_uniform_name[] = {"u_textures[-]"};
-
-        for (u32 tex_id = 0; tex_id < model->num_textures; ++tex_id)
-        {
-            opengl_load_texture(&model->loaded_textures[tex_id], 
-                                ren->slot, 
-                                &model->loaded_textures[tex_id].id);;
-            texture_uniform_name[11] = '0' + tex_id;
-            i32 loc= opengl_get_uniform_location(ren->shader_program_3D, 
-                                                 texture_uniform_name);
-            glUniform1i(loc, tex_id);
-            ++ren->slot;
-        }
-
-    }
-
+    opengl_load_model_to_gpu(ren->shader_program_3D, ren->zombie_0);
+    opengl_load_model_to_gpu(ren->shader_program_3D, ren->zombie_1);
 
 
     // 2D 
@@ -458,6 +463,61 @@ set_light_uniform(u32 shader, Light* light)
 }
 
 internal void
+opengl_draw_model(Renderer* ren, Model* model, vec3 position, vec3 size)
+{
+   
+    mat4 transfrom = mat4_translate(position) *
+                 mat4_scale(size);
+
+    mat4 mvp = ren->projection * ren->view * transfrom;
+    mat4 normal_transform = mat4_transpose(mat4_inverse(transfrom));
+    b8 do_transpose = true;
+
+    i32 mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
+    glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
+    i32 normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
+    glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
+
+   // This is for testing purpose
+   set_material_uniform(ren->shader_program_3D, &ren->material);
+   set_light_uniform(ren->shader_program_3D, &ren->light);
+
+    for (u32 i = 0; i < model->num_meshes; ++i)
+    {
+       Mesh* mesh = &model->meshes[i];
+       glBindVertexArray(mesh->VAO);
+
+       /* NOTE: -1 means no texture
+       Textures are stored:
+       DIFFUSE - SPECULAR - AMBIENT
+       in order */
+
+       for (u32 j = 0; j < ARRAY_COUNT(mesh->texture_ids); ++j)
+       {
+           i32 id = mesh->texture_ids[j];
+           if (id != -1)
+           {
+               glActiveTexture(GL_TEXTURE0 + j);
+               glBindTexture(GL_TEXTURE_2D, model->loaded_textures[id].id);
+           }
+       }
+
+
+       //set_material_uniform(ren->shader_program_3D, &mesh->material);
+       if (mesh->indices)
+       {
+           glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, 0);
+       }
+       else
+       {
+           glDrawArrays(GL_TRIANGLES, 0, mesh->num_vertices);
+       }
+    }
+
+   
+}
+
+internal void
 opengl_end_frame(Renderer* ren)
 {
     {
@@ -505,71 +565,36 @@ opengl_end_frame(Renderer* ren)
 
         ren->vertex_count = 0;
 
-        // Model
-        if (ren->model)
-        {
-            model = mat4_translate(V3(-200, 0, 0)) *
-                    mat4_scale(V3(10, 10, 10));
-            mvp = ren->projection * ren->view * model;
-            normal_transform = mat4_transpose(mat4_inverse(model));
-
-            mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
-            glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
-            normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
-            glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
-
-
-            for (u32 i = 0; i < ren->model->num_meshes; ++i)
-            {
-                Mesh* mesh = &ren->model->meshes[i];
-                glBindVertexArray(mesh->VAO);
-
-                // Should check if model has particular textures and bind those
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, ren->model->loaded_textures[TEXTURE_DIFFUSE].id);
-                glActiveTexture(GL_TEXTURE1);
-                glBindTexture(GL_TEXTURE_2D, ren->model->loaded_textures[TEXTURE_SPECULAR].id);
-
-                // This is for testing purpose
-                set_material_uniform(ren->shader_program_3D, &ren->material);
-                set_light_uniform(ren->shader_program_3D, &ren->light);
-
-                //set_material_uniform(ren->shader_program_3D, &mesh->material);
-                if (mesh->indices)
-                {
-                    glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, 0);
-                }
-                else
-                {
-                    glDrawArrays(GL_TRIANGLES, 0, mesh->num_vertices);
-                }
-            }
-
-        }
     }
+
+    // Model
+    opengl_draw_model(ren, ren->zombie_0, V3(-150, 0, 0), V3(10, 10, 10));
+    opengl_draw_model(ren, ren->zombie_1, V3(-200, 0, 0), V3(10, 10, 10));
      
     // NOTE(marko): 2D renderer
 
-    glDisable(GL_DEPTH_TEST);
-    glUseProgram(ren->shader_program_2D);
+    {
+        glDisable(GL_DEPTH_TEST);
+        glUseProgram(ren->shader_program_2D);
 
-    ren->projection = mat4_orthographic((f32)ren->screen_width, (f32)ren->screen_height);
-    mat4 viewproj = ren->projection;
-    b8 do_transpose = true;
+        ren->projection = mat4_orthographic((f32)ren->screen_width, (f32)ren->screen_height);
+        mat4 viewproj = ren->projection;
+        b8 do_transpose = true;
 
-    i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");
-    glUniformMatrix4fv(vp_loc, 1, do_transpose, (f32*)viewproj.data);
-    u32 size = sizeof(VertexData2D) * ren->vertex_count_2D;
+        i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");
+        glUniformMatrix4fv(vp_loc, 1, do_transpose, (f32*)viewproj.data);
+        u32 size = sizeof(VertexData2D) * ren->vertex_count_2D;
 
-    glBindVertexArray(ren->VAO_2D);
-    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
+        glBindVertexArray(ren->VAO_2D);
+        glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, ren->font_texture_id);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, ren->font_texture_id);
 
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_2D); 
-    glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count_2D);
-    ren->vertex_count_2D = 0;
+        glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_2D); 
+        glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count_2D);
+        ren->vertex_count_2D = 0;
+    }
 
 }
 

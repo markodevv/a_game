@@ -65,7 +65,7 @@ struct Mesh
     u32* indices;
     u32 num_indices;
 
-    b8 material_textures[4];
+    u32 texture_ids[3];
 
     Material material;
 
@@ -164,7 +164,8 @@ struct Renderer
     u32 font_texture_id;
     f32 x_advance;
     //
-    Model* model;
+    Model* zombie_0;
+    Model* zombie_1;
 
     i32 screen_width;
     i32 screen_height;

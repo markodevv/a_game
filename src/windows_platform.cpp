@@ -653,7 +653,8 @@ win32_process_input_messages(GameInput* game_input)
 
 }
 
-internal b8
+// NOTE: If no texture material for mesh
+internal i32
 load_material_texture(MemoryArena* arena, 
                       Model* model,
                       char* path,
@@ -661,11 +662,10 @@ load_material_texture(MemoryArena* arena,
                       aiTextureType texture_type)
 {
 
-    b8 result = false;
+    b8 texture_index = -1;
     aiString str;
     if (aiGetMaterialTexture(material, texture_type, 0, &str) == AI_SUCCESS)
     {
-        result = true;
         b8 skip = false;
         char* image_name = const_cast<char*>(str.C_Str());
 
@@ -674,6 +674,7 @@ load_material_texture(MemoryArena* arena,
             // If texture already loaded
             if (string_equals(model->loaded_textures[j].name, image_name))
             {
+                texture_index = j;
                 skip = true;
             }
         }
@@ -702,12 +703,13 @@ load_material_texture(MemoryArena* arena,
 
             end_temporary_memory(&temp_memory);
 
+            texture_index = model->num_textures;
             ++model->num_textures;
         }
 
     }
 
-    return result;
+    return texture_index;
 }
 
 
@@ -778,18 +780,33 @@ DEBUG_load_3D_model(MemoryArena* arena, char* name)
             }
         }
 
+        // NOTE: -1 means no texture
+        for (u32 p = 0; p < ARRAY_COUNT(mesh->texture_ids); ++p)
+        {
+            mesh->texture_ids[p] = -1;
+        }
         if (ai_mesh->mMaterialIndex >= 0)
         {
             aiMaterial* material = scene->mMaterials[ai_mesh->mMaterialIndex];
-            if (load_material_texture(arena, out, name, material, aiTextureType_DIFFUSE))
+
+            i32 result = load_material_texture(arena, out, name, material, aiTextureType_DIFFUSE);
+            if (result != -1)
             {
-                mesh->material_textures[TEXTURE_DIFFUSE] = true;
+                mesh->texture_ids[TEXTURE_DIFFUSE] = result;
             }
 
-            if (load_material_texture(arena, out, name, material, aiTextureType_SPECULAR))
+            result = load_material_texture(arena, out, name, material, aiTextureType_SPECULAR);
+            if (result != -1)
             {
-                mesh->material_textures[TEXTURE_SPECULAR] = true;
+                mesh->texture_ids[TEXTURE_SPECULAR] = result;
             }
+
+            result = load_material_texture(arena, out, name, material, aiTextureType_AMBIENT);
+            if (result != -1)
+            {
+                mesh->texture_ids[TEXTURE_AMBIENT] = result;
+            }
+
         }
     }
 
