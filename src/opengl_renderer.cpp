@@ -1,8 +1,6 @@
 
 #include "math.h"
 
-#include "stb_truetype.h"
-
 
 global_variable const char* vertex_shader_3D =
 R"(
@@ -10,23 +8,21 @@ R"(
 layout (location = 0) in vec3 att_pos;
 layout (location = 1) in vec3 att_normal;
 layout (location = 2) in vec2 att_uv;
-layout (location = 3) in vec4 att_color;
-layout (location = 4) in float att_texid;
+layout (location = 3) in float att_texid;
 
 out vec3 frag_pos;
 out vec3 normal;
 out vec2 uv;
-out vec4 color;
 out float tex_id;
 
-uniform mat4 u_MVP;
+uniform mat4 u_viewproj;
+uniform mat4 u_transform;
 uniform mat4 u_normal_trans;
 
 void main()
 {
-    vec4 frag = u_MVP *  vec4(att_pos, 1.0f);
+    vec4 frag = u_viewproj * u_transform * vec4(att_pos, 1.0f);
     uv = att_uv;
-    color = att_color;
     normal = mat3(u_normal_trans) * att_normal;
     tex_id = att_texid;
 
@@ -46,6 +42,8 @@ struct Material
     vec3 diffuse;
     vec3 specular;
     float shininess;
+
+    bool has_texture;
 };
 
 struct Light
@@ -60,44 +58,37 @@ out vec4 frag_color;
 in vec3 frag_pos;
 in vec3 normal;
 in vec2 uv;
-in vec4 color;
 in float tex_id;
 
-uniform vec3 u_view;
+uniform vec3 u_cam_pos;
 uniform vec3 u_light_pos;
 uniform Material u_material;
 uniform Light u_light;
+
 uniform sampler2D u_textures[32];
 
 
 void main()
 {
-    vec3 ambient, specular, diffuse;
-
-
-    ambient = u_light.ambient * u_material.ambient;
-
     vec3 norm = normalize(normal);
 
     vec3 light_dir = normalize(u_light_pos - frag_pos);
     float diff = max(dot(light_dir, norm), 0.0f);
-    diffuse = u_light.diffuse * (u_material.diffuse * diff);
 
-    vec3 view_dir = normalize(u_view - frag_pos);
+    vec3 view_dir = normalize(u_cam_pos - frag_pos);
     vec3 reflected = reflect(-light_dir, norm);
 
     float spec = pow(max(dot(reflected, view_dir), 0.0f), u_material.shininess);
-    specular = u_light.specular * (u_material.specular * spec);
+
+    vec3 ambient = u_light.ambient * u_material.ambient;
+    vec3 diffuse = u_light.diffuse * (u_material.diffuse * diff);
+    vec3 specular = u_light.specular * (u_material.specular * spec);
 
 
-    if (tex_id)
+    if (u_material.has_texture)
     {
-        vec4 sp = vec4(u_light.specular, 1.0f) * (texture(u_textures[1], uv) * spec);
-        sp.a = 1;
-        vec4 dif = vec4(u_light.diffuse, 1.0f) * (texture(u_textures[0], uv) * diff);
-        dif.a = 1;
-
-        frag_color = (sp + dif);
+        diffuse = u_light.diffuse * (texture(u_textures[0], uv) * diff).xyz;
+        frag_color = vec4(specular + diffuse + ambient, 1.0f);
     }
     else
     {
@@ -272,7 +263,7 @@ global_variable u32 texture_slot;
 internal void
 opengl_load_model_to_gpu(u32 shader, Model* model)
 {
-    u32 stride = sizeof(f32) * 13;
+    u32 stride = sizeof(f32) * 9;
 
     for (u32 mesh_index = 0; mesh_index < model->num_meshes; ++mesh_index)
     {
@@ -294,40 +285,34 @@ opengl_load_model_to_gpu(u32 shader, Model* model)
 
         u32 size = sizeof(VertexData) * mesh->num_vertices;
         glBufferData(GL_ARRAY_BUFFER, size, (void*)mesh->vertices, GL_STATIC_DRAW);
-
+         
+        // position
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
         glEnableVertexAttribArray(0); 
 
+        // normal
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
         glEnableVertexAttribArray(1); 
 
+        // uv
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6*sizeof(f32)));
         glEnableVertexAttribArray(2); 
 
-        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
+        // texture id
+        glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
         glEnableVertexAttribArray(3); 
-
-        glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, stride, (void*)(12*sizeof(f32)));
-        glEnableVertexAttribArray(4); 
 
         glBindVertexArray(0);
 
     }
-
-    char texture_uniform_name[] = {"u_textures[-]"};
-
-    u32 slot = 0;
-    for (u32 tex_id = 0; tex_id < model->num_textures; ++tex_id)
+    for (u32 i = 0; i < model->num_textures; ++i)
     {
-        opengl_load_texture(&model->loaded_textures[tex_id], 
+        opengl_load_texture(model->loaded_textures + i,
                             texture_slot,
-                            &model->loaded_textures[tex_id].id);
-        texture_uniform_name[11] = '0' + tex_id;
-        i32 loc = opengl_get_uniform_location(shader,
-                                              texture_uniform_name);
-        glUniform1i(loc, tex_id);
+                            &model->loaded_textures[i].id);
         texture_slot++;
     }
+
 }
 
 
@@ -337,8 +322,17 @@ opengl_init(Renderer* ren)
     ren->shader_program_3D = glCreateProgram();
     ren->shader_program_2D = glCreateProgram();
 
+
     opengl_compile_shaders(ren->shader_program_3D, vertex_shader_3D, fragment_shader_3D);
     opengl_compile_shaders(ren->shader_program_2D, vertex_shader_2D, fragment_shader_2D);
+
+    char texture_uniform_name[] = {"u_textures[-]"};
+    for (u32 tex_id = 0; tex_id < 9; ++tex_id)
+    {
+        texture_uniform_name[11] = '0' + tex_id;
+        i32 loc = opengl_get_uniform_location(ren->shader_program_3D, texture_uniform_name);
+        glUniform1i(loc, tex_id);
+    }
 
 
     glUseProgram(ren->shader_program_3D);
@@ -350,22 +344,23 @@ opengl_init(Renderer* ren)
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * MAX_VERTICES, NULL, GL_STATIC_DRAW);
     // Vertex layout
-    i32 stride = sizeof(f32) * 13;
+    i32 stride = sizeof(f32) * 9;
 
+    // position
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
     glEnableVertexAttribArray(0); 
 
+    // normal
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
     glEnableVertexAttribArray(1); 
 
+    // uv
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6*sizeof(f32)));
     glEnableVertexAttribArray(2); 
 
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
+    // texture id
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
     glEnableVertexAttribArray(3); 
-
-    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, stride, (void*)(12*sizeof(f32)));
-    glEnableVertexAttribArray(4); 
 
     glBindVertexArray(0);
 
@@ -373,6 +368,7 @@ opengl_init(Renderer* ren)
 
     opengl_load_model_to_gpu(ren->shader_program_3D, ren->zombie_0);
     opengl_load_model_to_gpu(ren->shader_program_3D, ren->zombie_1);
+    opengl_load_model_to_gpu(ren->shader_program_3D, ren->cube);
 
 
     // 2D 
@@ -400,7 +396,6 @@ opengl_init(Renderer* ren)
 
     glUseProgram(ren->shader_program_2D);
     opengl_load_texture(&ren->font_texture, 0, &ren->font_texture_id);;
-    DEBUG_PRINT("font texture id %i", ren->font_texture_id);
 
 
     i32 font_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_textures[0]");
@@ -432,21 +427,24 @@ opengl_begin_frame(Renderer* ren)
     ren->projection = mat4_perspective((f32)ren->screen_width,
                                        (f32)ren->screen_height,
                                        120.0f, 1.0f, 1000.0f);
+
 }
 
 internal void
 set_material_uniform(u32 shader, Material* material)
 {
-    i32 amb, spec, diff, shin;
+    i32 amb, spec, diff, shin, tex;
     amb = opengl_get_uniform_location(shader, "u_material.ambient");
     spec = opengl_get_uniform_location(shader, "u_material.specular");
     diff = opengl_get_uniform_location(shader, "u_material.diffuse");
     shin = opengl_get_uniform_location(shader, "u_material.shininess");
+    tex =  opengl_get_uniform_location(shader, "u_material.has_texture");
 
     glUniform3fv(amb, 1, material->ambient.data);
     glUniform3fv(spec, 1, material->specular.data);
     glUniform3fv(diff, 1, material->diffuse.data);
     glUniform1f(shin, material->shininess);
+    glUniform1i(tex, material->has_texture);
 }
 
 internal void
@@ -466,53 +464,41 @@ internal void
 opengl_draw_model(Renderer* ren, Model* model, vec3 position, vec3 size)
 {
    
-    mat4 transfrom = mat4_translate(position) *
-                 mat4_scale(size);
+     mat4 transfrom = mat4_translate(position) *
+                      mat4_scale(size);
+  
+     mat4 mvp = ren->projection * ren->view * transfrom;
+     mat4 normal_transform = mat4_transpose(mat4_inverse(transfrom));
+     b8 do_transpose = true;
+  
+     i32 transform_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_transform");
+     glUniformMatrix4fv(transform_loc, 1, do_transpose, (f32*)transfrom.data);
+  
+     i32 normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
+     glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
+  
 
-    mat4 mvp = ren->projection * ren->view * transfrom;
-    mat4 normal_transform = mat4_transpose(mat4_inverse(transfrom));
-    b8 do_transpose = true;
-
-    i32 mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
-    glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
-    i32 normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
-    glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
-
-   // This is for testing purpose
-   set_material_uniform(ren->shader_program_3D, &ren->material);
-   set_light_uniform(ren->shader_program_3D, &ren->light);
-
-    for (u32 i = 0; i < model->num_meshes; ++i)
-    {
-       Mesh* mesh = &model->meshes[i];
-       glBindVertexArray(mesh->VAO);
-
-       /* NOTE: -1 means no texture
-       Textures are stored:
-       DIFFUSE - SPECULAR - AMBIENT
-       in order */
-
-       for (u32 j = 0; j < ARRAY_COUNT(mesh->texture_ids); ++j)
-       {
-           i32 id = mesh->texture_ids[j];
-           if (id != -1)
-           {
-               glActiveTexture(GL_TEXTURE0 + j);
-               glBindTexture(GL_TEXTURE_2D, model->loaded_textures[id].id);
-           }
-       }
-
-
-       //set_material_uniform(ren->shader_program_3D, &mesh->material);
-       if (mesh->indices)
-       {
-           glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, 0);
-       }
-       else
-       {
-           glDrawArrays(GL_TRIANGLES, 0, mesh->num_vertices);
-       }
-    }
+     for (u32 i = 0; i < model->num_meshes; ++i)
+     {
+        Mesh* mesh = &model->meshes[i];
+        set_material_uniform(ren->shader_program_3D, &mesh->material);
+        if (mesh->material.has_texture)
+        {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, model->loaded_textures[mesh->texture_index].id);
+        }
+        glBindVertexArray(mesh->VAO);
+  
+  
+        if (mesh->indices)
+        {
+            glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, 0);
+        }
+        else
+        {
+            glDrawArrays(GL_TRIANGLES, 0, mesh->num_vertices);
+        }
+     }
 
    
 }
@@ -520,56 +506,28 @@ opengl_draw_model(Renderer* ren, Model* model, vec3 position, vec3 size)
 internal void
 opengl_end_frame(Renderer* ren)
 {
-    {
-        // NOTE(marko): 3D renderer
-        glEnable(GL_DEPTH_TEST);
-        glUseProgram(ren->shader_program_3D);
+    glEnable(GL_DEPTH_TEST);
+    glUseProgram(ren->shader_program_3D);
 
-        //mat4 projection = mat4_orthographic(1024.0f, 768.0f);
-        local_persist f32 temp = 0.0f;
-        temp += 0.05f;
+    mat4 viewproj = ren->projection * ren->view;
+    b8 do_transpose = true;
 
-        mat4 model = mat4_rotate(sinf(temp) * 100, {0.0f, 1.0f, 0.0f}) * mat4_scale({100, 100, 100});
-        mat4 mvp = ren->projection * ren->view * model;
-        mat4 normal_transform = mat4_transpose(mat4_inverse(model));
+    set_light_uniform(ren->shader_program_3D, &ren->light);
 
+    i32 light_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_light_pos");
+    glUniform3fv(light_loc, 1, (f32*)ren->light_pos.data);
 
-        ren->light_pos.x = 100.0f;
-        ren->light_pos.y = 200.0f;
+    i32 view_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_cam_pos");
+    glUniform3fv(view_loc, 1, (f32*)ren->camera.position.data);
 
-        b8 do_transpose = true;
-        i32 mvp_loc, light_loc, view_loc, normal_loc;
-
-
-        mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_MVP");
-        glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)mvp.data);
-
-        light_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_light_pos");
-        glUniform3fv(light_loc, 1, (f32*)ren->light_pos.data);
-
-        view_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_view");
-        glUniform3fv(view_loc, 1, (f32*)ren->camera.position.data);
-
-        normal_loc =  opengl_get_uniform_location(ren->shader_program_3D, "u_normal_trans");
-        glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)normal_transform.data);
-
-        set_material_uniform(ren->shader_program_3D, &ren->material);
-        set_light_uniform(ren->shader_program_3D, &ren->light);
-
-
-        glBindVertexArray(ren->VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
-        u32 size = sizeof(VertexData) * ren->vertex_count;
-        glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_start); 
-        glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count);
-
-        ren->vertex_count = 0;
-
-    }
+    i32 mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_viewproj");
+    glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)viewproj.data);
 
     // Model
-    opengl_draw_model(ren, ren->zombie_0, V3(-150, 0, 0), V3(10, 10, 10));
-    opengl_draw_model(ren, ren->zombie_1, V3(-200, 0, 0), V3(10, 10, 10));
+    opengl_draw_model(ren, ren->cube, ren->light_pos, V3(5, 5, 5));
+    opengl_draw_model(ren, ren->zombie_0, V3(100, 100, 0), V3(20, 20, 20));
+    opengl_draw_model(ren, ren->zombie_1, V3(50, 50, 0), V3(1, 1, 1));
+    opengl_draw_model(ren, ren->cube, V3(0, 0, 0), V3(20, 20, 20));
      
     // NOTE(marko): 2D renderer
 

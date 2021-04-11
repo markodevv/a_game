@@ -35,6 +35,7 @@ struct vec3
     vec3 operator+(vec3& other);
     vec3 operator-(vec3& other);
     vec3 operator*(vec3& other);
+    vec3 operator*(f32 a);
     vec3 operator/(f32 a);
 };
 
@@ -105,6 +106,12 @@ inline vec3
 vec3::operator*(vec3& other)
 {
     return {x*other.x, y*other.y, z*other.z};
+}
+
+inline vec3
+vec3::operator*(f32 a)
+{
+    return {x*a, y*a, z*a};
 }
 
 inline f32 

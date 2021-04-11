@@ -2,19 +2,14 @@
 #define RENDERER_H
 #include "stb_truetype.h"
 
-enum TextureType
-{
-    TEXTURE_DIFFUSE,
-    TEXTURE_SPECULAR,
-    TEXTURE_AMBIENT,
-};
-
 struct Material
 {
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
     f32 shininess;
+
+    b8 has_texture;
 };
 
 struct Light
@@ -29,7 +24,6 @@ struct VertexData
     vec3 position;
     vec3 normal;
     vec2 uv;
-    vec4 color;
     f32 texture_id;
 };
 
@@ -65,7 +59,7 @@ struct Mesh
     u32* indices;
     u32 num_indices;
 
-    u32 texture_ids[3];
+    i32 texture_index;
 
     Material material;
 
@@ -166,6 +160,7 @@ struct Renderer
     //
     Model* zombie_0;
     Model* zombie_1;
+    Model* cube;
 
     i32 screen_width;
     i32 screen_height;

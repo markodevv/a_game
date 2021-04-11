@@ -121,9 +121,12 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         ren->light.diffuse = V3(1.0f);
         ren->light.specular = V3(1.0f);
 
+        ren->light_pos = V3(200, 100, 0.0f);
+
         ren->camera = {{0.0f, 0.0f, 200.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
 
         //ren->model = memory->DEBUG_load_3D_model(&ren->arena, "../assets/backpack/backpack.obj");
+        ren->cube = memory->DEBUG_load_3D_model(&ren->arena, "../assets/character/character.obj");
         ren->zombie_0 = memory->DEBUG_load_3D_model(&ren->arena, "../assets/zombies/obj/Zed_1.obj");
         ren->zombie_1 = memory->DEBUG_load_3D_model(&ren->arena, "../assets/zombies/obj/Zed_2.obj");
 
@@ -224,7 +227,7 @@ game_render(GameMemory* memory)
     }
     debug_menu_newline(ren, memory->debug);
 
-    draw_debug_slider(ren, memory->debug, -400.0f, 400.0f, &ren->light_pos.z, "light z"); 
+    draw_debug_slider(ren, memory->debug, -1000.0f, 1000.0f, &ren->light_pos.z, "light z"); 
 
 
     debug_vec3_slider(ren, memory->debug, &ren->light.ambient, "light.ambient");
@@ -232,9 +235,7 @@ game_render(GameMemory* memory)
     debug_vec3_slider(ren, memory->debug, &ren->light.specular, "light.specular");
 
 
-
     f32 random_value = 10.0f;
-    draw_cube(ren, {0.0f, 0.0f, 0.0f}, {100.0f, 100.0f, 100.0f}, {0.8f, 0.3f, 0.0f, 1.0f});
 
     ren->renderer_end(ren);
 }

@@ -512,6 +512,10 @@ win32_init_opengl(HWND window_handle)
     Win32LoadOpenGLFunction(glUniform1f);
     Win32LoadOpenGLFunction(glUniform2f);
     Win32LoadOpenGLFunction(glUniform4f);
+    Win32LoadOpenGLFunction(glUniform1iv);
+    Win32LoadOpenGLFunction(glUniform2iv);
+    Win32LoadOpenGLFunction(glUniform3iv);
+    Win32LoadOpenGLFunction(glUniform4iv);
     Win32LoadOpenGLFunction(glUniform1fv);
     Win32LoadOpenGLFunction(glUniform2fv);
     Win32LoadOpenGLFunction(glUniform3fv);
@@ -653,8 +657,7 @@ win32_process_input_messages(GameInput* game_input)
 
 }
 
-// NOTE: If no texture material for mesh
-internal i32
+internal b8
 load_material_texture(MemoryArena* arena, 
                       Model* model,
                       char* path,
@@ -662,10 +665,11 @@ load_material_texture(MemoryArena* arena,
                       aiTextureType texture_type)
 {
 
-    b8 texture_index = -1;
+    b8 result = false;
     aiString str;
     if (aiGetMaterialTexture(material, texture_type, 0, &str) == AI_SUCCESS)
     {
+        result = true;
         b8 skip = false;
         char* image_name = const_cast<char*>(str.C_Str());
 
@@ -674,7 +678,6 @@ load_material_texture(MemoryArena* arena,
             // If texture already loaded
             if (string_equals(model->loaded_textures[j].name, image_name))
             {
-                texture_index = j;
                 skip = true;
             }
         }
@@ -703,20 +706,19 @@ load_material_texture(MemoryArena* arena,
 
             end_temporary_memory(&temp_memory);
 
-            texture_index = model->num_textures;
             ++model->num_textures;
         }
 
     }
 
-    return texture_index;
+    return result;
 }
 
 
 internal Model*
-DEBUG_load_3D_model(MemoryArena* arena, char* name)
+DEBUG_load_3D_model(MemoryArena* arena, char* path)
 {
-    const aiScene* scene = aiImportFile(name, aiProcess_CalcTangentSpace |
+    const aiScene* scene = aiImportFile(path, aiProcess_CalcTangentSpace |
                                               aiProcess_Triangulate      |
                                               aiProcess_SortByPType);
     if (!scene)
@@ -748,15 +750,13 @@ DEBUG_load_3D_model(MemoryArena* arena, char* name)
                                   ai_mesh->mNormals[vertex_index].y,
                                   ai_mesh->mNormals[vertex_index].z);
 
-            vertices->color = V4(1.0f);
-
             if (ai_mesh->mTextureCoords[0])
             {
                 vertices->uv = V2(ai_mesh->mTextureCoords[0][vertex_index].x,
                                   ai_mesh->mTextureCoords[0][vertex_index].y);
             }
 
-            vertices->texture_id = 1;
+            vertices->texture_id = 0;
 
             ++vertices;
         }
@@ -780,33 +780,38 @@ DEBUG_load_3D_model(MemoryArena* arena, char* name)
             }
         }
 
-        // NOTE: -1 means no texture
-        for (u32 p = 0; p < ARRAY_COUNT(mesh->texture_ids); ++p)
-        {
-            mesh->texture_ids[p] = -1;
-        }
         if (ai_mesh->mMaterialIndex >= 0)
         {
-            aiMaterial* material = scene->mMaterials[ai_mesh->mMaterialIndex];
+            aiMaterial* mtl = scene->mMaterials[ai_mesh->mMaterialIndex];
 
-            i32 result = load_material_texture(arena, out, name, material, aiTextureType_DIFFUSE);
-            if (result != -1)
+            aiColor4D color = {};
+            if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &color))
             {
-                mesh->texture_ids[TEXTURE_DIFFUSE] = result;
+                mesh->material.diffuse = V3(color.r, color.g, color.b);
+            }
+            if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &color))
+            {
+                mesh->material.specular = V3(color.r, color.g, color.b);
+            }
+            if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &color))
+            {
+                mesh->material.ambient = V3(color.r, color.g, color.b);
+            }
+            f32 shininess = 0.0f;
+            mesh->material.shininess = 32.0f;
+            if (AI_SUCCESS == aiGetMaterialFloat(mtl, 
+                                                 AI_MATKEY_SHININESS_STRENGTH,
+                                                 &shininess))
+            {
+                DEBUG_PRINT("%.2f shininess", shininess);
+                mesh->material.shininess = shininess;
             }
 
-            result = load_material_texture(arena, out, name, material, aiTextureType_SPECULAR);
-            if (result != -1)
+            if (load_material_texture(arena, out, path, mtl, aiTextureType_DIFFUSE))
             {
-                mesh->texture_ids[TEXTURE_SPECULAR] = result;
+                mesh->texture_index = out->num_textures - 1;
+                mesh->material.has_texture = true;
             }
-
-            result = load_material_texture(arena, out, name, material, aiTextureType_AMBIENT);
-            if (result != -1)
-            {
-                mesh->texture_ids[TEXTURE_AMBIENT] = result;
-            }
-
         }
     }
 

@@ -189,7 +189,6 @@ draw_cube(Renderer* ren, vec3 position, vec3 scale, vec4 color)
     {
         ren->vertices_start[ren->vertex_count].position = cube_vertices[i];
         ren->vertices_start[ren->vertex_count].normal = cube_vertices[i+1];
-        ren->vertices_start[ren->vertex_count].color = color;
         ren->vertex_count++;
     }
 }
