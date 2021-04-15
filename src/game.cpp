@@ -32,15 +32,12 @@ typedef size_t sizet;
 #include "math.h"
 #include "memory.h"
 #include "debug.h"
+#include "common.h"
 #include "renderer.h"
-#include "game.h"
 #include "renderer.cpp"
+#include "game.h"
+#include "render_group.cpp"
 #include "debug_ui.cpp"
-
-
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
-
 
 
 // NOTE: Debug data
@@ -71,15 +68,15 @@ game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
 
 
 
-inline internal Texture
-allocate_texture(MemoryArena* memory, i32 w, i32 h)
+inline internal Image
+allocate_image(MemoryArena* memory, i32 w, i32 h)
 {
-    Texture texture;
-    texture.data = PushMemory(memory, u8, (w*h));
-    texture.width = w;
-    texture.height = h;
+    Image image;
+    image.data = PushMemory(memory, u8, (w*h));
+    image.width = w;
+    image.height = h;
 
-    return texture;
+    return image;
 }
 
 
@@ -88,34 +85,25 @@ extern "C" PLATFORM_API void
 game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
 {
     GameState* game_state = (GameState*)memory->permanent_storage;
+    Platform *platform = &memory->platform;
 
     if (!memory->is_initialized)
     {
+        TranState* trans_state = &game_state->trans_state;
+
         init_arena(&game_state->arena, 
                    (memory->permanent_storage_size - sizeof(GameState)),
                    (u8*)memory->permanent_storage + sizeof(GameState));
 
-        init_arena(&game_state->temporary_arena, 
-                   (memory->temporary_storage_size - sizeof(GameState)),
+        init_arena(&trans_state->arena, 
+                   (memory->temporary_storage_size),
                    (u8*)memory->temporary_storage);
+
         game_state->renderer = PushMemory(&game_state->arena, Renderer);
 
-        game_state->tone_hz = 256;
-        game_state->tone_volume = 3000;
-        game_state->t_sine = 0.0f;
-
         Renderer* ren = game_state->renderer;
-        sub_arena(&game_state->temporary_arena, &ren->arena, MEGABYTES(64));
 
-        ren->material.ambient = {1.0f, 0.5f, 0.31f};
-        ren->material.diffuse = {1.0f, 0.5f, 0.31f};
-        ren->material.specular = {0.5f, 0.5f, 0.5f};
-        ren->material.shininess = 32.0f;
-
-        ren->jade.ambient = V3(0.191f, 0.073f, 0.025f);
-        ren->jade.diffuse = V3(0.703f, 0.27f, 0.082f);
-        ren->jade.specular = V3(0.256f, 0.138f, 0.086f);
-        ren->jade.shininess = 0.6f;
+        sub_arena(&trans_state->arena, &trans_state->assets.arena, MEGABYTES(64));
 
         ren->light.ambient = V3(1.0f);
         ren->light.diffuse = V3(1.0f);
@@ -125,42 +113,50 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         ren->camera = {{0.0f, 0.0f, 200.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
 
-        //ren->model = memory->DEBUG_load_3D_model(&ren->arena, "../assets/backpack/backpack.obj");
-        ren->cube = memory->DEBUG_load_3D_model(&ren->arena, "../assets/character/character.obj");
-        ren->zombie_0 = memory->DEBUG_load_3D_model(&ren->arena, "../assets/zombies/obj/Zed_1.obj");
-        ren->zombie_1 = memory->DEBUG_load_3D_model(&ren->arena, "../assets/zombies/obj/Zed_2.obj");
+        //ren->model = memory->load_3D_model(&ren->arena, "../assets/backpack/backpack.obj");
+        trans_state->assets.models[M_ID_DUMMY] = platform->load_3D_model(&trans_state->assets, "../assets/character/character.obj");
+        trans_state->assets.models[M_ID_ZOMBIE0] = platform->load_3D_model(&trans_state->assets, "../assets/zombies/obj/Zed_1.obj");
+        trans_state->assets.models[M_ID_ZOMBIE1] = platform->load_3D_model(&trans_state->assets, "../assets/zombies/obj/Zed_2.obj");
 
-        ren->renderer_init = memory->renderer_init;
-        ren->renderer_begin = memory->renderer_begin;
-        ren->renderer_end = memory->renderer_end;
+/*
+        opengl_load_model_to_gpu(ren->shader_program_3D, &game_state->assets.zombie_0);
+        opengl_load_model_to_gpu(ren->shader_program_3D, &game_state->assets.zombie_1);
+        opengl_load_model_to_gpu(ren->shader_program_3D, &game_state->assets.cube);
+        */
 
 
         memory->debug = PushMemory(&game_state->arena, DebugState);
-        sub_arena(&game_state->arena, &memory->debug->arena, MEGABYTES(6));
+        sub_arena(&game_state->arena, &memory->debug->arena, MEGABYTES(12));
 
-        DebugFileResult font_file = memory->DEBUG_read_entire_file("../consola.ttf");
 
-        ren->font_texture = allocate_texture(&ren->arena, 512, 512);
-        ren->font_texture.channels = 1;
-        ren->font_size = 14.0f;
+        FileResult font_file = platform->read_entire_file("../consola.ttf");
 
+        DebugState* debug = memory->debug;
+        debug->font_image = allocate_image(&debug->arena, 512, 512);
+        debug->font_image.channels = 1;
+        debug->font_size = 14.0f;
+
+        /* TODO:
         i32 result = stbtt_BakeFontBitmap((u8*)font_file.data, 
-                             0, ren->font_size,
-                             (u8*)ren->font_texture.data, 
-                             ren->font_texture.width, 
-                             ren->font_texture.height,
+                             0, debug->font_size,
+                             (u8*)debug->font_image.data, 
+                             debug->font_image.width, 
+                             debug->font_image.height,
                              32, NUM_ASCII, 
-                             ren->char_metrics);
-        ren->x_advance = (ren->char_metrics + 32)->xadvance;
+                             debug->char_metrics);
+        debug->x_advance = (debug->char_metrics + 32)->xadvance;
 
         if (!result)
         {
             DEBUG_PRINT("Failed to bake font map\n");
         }
+        */
 
-        ren->renderer_init(game_state->renderer);
+        game_state->minotaur_image = platform->load_image(&trans_state->assets, "../assets/minotaur.png");
 
-        memory->DEBUG_free_file_memory(font_file.data);
+        platform->init_renderer(game_state->renderer);
+
+        platform->free_file_memory(font_file.data);
         memory->is_initialized = true;
 
     }
@@ -199,15 +195,41 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 }
 
 
+
+
 extern "C" PLATFORM_API void
 game_render(GameMemory* memory)
 {
     GameState* game_state = (GameState*)memory->permanent_storage;
     Renderer* ren = game_state->renderer;
+    Platform *platform = &memory->platform;
+    TranState* tran_state = &game_state->trans_state;
 
-    ren->renderer_begin(ren);
 
+    TemporaryArena flush_memory = begin_temporary_memory(&tran_state->arena);
 
+    ren->vertices_2D = PushMemory(&tran_state->arena, VertexData2D, MAX_VERTICES);
+
+    RenderGroup* render_group = allocate_render_group(&tran_state->arena, 
+                                                      MEGABYTES(4),
+                                                      ren, 
+                                                      &tran_state->assets);
+    init_render_group(render_group,
+                      mat4_orthographic((f32)ren->screen_width,
+                                        (f32)ren->screen_height));
+/*
+    opengl_draw_model(ren, ren->cube, ren->light_pos, V3(5, 5, 5));
+    opengl_draw_model(ren, ren->zombie_0, V3(100, 100, 0), V3(20, 20, 20));
+    opengl_draw_model(ren, ren->zombie_1, V3(50, 50, 0), V3(1, 1, 1));
+    opengl_draw_model(ren, ren->cube, V3(0, 0, 0), V3(20, 20, 20));
+    */
+
+    push_rect(render_group, V2(100, 100), V2(200, 300), V4(0.7f, 0.3f, 0.1f, 1.0f));
+    push_rect(render_group, V2(50, 50), V2(50, 50), V4(0.3f, 0.3f, 1.0f, 1.0f));
+
+    push_textured_rect(render_group, game_state->minotaur_image, V2(200, 200), V2(1000, 1000), V4(1.0f));
+
+#if 0
     local_persist f32 var = 0.0f;
     debug_menu_begin(ren, memory->debug, {100, 200}, {400, (f32)ren->screen_height}, "Main Menu");
 
@@ -215,16 +237,17 @@ game_render(GameMemory* memory)
 
     draw_debug_slider(ren, memory->debug, 0.0f, 30.0f, &var, "my variable"); 
     debug_menu_newline(ren, memory->debug);
-    draw_debug_slider(ren, memory->debug, 0.0f, 0.5f, &ren->light_speed, "light speed");
 
     if (draw_debug_button(ren, memory->debug, "button 1"))
     {
         DEBUG_PRINT("button 1 clicked");
     }
+
     if (draw_debug_button(ren, memory->debug, "button 2"))
     {
         DEBUG_PRINT("button 2 clicked");
     }
+
     debug_menu_newline(ren, memory->debug);
 
     draw_debug_slider(ren, memory->debug, -1000.0f, 1000.0f, &ren->light_pos.z, "light z"); 
@@ -236,7 +259,12 @@ game_render(GameMemory* memory)
 
 
     f32 random_value = 10.0f;
+#endif
 
-    ren->renderer_end(ren);
+    process_render_group(render_group);
+
+    platform->end_frame(render_group);
+
+    end_temporary_memory(&flush_memory);
 }
 

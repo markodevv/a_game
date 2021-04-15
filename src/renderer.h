@@ -1,6 +1,5 @@
 #if !defined(RENDERER_H)
 #define RENDERER_H
-#include "stb_truetype.h"
 
 struct Material
 {
@@ -29,7 +28,7 @@ struct VertexData
 
 struct VertexData2D
 {
-    vec3 position;
+    vec2 position;
     vec2 uv;
     vec4 color;
     f32 texture_id;
@@ -43,13 +42,18 @@ struct Camera
     vec3 up;
 };
 
-struct Texture
+typedef i32 ImageHandle;
+struct Image
 {
     char* name;
     void* data;
     i32 width, height, channels;
     u32 id;
+    u32 slot;
+
+    b8 loaded_to_gpu;
 };
+
 
 struct Mesh
 {
@@ -62,17 +66,14 @@ struct Mesh
     i32 texture_index;
 
     Material material;
-
-    u32 VAO, VBO, EBO;
 };
 
 struct Model
 {
-    b8 loaded_to_gpu;
     Mesh* meshes;
     u32 num_meshes;
 
-    Texture loaded_textures[8];
+    ImageHandle loaded_images[8];
     u32 num_textures;
 };
 
@@ -95,103 +96,79 @@ camera_transform(Camera* cam)
     return out;
 }
 
-struct LoadedBitmap
-{
-    u8* data;
-    i32 width;
-    i32 height;
-};
 
 #define MAX_VERTICES 10000
 #define NUM_ASCII 96
 
 struct Renderer;
 typedef void RendererProc(Renderer* ren);
-typedef void RendererProc(Renderer* ren);
-typedef void RendererProc(Renderer* ren);
+
+// push group entrys
+// sort group
+// send it to gpu
+// gpu loads models that are not loaded and sets nececery states
+
+enum RenderEntryType
+{
+    RENDER_ENTRY_TexturedQuad,
+    RENDER_ENTRY_Quad,
+};
+
+struct RenderEntryHeader
+{
+    RenderEntryType entry_type;
+};
+
+struct Quad
+{
+    vec2 position;
+    vec2 size;
+    vec4 color;
+};
+
+struct TexturedQuad
+{
+    ImageHandle image;
+
+    vec2 position;
+    vec2 size;
+    vec4 color;
+};
 
 struct RenderGroup
 {
-    u32 num_vertieces;
-    VertexData *vertices;
-    mat4 transform;
+    mat4 projection;
 
-    RenderGroup* next_group;
+    u8* push_buffer_base;
+    u32 push_buffer_size;
+    u32 push_buffer_max_size;
+
+    struct Assets* assets;
+    Renderer* renderer;
 };
 
 
 struct Renderer
 {
-    MemoryArena arena;
-
-    RenderGroup* render_groups;
-
     i32 shader_program_3D;
-    VertexData vertices_start[MAX_VERTICES];
-    u32 vertex_count;
-    u32 VAO;
-    u32 VBO;
+    u32 VBO, VAO;
     Camera camera;
 
-    VertexData2D vertices_2D[MAX_VERTICES];
+    VertexData2D* vertices_2D;
     i32 shader_program_2D;
     u32 vertex_count_2D;
     u32 VBO_2D;
     u32 VAO_2D;
 
-    mat4 projection;
     mat4 view;
 
     u32 slot;
 
     vec3 light_pos;
-    Material material;
     Light light;
-
-    Material jade;
-
-
-    // TODO: this should be in DebugState
-    Texture font_texture;
-    stbtt_bakedchar char_metrics[NUM_ASCII];
-    f32 font_size;
-    u32 font_texture_id;
-    f32 x_advance;
-    //
-    Model* zombie_0;
-    Model* zombie_1;
-    Model* cube;
 
     i32 screen_width;
     i32 screen_height;
-
-    f32 light_speed;
-
-    RendererProc* renderer_init;
-    RendererProc* renderer_begin;
-    RendererProc* renderer_end;
 };
 
-internal void
-push_render_group(Renderer* ren, u32 num_vertieces)
-{
-    RenderGroup* render_group = PushMemory(&ren->arena, RenderGroup);
-    render_group->vertices = PushMemory(&ren->arena, VertexData, num_vertieces);
-    render_group->next_group = 0;
-     
-    if (!ren->render_groups)
-    {
-        ren->render_groups = render_group;
-    }
-    else
-    {
-        RenderGroup* node = ren->render_groups;
-        while(node->next_group)
-        {
-            node = node->next_group;
-        }
-        node->next_group = render_group;
-    }
-
-}
 #endif

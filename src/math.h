@@ -13,6 +13,7 @@ struct vec2
     vec2 operator/(f32 a);
     vec2 operator+(vec2& other);
     vec2 operator-(vec2& other);
+    vec2 operator*(vec2& other);
 };
 
 struct vec3 
@@ -73,9 +74,57 @@ struct mat4
 };
 
 inline vec2
+V2(f32 x, f32 y)
+{
+    return {x, y};
+}
+
+inline vec3
+V3(f32 x, f32 y, f32 z)
+{
+    return {x, y, z};
+}
+
+inline vec3
+V3(vec2 v, f32 z)
+{
+    return {v.x, v.y, z};
+}
+
+inline vec3
+V3(f32 n)
+{
+    return {n, n, n};
+}
+
+inline vec4
+V4(f32 x, f32 y, f32 z, f32 w)
+{
+    return {x, y, z ,w};
+}
+
+inline vec4
+V4(vec3 v, f32 w)
+{
+    return {v.x, v.y, v.z, w};
+}
+
+inline vec4
+V4(f32 n)
+{
+    return {n, n, n, n};
+}
+
+inline vec2
 vec2::operator/(f32 a)
 {
     return {x/a, y/a};
+}
+
+inline vec2 
+vec2::operator*(vec2& other)
+{
+    return V2(other.x*x, other.y*y);
 }
 
 inline vec2
@@ -145,47 +194,6 @@ vec3_normalized(vec3 v)
 }
 
 
-inline vec2
-V2(f32 x, f32 y)
-{
-    return {x, y};
-}
-
-inline vec3
-V3(f32 x, f32 y, f32 z)
-{
-    return {x, y, z};
-}
-
-inline vec3
-V3(vec2 v, f32 z)
-{
-    return {v.x, v.y, z};
-}
-
-inline vec3
-V3(f32 n)
-{
-    return {n, n, n};
-}
-
-inline vec4
-V4(f32 x, f32 y, f32 z, f32 w)
-{
-    return {x, y, z ,w};
-}
-
-inline vec4
-V4(vec3 v, f32 w)
-{
-    return {v.x, v.y, v.z, w};
-}
-
-inline vec4
-V4(f32 n)
-{
-    return {n, n, n, n};
-}
 
 inline vec3
 vec3_cross(vec3 a, vec3 b)

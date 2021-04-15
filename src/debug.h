@@ -1,7 +1,9 @@
 #if !defined(DEBUG_H)
 #define DEBUG_H
 
-#define MAX_NAME_LEN 9
+#include "stb_truetype.h"
+#include "renderer.h"
+#define MAX_UI_VAR_NAME_LEN 9
 
 struct UiItemId
 {
@@ -29,6 +31,12 @@ struct DebugState
     InteractableUiItem hot_item;
     InteractableUiItem next_hot_item;
     InteractableUiItem interacting_item;
+
+    Image font_image;
+    stbtt_bakedchar char_metrics[NUM_ASCII];
+    f32 font_size;
+    u32 font_texture_id;
+    f32 x_advance;
 
     vec2 draw_cursor;
     vec2 prev_draw_cursor;

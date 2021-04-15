@@ -100,7 +100,7 @@ void main()
 global_variable const char* vertex_shader_2D =
 R"(
 #version 330 core
-layout (location = 0) in vec3 att_pos;
+layout (location = 0) in vec2 att_pos;
 layout (location = 1) in vec2 att_uv;
 layout (location = 2) in vec4 att_color;
 layout (location = 3) in float att_tex_id;
@@ -113,7 +113,7 @@ uniform mat4 u_viewproj;
 
 void main()
 {
-   gl_Position = u_viewproj * vec4(att_pos, 1.0f);
+   gl_Position = u_viewproj * vec4(att_pos, 0.0f, 1.0f);
    uv = att_uv;
    color = att_color;
    tex_id = att_tex_id;
@@ -134,14 +134,14 @@ in float tex_id;
 
 void main()
 {
-    if (tex_id == 0)
+    if (tex_id == 1)
     {
-        float alpha = texture(u_textures[0], uv).r;
+        float alpha = texture(u_textures[1], uv).r;
 		frag_color = color * vec4(1.0f, 1.0f, 1.0f, alpha);
     }
-    else if (tex_id == 1)
+    else if (tex_id == 0)
     {
-		frag_color = texture(u_textures[1], uv);
+		frag_color = texture(u_textures[0], uv);
     }
     else
     {
@@ -212,27 +212,29 @@ opengl_get_uniform_location(i32 shader, char* uniform)
 
 }
 
-internal void
-opengl_load_texture(Texture* texture, u32 slot, u32* texture_id)
+internal u32
+opengl_load_texture(Image* image, u32 slot)
 {
+    u32 texture_id = 0;
+
     glActiveTexture(GL_TEXTURE0 + slot);
-    glGenTextures(1, texture_id);
-    glBindTexture(GL_TEXTURE_2D, *texture_id);
+    glGenTextures(1, &texture_id);
+    glBindTexture(GL_TEXTURE_2D, texture_id);
 
     u32 external_format = 0;
     u32 internal_format = 0;
 
-    if (texture->channels == 4)
+    if (image->channels == 4)
     {
         external_format = GL_RGBA;
         internal_format = GL_RGBA8;
     }
-    else if (texture->channels == 3)
+    else if (image->channels == 3)
     {
         external_format = GL_RGB;
         internal_format = GL_RGB8;
     }
-    else if (texture->channels == 1)
+    else if (image->channels == 1)
     {
         external_format = GL_RED;
         internal_format = GL_R8;
@@ -249,19 +251,23 @@ opengl_load_texture(Texture* texture, u32 slot, u32* texture_id)
     glTexImage2D(GL_TEXTURE_2D,
                  0, 
                  internal_format,
-                 texture->width,
-                 texture->height,
+                 image->width,
+                 image->height,
                  0,
                  external_format,
                  GL_UNSIGNED_BYTE, 
-                 texture->data);
+                 image->data);
 
+    image->loaded_to_gpu = true;
+
+    return texture_id;
 }
 
 global_variable u32 texture_slot;
 
+#if 0
 internal void
-opengl_load_model_to_gpu(u32 shader, Model* model)
+opengl_load_model_to_gpu(Model* model)
 {
     u32 stride = sizeof(f32) * 9;
 
@@ -307,18 +313,20 @@ opengl_load_model_to_gpu(u32 shader, Model* model)
     }
     for (u32 i = 0; i < model->num_textures; ++i)
     {
-        opengl_load_texture(model->loaded_textures + i,
+        opengl_load_texture(model->loaded_images + i,
                             texture_slot,
-                            &model->loaded_textures[i].id);
+                            &model->loaded_images[i].id);
         texture_slot++;
     }
 
 }
+#endif
 
 
 internal void
 opengl_init(Renderer* ren)
 {
+
     ren->shader_program_3D = glCreateProgram();
     ren->shader_program_2D = glCreateProgram();
 
@@ -365,12 +373,6 @@ opengl_init(Renderer* ren)
     glBindVertexArray(0);
 
 
-
-    opengl_load_model_to_gpu(ren->shader_program_3D, ren->zombie_0);
-    opengl_load_model_to_gpu(ren->shader_program_3D, ren->zombie_1);
-    opengl_load_model_to_gpu(ren->shader_program_3D, ren->cube);
-
-
     // 2D 
 
     glGenVertexArrays(1, &ren->VAO_2D);
@@ -380,30 +382,29 @@ opengl_init(Renderer* ren)
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
     glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData2D) * MAX_VERTICES, NULL, GL_STATIC_DRAW);
 
-    stride = sizeof(f32) * 10;
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+    stride = sizeof(f32) * 9;
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, (void*)0);
     glEnableVertexAttribArray(0); 
 
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)(2*sizeof(f32)));
     glEnableVertexAttribArray(1); 
 
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, (void*)(5*sizeof(f32)));
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, (void*)(4*sizeof(f32)));
     glEnableVertexAttribArray(2); 
 
-    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(9*sizeof(f32)));
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
     glEnableVertexAttribArray(3); 
 
 
     glUseProgram(ren->shader_program_2D);
-    opengl_load_texture(&ren->font_texture, 0, &ren->font_texture_id);;
 
 
-    i32 font_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_textures[0]");
-    glUniform1i(font_loc, 0);
+    i32 sampler_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_textures[0]");
+    glUniform1i(sampler_loc, 0);
+    sampler_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_textures[1]");
+    glUniform1i(sampler_loc, 1);
 
     glBindVertexArray(0);
-
-
     glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
@@ -412,21 +413,6 @@ opengl_init(Renderer* ren)
 internal void
 opengl_begin_frame(Renderer* ren)
 {
-    glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-
-    local_persist i32 w, h;
-    if (w != ren->screen_width || h != ren->screen_height)
-    {
-        w = ren->screen_width;
-        h = ren->screen_height;
-        glViewport(0, 0, w, h);
-    }
-
-    ren->view = camera_transform(&ren->camera);
-    ren->projection = mat4_perspective((f32)ren->screen_width,
-                                       (f32)ren->screen_height,
-                                       120.0f, 1.0f, 1000.0f);
 
 }
 
@@ -460,6 +446,7 @@ set_light_uniform(u32 shader, Light* light)
     glUniform3fv(diff, 1, light->diffuse.data);
 }
 
+#if 0
 internal void
 opengl_draw_model(Renderer* ren, Model* model, vec3 position, vec3 size)
 {
@@ -485,7 +472,7 @@ opengl_draw_model(Renderer* ren, Model* model, vec3 position, vec3 size)
         if (mesh->material.has_texture)
         {
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, model->loaded_textures[mesh->texture_index].id);
+            glBindTexture(GL_TEXTURE_2D, model->loaded_images[mesh->texture_index].id);
         }
         glBindVertexArray(mesh->VAO);
   
@@ -502,10 +489,78 @@ opengl_draw_model(Renderer* ren, Model* model, vec3 position, vec3 size)
 
    
 }
+#endif
 
 internal void
-opengl_end_frame(Renderer* ren)
+opengl_end_frame(RenderGroup* group)
 {
+    Renderer* ren = group->renderer;
+
+    u32 header_size = sizeof(RenderEntryHeader);
+    for (u32 base_offset = 0; base_offset < group->push_buffer_size;)
+    {
+        u8* base = (group->push_buffer_base + base_offset);
+
+        switch (((RenderEntryHeader *)base)->entry_type)
+        {
+            case RENDER_ENTRY_Quad:
+            {
+                Quad* quad = (Quad*)(base + header_size);
+                draw_quad(group->renderer, quad->position, quad->size, quad->color);
+                base_offset += sizeof(Quad) + header_size;
+            } break;
+            case RENDER_ENTRY_TexturedQuad:
+            {
+                TexturedQuad* quad = (TexturedQuad*)(base + header_size);
+                Image* image = get_loaded_image(group->assets, quad->image);
+                if (!image->loaded_to_gpu)
+                {
+                    image->id = opengl_load_texture(image, ren->slot);
+                    image->slot = ren->slot;
+                    ++ren->slot;
+                }
+                glActiveTexture(GL_TEXTURE0 + image->slot);
+                glBindTexture(GL_TEXTURE_2D, image->id);
+                draw_textured_quad(ren, image->slot, quad->position, quad->size, quad->color);
+                base_offset += sizeof(TexturedQuad) + header_size;
+            } break;
+
+            default:
+            {
+                ASSERT(false);
+            } break;
+        }
+
+    }
+
+    glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+
+    local_persist i32 w, h;
+    if (w != ren->screen_width || h != ren->screen_height)
+    {
+        w = ren->screen_width;
+        h = ren->screen_height;
+        glViewport(0, 0, w, h);
+    }
+
+    glUseProgram(ren->shader_program_2D);
+
+    b8 do_transpose = true;
+
+    i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");
+    glUniformMatrix4fv(vp_loc, 1, do_transpose, (f32*)group->projection.data);
+    u32 size = sizeof(VertexData2D) * ren->vertex_count_2D;
+
+    glBindVertexArray(ren->VAO_2D);
+    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
+
+
+    glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_2D); 
+    glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count_2D);
+    ren->vertex_count_2D = 0;
+#if 0
     glEnable(GL_DEPTH_TEST);
     glUseProgram(ren->shader_program_3D);
 
@@ -524,35 +579,12 @@ opengl_end_frame(Renderer* ren)
     glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)viewproj.data);
 
     // Model
-    opengl_draw_model(ren, ren->cube, ren->light_pos, V3(5, 5, 5));
-    opengl_draw_model(ren, ren->zombie_0, V3(100, 100, 0), V3(20, 20, 20));
-    opengl_draw_model(ren, ren->zombie_1, V3(50, 50, 0), V3(1, 1, 1));
-    opengl_draw_model(ren, ren->cube, V3(0, 0, 0), V3(20, 20, 20));
      
     // NOTE(marko): 2D renderer
 
     {
-        glDisable(GL_DEPTH_TEST);
-        glUseProgram(ren->shader_program_2D);
-
-        ren->projection = mat4_orthographic((f32)ren->screen_width, (f32)ren->screen_height);
-        mat4 viewproj = ren->projection;
-        b8 do_transpose = true;
-
-        i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");
-        glUniformMatrix4fv(vp_loc, 1, do_transpose, (f32*)viewproj.data);
-        u32 size = sizeof(VertexData2D) * ren->vertex_count_2D;
-
-        glBindVertexArray(ren->VAO_2D);
-        glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, ren->font_texture_id);
-
-        glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_2D); 
-        glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count_2D);
-        ren->vertex_count_2D = 0;
     }
 
+#endif
 }
 

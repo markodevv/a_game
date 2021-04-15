@@ -48,16 +48,16 @@ typedef size_t sizet;
 #include "memory.h"
 #include "math.h"
 #include "debug.h"
+#include "common.h"
 #include "renderer.h"
+#include "renderer.cpp"
 #include "game.h"
 #include "opengl_renderer.h"
 #include "opengl_renderer.cpp"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
+#include <stb_image.h>
+#include <stb_image_write.h>
+#include <stb_truetype.h>
 
 
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
@@ -65,6 +65,7 @@ typedef DIRECT_SOUND_CREATE(DSC);
 
 global_variable LPDIRECTSOUNDBUFFER global_sound_buffer;
 global_variable b8 global_running = true;
+
 
 inline internal u32
 safe_truncate_u64(u64 value)
@@ -75,10 +76,19 @@ safe_truncate_u64(u64 value)
 }
 
 
-internal DebugFileResult
+internal void
+DEBUG_free_file_memory(void* memory)
+{
+    if (memory)
+    {
+        free(memory);
+    }
+}
+
+internal FileResult
 DEBUG_read_entire_file(char* file_name)
 {
-     DebugFileResult result = {};
+     FileResult result = {};
     
     HANDLE file_handle = CreateFile(file_name, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
     if(file_handle != INVALID_HANDLE_VALUE)
@@ -123,14 +133,6 @@ DEBUG_read_entire_file(char* file_name)
     return result;
 }
 
-internal void
-DEBUG_free_file_memory(void* memory)
-{
-    if (memory)
-    {
-        free(memory);
-    }
-}
 
 internal b8
 DEBUG_write_entire_file(char* file_name, i32 size, void* memory)
@@ -334,9 +336,12 @@ struct Win32GameCode
     GameRender render;
 };
 
+Model DEBUG_load_3D_model(MemoryArena* arena, char* path);
+
 internal Win32GameCode
 win32_load_game_code()
 {
+
     Win32GameCode game_code;
     CopyFile("game.dll", "game_temp.dll", FALSE);
     game_code.game_code_dll = LoadLibrary("game_temp.dll");
@@ -657,8 +662,42 @@ win32_process_input_messages(GameInput* game_input)
 
 }
 
+internal b8 
+image_is_loaded(Assets* assets, char* image_name)
+{
+    for (u32 i = 0; i < assets->num_images; ++i)
+    {
+        if (string_equals(assets->images[i].name, image_name))
+            return true;
+    }
+    return false;
+}
+
+internal ImageHandle
+stb_load_image(Assets* assets, char* image_path)
+{
+    FileResult file = DEBUG_read_entire_file(image_path);
+    Image* image = assets->images + assets->num_images;
+
+    stbi_set_flip_vertically_on_load(1);
+    image->data = stbi_load_from_memory((u8*)file.data,
+                                             file.size,
+                                             &image->width,
+                                             &image->height, 
+                                             &image->channels,
+                                             0);
+
+    image->name = string_copy(&assets->arena, image_path);
+
+    DEBUG_free_file_memory(file.data);
+    ++assets->num_images;
+
+    return (assets->num_images - 1);
+
+}
+
 internal b8
-load_material_texture(MemoryArena* arena, 
+load_material_texture(Assets* assets,
                       Model* model,
                       char* path,
                       aiMaterial* material, 
@@ -666,45 +705,34 @@ load_material_texture(MemoryArena* arena,
 {
 
     b8 result = false;
+    char* image_path;
     aiString str;
     if (aiGetMaterialTexture(material, texture_type, 0, &str) == AI_SUCCESS)
     {
+        TemporaryArena temp_memory = begin_temporary_memory(&assets->arena);
         result = true;
         b8 skip = false;
         char* image_name = const_cast<char*>(str.C_Str());
 
+        image_path = PushMemory(&assets->arena, char, 256);
+        string_copy(image_path, path, last_backslash_index(path) + 1);
+        string_append(image_path, image_name, (u32)str.length);
+
         for (u32 j = 0; j < model->num_textures; ++j)
         {
             // If texture already loaded
-            if (string_equals(model->loaded_textures[j].name, image_name))
+            if (image_is_loaded(assets, image_path))
             {
                 skip = true;
             }
         }
+            
+        end_temporary_memory(&temp_memory);
 
         if (!skip)
         {
-            Texture* texture = model->loaded_textures + model->num_textures;
-            texture->name = string_copy(arena, image_name);
 
-            TemporaryArena temp_memory = begin_temporary_memory(arena);
-
-            char* image_path = PushMemory(arena, char, 256);
-            string_copy(image_path, path, last_backslash_index(path) + 1);
-            string_append(image_path, image_name, (u32)str.length);
-
-            DebugFileResult file = DEBUG_read_entire_file(image_path);
-
-            texture->data = stbi_load_from_memory((u8*)file.data,
-                                                       file.size,
-                                                       &texture->width,
-                                                       &texture->height, 
-                                                       &texture->channels,
-                                                       0);
-
-            DEBUG_free_file_memory(file.data);
-
-            end_temporary_memory(&temp_memory);
+            model->loaded_images[model->num_textures] = stb_load_image(assets, image_path);
 
             ++model->num_textures;
         }
@@ -715,8 +743,8 @@ load_material_texture(MemoryArena* arena,
 }
 
 
-internal Model*
-DEBUG_load_3D_model(MemoryArena* arena, char* path)
+internal Model
+DEBUG_load_3D_model(Assets* assets, char* path)
 {
     const aiScene* scene = aiImportFile(path, aiProcess_CalcTangentSpace |
                                               aiProcess_Triangulate      |
@@ -727,18 +755,18 @@ DEBUG_load_3D_model(MemoryArena* arena, char* path)
         ASSERT(0);
     }
 
-    Model* out = PushMemory(arena, Model);
-    out->num_meshes = scene->mNumMeshes;
-    out->meshes = PushMemory(arena, Mesh, out->num_meshes);
+    Model out = {};
+    out.num_meshes = scene->mNumMeshes;
+    out.meshes = PushMemory(&assets->arena, Mesh, out.num_meshes);
 
-    for (u32 mesh_index = 0; mesh_index < out->num_meshes; ++mesh_index)
+    for (u32 mesh_index = 0; mesh_index < out.num_meshes; ++mesh_index)
     {
         aiMesh* ai_mesh = scene->mMeshes[mesh_index];
-        Mesh* mesh = out->meshes + mesh_index;
+        Mesh* mesh = out.meshes + mesh_index;
 
-        out->meshes[mesh_index].num_vertices = ai_mesh->mNumVertices;
-        out->meshes[mesh_index].vertices = PushMemory(arena, VertexData, ai_mesh->mNumVertices);
-        VertexData* vertices = out->meshes[mesh_index].vertices;
+        out.meshes[mesh_index].num_vertices = ai_mesh->mNumVertices;
+        out.meshes[mesh_index].vertices = PushMemory(&assets->arena, VertexData, ai_mesh->mNumVertices);
+        VertexData* vertices = out.meshes[mesh_index].vertices;
 
         for (u32 vertex_index = 0; vertex_index < ai_mesh->mNumVertices; ++vertex_index)
         {
@@ -756,8 +784,6 @@ DEBUG_load_3D_model(MemoryArena* arena, char* path)
                                   ai_mesh->mTextureCoords[0][vertex_index].y);
             }
 
-            vertices->texture_id = 0;
-
             ++vertices;
         }
 
@@ -766,8 +792,8 @@ DEBUG_load_3D_model(MemoryArena* arena, char* path)
         {
             num_indices += ai_mesh->mFaces->mNumIndices;
         }
-        out->meshes[mesh_index].num_indices = num_indices;
-        out->meshes[mesh_index].indices = PushMemory(arena, u32, num_indices);
+        out.meshes[mesh_index].num_indices = num_indices;
+        out.meshes[mesh_index].indices = PushMemory(&assets->arena, u32, num_indices);
 
         u32 indices_index = 0;
         for (u32 i = 0; i < ai_mesh->mNumFaces; ++i)
@@ -807,9 +833,9 @@ DEBUG_load_3D_model(MemoryArena* arena, char* path)
                 mesh->material.shininess = shininess;
             }
 
-            if (load_material_texture(arena, out, path, mtl, aiTextureType_DIFFUSE))
+            if (load_material_texture(assets, &out, path, mtl, aiTextureType_DIFFUSE))
             {
-                mesh->texture_index = out->num_textures - 1;
+                mesh->texture_index = out.num_textures - 1;
                 mesh->material.has_texture = true;
             }
         }
@@ -897,17 +923,16 @@ WinMain(HINSTANCE hinstance,
     ASSERT(game_memory.permanent_storage);
     ASSERT(game_memory.temporary_storage);
 
-    game_memory.renderer_init = &opengl_init;
-    game_memory.renderer_begin = &opengl_begin_frame;
-    game_memory.renderer_end = &opengl_end_frame;
+    game_memory.platform.read_entire_file = DEBUG_read_entire_file;
+    game_memory.platform.write_entire_file = DEBUG_write_entire_file;
+    game_memory.platform.free_file_memory = DEBUG_free_file_memory;
+    game_memory.platform.load_3D_model = DEBUG_load_3D_model;
+    game_memory.platform.load_image = stb_load_image;
 
+// TODO: should be able to change graphics API on runtime
+    game_memory.platform.init_renderer = opengl_init;
+    game_memory.platform.end_frame = opengl_end_frame;
 
-#if defined(GAME_DEBUG)
-    game_memory.DEBUG_read_entire_file = DEBUG_read_entire_file;
-    game_memory.DEBUG_write_entire_file = DEBUG_write_entire_file;
-    game_memory.DEBUG_free_file_memory = DEBUG_free_file_memory;
-    game_memory.DEBUG_load_3D_model = DEBUG_load_3D_model;
-#endif
 
     Win32SoundState sound_output = {};
     sound_output.bytes_per_sample = sizeof(i16) * 2;
