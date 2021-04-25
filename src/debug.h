@@ -5,21 +5,18 @@
 #include "renderer.h"
 #define MAX_UI_VAR_NAME_LEN 9
 
-struct UiItemId
-{
-    void* id;
-};
 
 enum InteractableUiItemType
 {
     INTERACTABLE_TYPE_CLICK = 1,
     INTERACTABLE_TYPE_DRAG = 2,
+    INTERACTABLE_TYPE_TOGGLE = 3,
 };
 
 struct InteractableUiItem
 {
     InteractableUiItemType type;
-    UiItemId id;
+    void* id;
     InteractableUiItem *next_item;
 };
 

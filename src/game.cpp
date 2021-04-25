@@ -120,7 +120,6 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         ren->light_pos = V3(200, 100, 0.0f);
 
-        ren->camera = {{0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
         // NOTE: needs to be first image loaded
         ASSERT(trans_state->assets.num_images == 0);
         ren->white_image = platform->load_image(&trans_state->assets, "../assets/white.png");
@@ -212,35 +211,34 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         }
     }
 
-    Camera* cam = &game_state->renderer->camera;
-    if (input->mouse.wheel_delta)
-    {
-        cam->position.z += input->mouse.wheel_delta * delta_time;
-    }
+    Camera* cam = &game_state->render_setup.camera;
 
+    if (game_state->is_free_camera)
+    {
+        if (input->mouse.wheel_delta)
+        {
+            f32 scroll_amount = (f32)input->mouse.wheel_delta;
+            cam->position.z -= scroll_amount;
+            DEBUG_PRINT("cam Z %f", cam->position.z);
+            DEBUG_PRINT("scroll  %f", scroll_amount);
+        }
 
-
-    if (input->mouse.wheel_delta)
-    {
-        f32 scroll_amount = (f32)input->mouse.wheel_delta;
-        cam->position.z -= scroll_amount * delta_time;
-    }
-
-    if (button_down(input->move_left))
-    {
-        cam->position.x -= 5.0f;
-    }
-    if (button_down(input->move_right))
-    {
-        cam->position.x += 5.0f;
-    }
-    if (button_down(input->move_up))
-    {
-        cam->position.y += 5.0f;
-    }
-    if (button_down(input->move_down))
-    {
-        cam->position.y -= 5.0f;
+        if (button_down(input->move_left))
+        {
+            cam->position.x -= 5.0f;
+        }
+        if (button_down(input->move_right))
+        {
+            cam->position.x += 5.0f;
+        }
+        if (button_down(input->move_up))
+        {
+            cam->position.y += 5.0f;
+        }
+        if (button_down(input->move_down))
+        {
+            cam->position.y -= 5.0f;
+        }
     }
 
     Renderer* ren = game_state->renderer;
@@ -268,10 +266,25 @@ game_render(GameMemory* memory)
 
     ren->vertices_2D = PushMemory(&tran_state->arena, VertexData2D, MAX_VERTICES);
 
-    game_state->render_setup.projection = mat4_orthographic((f32)ren->screen_width,
-                                                            (f32)ren->screen_height);
-    game_state->render_setup.camera= ren->camera;
-
+    if (game_state->is_free_camera)
+    {
+        game_state->render_setup.projection = mat4_perspective((f32)ren->screen_width, 
+                                                               (f32)ren->screen_height,
+                                                               90.0f,
+                                                               1.0f,
+                                                               100000.0f);
+    }
+    else
+    {
+        Entity* player = get_entity(game_state, game_state->player_entity_index);
+        game_state->render_setup.camera.up = V3(0, 1, 0);
+        game_state->render_setup.camera.direction = V3(0, 0, 1);
+        game_state->render_setup.camera.position.x = player->transform.position.x;
+        game_state->render_setup.camera.position.y = player->transform.position.y;
+        game_state->render_setup.camera.position.z = 1.0f;
+        game_state->render_setup.projection = mat4_orthographic((f32)ren->screen_width, 
+                                                                (f32)ren->screen_height);
+    }
     RenderGroup render_group = render_group_begin(&game_state->render_setup,
                                                       ren, 
                                                       &tran_state->assets);
@@ -306,6 +319,8 @@ game_render(GameMemory* memory)
         }
     }
 
+    push_quad(&render_group, game_state->minotaur_image, V2(600, 200), V2(500, 500), V4(1.0f));
+
 
 
     local_persist f32 var = 0.0f;
@@ -334,6 +349,8 @@ game_render(GameMemory* memory)
     debug_vec3_slider(memory->debug, &ren->light.ambient, "light.ambient");
     debug_vec3_slider(memory->debug, &ren->light.diffuse, "light.diffuse");
     debug_vec3_slider(memory->debug, &ren->light.specular, "light.specular");
+
+    debug_checkbox(memory->debug, &game_state->is_free_camera);
 
 
 

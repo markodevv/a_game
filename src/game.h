@@ -191,6 +191,8 @@ struct GameState
 
     u32 tile_map[19][10];
 
+    b8 is_free_camera;
+
     RenderSetup render_setup;
 
     u32 player_entity_index;

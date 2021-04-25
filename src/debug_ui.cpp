@@ -1,26 +1,14 @@
+
 global_variable vec4 ui_color = {0.1f, 0.1f, 0.1f, 1.0f};
 global_variable vec4 hover_color = {0.4f, 0.4f, 0.4f, 1.0f};
 global_variable vec4 clicked_color = {1.0f, 1.0f, 1.0f, 1.0f};
 
 
-
-internal inline b8
-equals(UiItemId id_1, UiItemId id_2)
-{
-    return id_1.id == id_2.id;
-}
-
-internal b8
-is_valid(InteractableUiItem* ui_item)
-{
-    return (ui_item->type != 0);
-}
-
 internal void 
 process_debug_ui_interactions(DebugState* debug, GameInput* input)
 {
 
-    if (is_valid(&debug->interacting_item))
+    if (debug->interacting_item.id)
     {
         switch(debug->interacting_item.type)
         {
@@ -37,7 +25,7 @@ process_debug_ui_interactions(DebugState* debug, GameInput* input)
             } break;
         }
     }
-    else if (is_valid(&debug->next_hot_item))
+    else if (debug->next_hot_item.id)
     {
         switch(debug->next_hot_item.type)
         {
@@ -66,6 +54,7 @@ process_debug_ui_interactions(DebugState* debug, GameInput* input)
     debug->prev_mouse_pos = debug->mouse_pos;
     debug->mouse_pos = input->mouse.position;
 }
+
 
 internal void
 debug_text(DebugState* debug,
@@ -153,25 +142,75 @@ debug_fps(DebugState* debug)
 #define X_PADDING 20.0f
 #define Y_PADDING 10.0f
 
+internal b8
+is_hot(DebugState* debug, void* id)
+{
+    return debug->hot_item.id == id;
+}
 
+internal b8
+is_interacting(DebugState* debug, void* id)
+{
+    return debug->interacting_item.id == id;
+}
+
+
+internal void
+debug_checkbox(DebugState* debug, b8* toggle_var)
+{
+    RenderGroup* group = &debug->render_group;
+
+    vec2 size = V2(12, 12);
+    vec2 pos = debug->draw_cursor;
+    push_quad(group, pos, size, ui_color);
+
+    vec4 check_color = V4(0.5f, 0.5f, 0.5f, 1.0f);
+
+    if (is_interacting(debug, toggle_var))
+    {
+        *toggle_var = !(*toggle_var);
+    }
+    else if (is_hot(debug, toggle_var))
+    {
+        check_color = hover_color;
+    }
+
+    if (*toggle_var)
+    {
+        check_color *= 1.8f;
+        check_color.w = 1.0f;
+    }
+
+    size -= 4;
+    pos += 2;
+    push_quad(group, pos, size, check_color);
+
+    if (point_is_inside(debug->mouse_pos,
+                        size,
+                        pos))
+    {
+        debug->next_hot_item.id = {toggle_var};
+        debug->next_hot_item.type = INTERACTABLE_TYPE_CLICK;
+    }
+}
 
 internal b8
 debug_button(DebugState* debug, 
              char* name)
 {
     RenderGroup* group = &debug->render_group;
-    vec2 button_size = {70, debug->font_size + 10.0f};
+    vec2 button_size = V2(70, debug->font_size + 10.0f);
     vec2 button_pos = debug->draw_cursor;
     vec4 button_color = ui_color;
     b8 result = false;
 
 
-    if (equals(debug->interacting_item.id, {(void*)name}))
+    if (is_interacting(debug, name))
     {
         result = true;
         button_color = clicked_color;
     }
-    else if (equals(debug->hot_item.id, {(void*)name}))
+    else if (is_hot(debug, name))
     {
         button_color = hover_color;
     }
@@ -232,7 +271,7 @@ debug_slider(DebugState* debug,
 
     vec4 color = {0.5f, 0.5f, 0.5f, 1.0f};
 
-    if (equals(debug->interacting_item.id, {value}))
+    if (is_interacting(debug, value))
     {
         if (debug->interacting_item.type ==
             INTERACTABLE_TYPE_DRAG)
@@ -246,7 +285,7 @@ debug_slider(DebugState* debug,
 
         *value = (range * update_value) + min;
     }
-    else if (equals(debug->hot_item.id, {value}))
+    else if (is_hot(debug, value))
     {
         color = hover_color;
     }
@@ -314,12 +353,12 @@ debug_menu_begin(DebugState* debug,
     vec4 color = ui_color;
     pos = debug->menu_pos;
 
-    if (equals(debug->interacting_item.id, {menu_name}))
+    if (is_interacting(debug, menu_name))
     {
         debug->menu_pos = debug->menu_pos + (debug->mouse_pos - debug->prev_mouse_pos);
         color = clicked_color;
     }
-    else if (equals(debug->hot_item.id, {menu_name}))
+    else if (is_hot(debug, menu_name))
     {
         color = hover_color;
     }

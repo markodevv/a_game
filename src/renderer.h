@@ -148,7 +148,6 @@ struct Renderer
 
     i32 shader_program_3D;
     u32 VBO, VAO;
-    Camera camera;
 
     VertexData2D* vertices_2D;
     i32 shader_program_2D;

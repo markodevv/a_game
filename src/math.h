@@ -13,6 +13,8 @@ struct vec2
     vec2 operator/(f32 a);
     vec2 operator+(vec2& other);
     vec2 operator-(vec2& other);
+    void operator-=(f32 n);
+    void operator+=(f32 n);
     vec2 operator*(vec2& other);
 };
 
@@ -58,6 +60,7 @@ struct vec4
     f32 &operator[](sizet i);
     vec4 operator+(vec4& other);
     vec4 operator-(vec4& other);
+    void operator*=(f32 n);
 };
 
 struct mat4
@@ -143,6 +146,20 @@ inline vec2
 vec2::operator-(vec2& other)
 {
     return {x-other.x, y-other.y};
+}
+
+inline void 
+vec2::operator-=(f32 n)
+{
+    x -= n;
+    y -= n;
+}
+
+inline void 
+vec2::operator+=(f32 n)
+{
+    x += n;
+    y += n;
 }
 
 inline vec3
@@ -232,6 +249,15 @@ vec4::operator+(vec4& other)
         out[i] = data[i] + other[i];
     }
     return out;
+}
+
+void 
+vec4::operator*=(f32 n)
+{
+    x *= n;
+    y *= n;
+    z *= n;
+    w *= n;
 }
 
 inline vec4 
