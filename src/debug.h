@@ -38,12 +38,13 @@ struct DebugState
     f32 x_advance;
 
     vec2 draw_cursor;
-    vec2 prev_draw_cursor;
+    f32 cursor_start_x;
 
     f32 game_fps;
     vec2 mouse_pos;
     vec2 prev_mouse_pos;
     vec2 menu_pos;
+    b8 menu_is_active;
 };
 
 

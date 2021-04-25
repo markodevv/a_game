@@ -321,37 +321,36 @@ game_render(GameMemory* memory)
 
     push_quad(&render_group, game_state->minotaur_image, V2(600, 200), V2(500, 500), V4(1.0f));
 
-
-
-    local_persist f32 var = 0.0f;
-    debug_menu_begin(memory->debug, {100, 200}, {400, (f32)ren->screen_height}, "Main Menu");
-
     debug_fps(memory->debug);
 
-    debug_slider(memory->debug, 0.0f, 30.0f, &var, "my variable"); 
-    debug_menu_newline(memory->debug);
 
-    if (debug_button(memory->debug, "button 1"))
+    if (debug_menu_begin(memory->debug,
+                         V2(100, 200), 
+                         V2(400, (f32)ren->screen_height),
+                         "Main Menu"))
     {
-        DEBUG_PRINT("button 1 clicked");
+        if (debug_button(memory->debug, "button 1"))
+        {
+            DEBUG_PRINT("button 1 clicked");
+        }
+
+        if (debug_button(memory->debug, "button 2"))
+        {
+            DEBUG_PRINT("button 2 clicked");
+        }
+
+        debug_menu_newline(memory->debug);
+
+        debug_slider(memory->debug, -1000.0f, 1000.0f, &ren->light_pos.z, "light z"); 
+
+
+        debug_vec3_slider(memory->debug, &ren->light.ambient, "light.ambient");
+        debug_vec3_slider(memory->debug, &ren->light.diffuse, "light.diffuse");
+        debug_vec3_slider(memory->debug, &ren->light.specular, "light.specular");
+
+        debug_checkbox(memory->debug, &game_state->is_free_camera);
+
     }
-
-    if (debug_button(memory->debug, "button 2"))
-    {
-        DEBUG_PRINT("button 2 clicked");
-    }
-
-    debug_menu_newline(memory->debug);
-
-    debug_slider(memory->debug, -1000.0f, 1000.0f, &ren->light_pos.z, "light z"); 
-
-
-    debug_vec3_slider(memory->debug, &ren->light.ambient, "light.ambient");
-    debug_vec3_slider(memory->debug, &ren->light.diffuse, "light.diffuse");
-    debug_vec3_slider(memory->debug, &ren->light.specular, "light.specular");
-
-    debug_checkbox(memory->debug, &game_state->is_free_camera);
-
 
 
     platform->end_frame(ren);

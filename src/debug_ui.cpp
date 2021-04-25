@@ -160,7 +160,7 @@ debug_checkbox(DebugState* debug, b8* toggle_var)
 {
     RenderGroup* group = &debug->render_group;
 
-    vec2 size = V2(12, 12);
+    vec2 size = V2(16, 16);
     vec2 pos = debug->draw_cursor;
     push_quad(group, pos, size, ui_color);
 
@@ -186,8 +186,8 @@ debug_checkbox(DebugState* debug, b8* toggle_var)
     push_quad(group, pos, size, check_color);
 
     if (point_is_inside(debug->mouse_pos,
-                        size,
-                        pos))
+                        pos,
+                        size))
     {
         debug->next_hot_item.id = {toggle_var};
         debug->next_hot_item.type = INTERACTABLE_TYPE_CLICK;
@@ -199,7 +199,7 @@ debug_button(DebugState* debug,
              char* name)
 {
     RenderGroup* group = &debug->render_group;
-    vec2 button_size = V2(70, debug->font_size + 10.0f);
+    vec2 button_size = V2(70, debug->font_size + 2.0f);
     vec2 button_pos = debug->draw_cursor;
     vec4 button_color = ui_color;
     b8 result = false;
@@ -246,7 +246,7 @@ debug_slider(DebugState* debug,
     RenderGroup* group = &debug->render_group;
 
     vec2 pos = debug->draw_cursor;
-    vec2 size = {100.0f, 10.0f};
+    vec2 size = V2(100.0f, 10.0f);
 
     char* name_copy = string_copy(&debug->arena, var_name);
     f32 name_x = debug->x_advance * string_length(name_copy);
@@ -263,13 +263,13 @@ debug_slider(DebugState* debug,
     pos.x += max_name_x;
 
     vec2 button_position = pos;
-    vec2 button_size = {15, 15};
+    vec2 button_size = V2(15, 15);
     button_position.y -= (button_size.y - size.y) / 2.0f;
 
     f32 range = max - min;
 
 
-    vec4 color = {0.5f, 0.5f, 0.5f, 1.0f};
+    vec4 color = V4(0.5f, 0.5f, 0.5f, 1.0f);
 
     if (is_interacting(debug, value))
     {
@@ -290,13 +290,13 @@ debug_slider(DebugState* debug,
         color = hover_color;
     }
 
-    push_quad(group, pos, {size.x+button_size.x, size.y}, ui_color);
-    vec2 text_pos = {(pos.x+size.x+button_size.x), pos.y};
+    push_quad(group, pos, size, ui_color);
+    vec2 text_pos = V2(pos.x+(size.x/2), pos.y);
 
 
     char *text = PushMemory(&debug->arena, char, 30);
     sprintf_s(text, 30, "%.2f", *value);
-    debug_text(debug, text, text_pos);
+    debug_text(debug, text, text_pos, TEXT_ALIGN_MIDDLE);
 
     button_position.x += (((*value)-min)/range) * size.x;
     push_quad(group, button_position, button_size, color);
@@ -323,8 +323,8 @@ debug_slider(DebugState* debug,
 internal void
 debug_menu_newline(DebugState* debug)
 {
-    debug->prev_draw_cursor.y -= debug->font_size + Y_PADDING;
-    debug->draw_cursor = debug->prev_draw_cursor;
+    debug->draw_cursor.y -= debug->font_size + Y_PADDING;
+    debug->draw_cursor.x = debug->cursor_start_x;
 }
 
 internal void
@@ -343,7 +343,7 @@ debug_vec3_slider(DebugState* debug, vec3* v, char* name)
 }
 
 
-internal void
+internal b8
 debug_menu_begin(DebugState* debug, 
                  vec2 pos, 
                  vec2 size,
@@ -363,19 +363,12 @@ debug_menu_begin(DebugState* debug,
         color = hover_color;
     }
 
-    debug->prev_draw_cursor = pos;
+
     vec2 header_size = {size.x, debug->font_size + 5.0f};
     vec2 header_pos = {pos.x, pos.y + size.y - header_size.y};
-    push_quad(group, pos, size, {0.5f, 0.5f, 0.5f, 0.5f});
+
     push_quad(group, header_pos, header_size, color);
 
-    pos = header_pos;
-    pos.x += size.x / 2.0f;
-    pos.y += 5.0f;
-    debug_text(debug, menu_name, pos, TEXT_ALIGN_MIDDLE);
-
-    debug->prev_draw_cursor.y += size.y - 2.0f * header_size.y;
-    debug->prev_draw_cursor.x += X_PADDING;
 
     if (point_is_inside(debug->mouse_pos,
                         header_pos,
@@ -385,6 +378,22 @@ debug_menu_begin(DebugState* debug,
         debug->next_hot_item.type = INTERACTABLE_TYPE_DRAG;
     }
 
-    debug->draw_cursor = debug->prev_draw_cursor;
+    debug->draw_cursor = header_pos;
+    debug_checkbox(debug, &debug->menu_is_active);
+    debug->draw_cursor = pos;
+
+
+    pos = header_pos;
+    pos.x += size.x / 2.0f;
+    pos.y += 5.0f;
+    debug_text(debug, menu_name, pos, TEXT_ALIGN_MIDDLE);
+
+
+    debug->draw_cursor.y += size.y - 2.0f * header_size.y;
+    debug->draw_cursor.x += X_PADDING;
+
+    debug->cursor_start_x = debug->draw_cursor.x;
+
+    return debug->menu_is_active;
 }
 
