@@ -126,7 +126,7 @@ R"(
 
 out vec4 frag_color;
 
-uniform sampler2D u_textures[2];
+uniform sampler2D u_textures[9];
 
 in vec2 uv;
 in vec4 color;
@@ -134,18 +134,22 @@ in float tex_id;
 
 void main()
 {
-    if (tex_id == 1)
+    highp int index = int(tex_id);
+    if (index == 0)
     {
-        float alpha = texture(u_textures[1], uv).r;
-		frag_color = color * vec4(1.0f, 1.0f, 1.0f, alpha);
+        frag_color = color * texture(u_textures[0], uv);
     }
-    else if (tex_id == 0)
+    else if (index == 1)
     {
-		frag_color = texture(u_textures[0], uv);
+        frag_color = color * texture(u_textures[1], uv);
     }
-    else
+    else if (index == 2)
     {
-        frag_color = color;
+        frag_color = color * texture(u_textures[2], uv);
+    }
+    else if (index == 3)
+    {
+        frag_color = color * texture(u_textures[3], uv);
     }
 }
 
@@ -221,23 +225,26 @@ opengl_load_texture(Image* image, u32 slot)
     glGenTextures(1, &texture_id);
     glBindTexture(GL_TEXTURE_2D, texture_id);
 
-    u32 external_format = 0;
     u32 internal_format = 0;
+    u32 external_format = 0;
 
     if (image->channels == 4)
     {
-        external_format = GL_RGBA;
         internal_format = GL_RGBA8;
+        external_format = GL_RGBA;
     }
     else if (image->channels == 3)
     {
-        external_format = GL_RGB;
         internal_format = GL_RGB8;
+        external_format = GL_RGB;
     }
     else if (image->channels == 1)
     {
-        external_format = GL_RED;
         internal_format = GL_R8;
+        external_format = GL_RED;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
     }
     else
     {
@@ -330,6 +337,10 @@ opengl_init(Renderer* ren)
     ren->shader_program_3D = glCreateProgram();
     ren->shader_program_2D = glCreateProgram();
 
+    ren->push_buffer_max_size = Megabytes(10);
+    ren->push_buffer_base = (u8*)calloc(ren->push_buffer_max_size, sizeof(u8));
+    ren->push_buffer_size = 0;
+
 
     opengl_compile_shaders(ren->shader_program_3D, vertex_shader_3D, fragment_shader_3D);
     opengl_compile_shaders(ren->shader_program_2D, vertex_shader_2D, fragment_shader_2D);
@@ -399,10 +410,12 @@ opengl_init(Renderer* ren)
     glUseProgram(ren->shader_program_2D);
 
 
-    i32 sampler_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_textures[0]");
-    glUniform1i(sampler_loc, 0);
-    sampler_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_textures[1]");
-    glUniform1i(sampler_loc, 1);
+    for (u32 tex_id = 0; tex_id < 9; ++tex_id)
+    {
+        texture_uniform_name[11] = '0' + tex_id;
+        i32 loc = opengl_get_uniform_location(ren->shader_program_2D, texture_uniform_name);
+        glUniform1i(loc, tex_id);
+    }
 
     glBindVertexArray(0);
     glEnable(GL_BLEND);
@@ -492,51 +505,8 @@ opengl_draw_model(Renderer* ren, Model* model, vec3 position, vec3 size)
 #endif
 
 internal void
-opengl_end_frame(RenderGroup* group)
+opengl_end_frame(Renderer* ren)
 {
-    Renderer* ren = group->renderer;
-
-    u32 header_size = sizeof(RenderEntryHeader);
-    for (u32 base_offset = 0; base_offset < group->push_buffer_size;)
-    {
-        u8* base = (group->push_buffer_base + base_offset);
-
-        switch (((RenderEntryHeader *)base)->entry_type)
-        {
-            case RENDER_ENTRY_Quad:
-            {
-                Quad* quad = (Quad*)(base + header_size);
-                draw_quad(group->renderer, quad->position, quad->size, quad->color);
-                base_offset += sizeof(Quad) + header_size;
-            } break;
-            case RENDER_ENTRY_TexturedQuad:
-            {
-                TexturedQuad* quad = (TexturedQuad*)(base + header_size);
-                Image* image = get_loaded_image(group->assets, quad->image);
-                if (!image->loaded_to_gpu)
-                {
-                    image->id = opengl_load_texture(image, ren->slot);
-                    image->slot = ren->slot;
-                    ++ren->slot;
-                }
-                glActiveTexture(GL_TEXTURE0 + image->slot);
-                glBindTexture(GL_TEXTURE_2D, image->id);
-                draw_textured_quad(ren, image->slot, quad->position, quad->size, quad->color);
-                base_offset += sizeof(TexturedQuad) + header_size;
-            } break;
-
-            default:
-            {
-                ASSERT(false);
-            } break;
-        }
-
-    }
-
-    glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-
-
     local_persist i32 w, h;
     if (w != ren->screen_width || h != ren->screen_height)
     {
@@ -545,46 +515,86 @@ opengl_end_frame(RenderGroup* group)
         glViewport(0, 0, w, h);
     }
 
-    glUseProgram(ren->shader_program_2D);
-
-    b8 do_transpose = true;
-
-    i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");
-    glUniformMatrix4fv(vp_loc, 1, do_transpose, (f32*)group->projection.data);
-    u32 size = sizeof(VertexData2D) * ren->vertex_count_2D;
-
-    glBindVertexArray(ren->VAO_2D);
-    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
-
-
-    glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_2D); 
-    glDrawArrays(GL_TRIANGLES, 0, ren->vertex_count_2D);
-    ren->vertex_count_2D = 0;
-#if 0
-    glEnable(GL_DEPTH_TEST);
-    glUseProgram(ren->shader_program_3D);
-
-    mat4 viewproj = ren->projection * ren->view;
-    b8 do_transpose = true;
-
-    set_light_uniform(ren->shader_program_3D, &ren->light);
-
-    i32 light_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_light_pos");
-    glUniform3fv(light_loc, 1, (f32*)ren->light_pos.data);
-
-    i32 view_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_cam_pos");
-    glUniform3fv(view_loc, 1, (f32*)ren->camera.position.data);
-
-    i32 mvp_loc = opengl_get_uniform_location(ren->shader_program_3D, "u_viewproj");
-    glUniformMatrix4fv(mvp_loc, 1, do_transpose, (f32*)viewproj.data);
-
-    // Model
-     
-    // NOTE(marko): 2D renderer
-
+    //NOTE: this is a default white texture 
+    Image* white_image = get_loaded_image(ren->assets, ren->white_image);
+    if (!white_image->loaded_to_gpu)
     {
+        ASSERT(ren->slot == 0);
+        white_image->id = opengl_load_texture(white_image, ren->slot);
+        white_image->slot = ren->slot;
+        ++ren->slot;
+    }
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, white_image->id);
+
+#if 0
+#endif
+
+    glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+    u32 header_size = sizeof(RenderEntryHeader);
+    u32 last_quads_offset = 0;
+
+    for (u32 base_offset = 0; base_offset < ren->push_buffer_size;)
+    {
+        u8* base = (ren->push_buffer_base + base_offset);
+
+        switch (((RenderEntryHeader *)base)->entry_type)
+        {
+            case RENDER_ENTRY_TexturedQuadsEntry:
+            {
+                TexturedQuadsEntry* quads = (TexturedQuadsEntry*)(base + header_size);
+
+                glUseProgram(ren->shader_program_2D);
+                RenderSetup* setup = quads->render_setup;
+
+                for (u32 image_index = 0; image_index < setup->num_images; ++image_index)
+                {
+                    Image* image = get_loaded_image(ren->assets, 
+                                                    setup->image_handles[image_index]);
+
+                    if (!image->loaded_to_gpu)
+                    {
+                        image->id = opengl_load_texture(image, ren->slot);
+                        image->slot = ren->slot;
+                        ++ren->slot;
+                        ASSERT(ren->slot < 32);
+                    }
+                    glActiveTexture(GL_TEXTURE0 + image->slot);
+                    glBindTexture(GL_TEXTURE_2D, image->id);
+                }
+
+                i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");
+                mat4 viewproj = setup->projection * 
+                                camera_transform(&setup->camera);
+                u32 num_vertices = quads->num_quads * 6;
+                u32 size = num_vertices * sizeof(VertexData2D);
+                u32 offset = quads->vertex_offset;
+
+                glUniformMatrix4fv(vp_loc, 1, true, (f32*)viewproj.data);
+
+                glBindVertexArray(ren->VAO_2D);
+                glBindBuffer(GL_ARRAY_BUFFER, ren->VBO_2D);
+
+
+                glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices_2D + offset); 
+                glDrawArrays(GL_TRIANGLES, 0, num_vertices);
+
+                base_offset += sizeof(TexturedQuadsEntry) + header_size;
+            } break;
+
+            default:
+            {
+                ASSERT(false);
+            } break;
+        }
     }
 
-#endif
+    ren->push_buffer_size = 0;
+    ren->vertex_count_2D = 0;
+
+
+
 }
 

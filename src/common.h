@@ -1,11 +1,11 @@
 #if !defined(COMMON_H)
 #define COMMON_H
 
-#define ARRAY_COUNT(Array) (sizeof(Array) / sizeof((Array)[0]))
+#define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
-#define KYLOBYTES(n) n*1024
-#define MEGABYTES(n) n*1024*1024
-#define GIGABYTES(n) n*1024*1024*1024
+#define Kylobytes(n) n*1024
+#define Megabytes(n) n*1024*1024
+#define GigaBytes(n) n*1024*1024*1024
 
 
 #ifdef LIBRARY_IMPORT

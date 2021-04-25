@@ -31,7 +31,7 @@ struct VertexData2D
     vec2 position;
     vec2 uv;
     vec4 color;
-    f32 texture_id;
+    f32 texture_slot;
 };
 
 
@@ -103,15 +103,10 @@ camera_transform(Camera* cam)
 struct Renderer;
 typedef void RendererProc(Renderer* ren);
 
-// push group entrys
-// sort group
-// send it to gpu
-// gpu loads models that are not loaded and sets nececery states
 
 enum RenderEntryType
 {
-    RENDER_ENTRY_TexturedQuad,
-    RENDER_ENTRY_Quad,
+    RENDER_ENTRY_TexturedQuadsEntry,
 };
 
 struct RenderEntryHeader
@@ -119,29 +114,26 @@ struct RenderEntryHeader
     RenderEntryType entry_type;
 };
 
-struct Quad
+struct RenderSetup
 {
-    vec2 position;
-    vec2 size;
-    vec4 color;
+    mat4 projection;
+    Camera camera;
+
+    ImageHandle image_handles[32];
+    u32 num_images;
 };
 
-struct TexturedQuad
+struct TexturedQuadsEntry
 {
-    ImageHandle image;
-
-    vec2 position;
-    vec2 size;
-    vec4 color;
+    RenderSetup* render_setup;
+    u32 vertex_offset;
+    u32 num_quads;
 };
 
 struct RenderGroup
 {
-    mat4 projection;
-
-    u8* push_buffer_base;
-    u32 push_buffer_size;
-    u32 push_buffer_max_size;
+    TexturedQuadsEntry* current_quads;
+    RenderSetup* current_setup;
 
     struct Assets* assets;
     Renderer* renderer;
@@ -150,6 +142,10 @@ struct RenderGroup
 
 struct Renderer
 {
+    u8* push_buffer_base;
+    u32 push_buffer_size;
+    u32 push_buffer_max_size;
+
     i32 shader_program_3D;
     u32 VBO, VAO;
     Camera camera;
@@ -160,8 +156,6 @@ struct Renderer
     u32 VBO_2D;
     u32 VAO_2D;
 
-    mat4 view;
-
     u32 slot;
 
     vec3 light_pos;
@@ -169,6 +163,10 @@ struct Renderer
 
     i32 screen_width;
     i32 screen_height;
+
+    struct Assets* assets;
+
+    ImageHandle white_image;
 };
 
 #endif

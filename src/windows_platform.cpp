@@ -749,99 +749,103 @@ DEBUG_load_3D_model(Assets* assets, char* path)
     const aiScene* scene = aiImportFile(path, aiProcess_CalcTangentSpace |
                                               aiProcess_Triangulate      |
                                               aiProcess_SortByPType);
-    if (!scene)
+    Model out = {};
+
+    if (scene)
+    {
+
+        out.num_meshes = scene->mNumMeshes;
+        out.meshes = PushMemory(&assets->arena, Mesh, out.num_meshes);
+
+        for (u32 mesh_index = 0; mesh_index < out.num_meshes; ++mesh_index)
+        {
+            aiMesh* ai_mesh = scene->mMeshes[mesh_index];
+            Mesh* mesh = out.meshes + mesh_index;
+
+            out.meshes[mesh_index].num_vertices = ai_mesh->mNumVertices;
+            out.meshes[mesh_index].vertices = PushMemory(&assets->arena, VertexData, ai_mesh->mNumVertices);
+            VertexData* vertices = out.meshes[mesh_index].vertices;
+
+            for (u32 vertex_index = 0; vertex_index < ai_mesh->mNumVertices; ++vertex_index)
+            {
+                vertices->position = V3(ai_mesh->mVertices[vertex_index].x,
+                                        ai_mesh->mVertices[vertex_index].y,
+                                        ai_mesh->mVertices[vertex_index].z);
+
+                vertices->normal = V3(ai_mesh->mNormals[vertex_index].x,
+                                      ai_mesh->mNormals[vertex_index].y,
+                                      ai_mesh->mNormals[vertex_index].z);
+
+                if (ai_mesh->mTextureCoords[0])
+                {
+                    vertices->uv = V2(ai_mesh->mTextureCoords[0][vertex_index].x,
+                                      ai_mesh->mTextureCoords[0][vertex_index].y);
+                }
+
+                ++vertices;
+            }
+
+            u32 num_indices = 0;
+            for (u32 i = 0; i < ai_mesh->mNumFaces; ++i)
+            {
+                num_indices += ai_mesh->mFaces->mNumIndices;
+            }
+            out.meshes[mesh_index].num_indices = num_indices;
+            out.meshes[mesh_index].indices = PushMemory(&assets->arena, u32, num_indices);
+
+            u32 indices_index = 0;
+            for (u32 i = 0; i < ai_mesh->mNumFaces; ++i)
+            {
+                aiFace* face = ai_mesh->mFaces + i;
+                for (u32 j = 0; j < face->mNumIndices; ++j)
+                {
+                    mesh->indices[indices_index] = face->mIndices[j];
+                    indices_index++;
+                }
+            }
+
+            if (ai_mesh->mMaterialIndex >= 0)
+            {
+                aiMaterial* mtl = scene->mMaterials[ai_mesh->mMaterialIndex];
+
+                aiColor4D color = {};
+                if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &color))
+                {
+                    mesh->material.diffuse = V3(color.r, color.g, color.b);
+                }
+                if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &color))
+                {
+                    mesh->material.specular = V3(color.r, color.g, color.b);
+                }
+                if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &color))
+                {
+                    mesh->material.ambient = V3(color.r, color.g, color.b);
+                }
+                f32 shininess = 0.0f;
+                mesh->material.shininess = 32.0f;
+                if (AI_SUCCESS == aiGetMaterialFloat(mtl, 
+                                                     AI_MATKEY_SHININESS_STRENGTH,
+                                                     &shininess))
+                {
+                    DEBUG_PRINT("%.2f shininess", shininess);
+                    mesh->material.shininess = shininess;
+                }
+
+                if (load_material_texture(assets, &out, path, mtl, aiTextureType_DIFFUSE))
+                {
+                    mesh->texture_index = out.num_textures - 1;
+                    mesh->material.has_texture = true;
+                }
+            }
+        }
+        aiReleaseImport(scene);
+    }
+    else
     {
         DEBUG_PRINT("%s", aiGetErrorString());
         ASSERT(0);
     }
 
-    Model out = {};
-    out.num_meshes = scene->mNumMeshes;
-    out.meshes = PushMemory(&assets->arena, Mesh, out.num_meshes);
-
-    for (u32 mesh_index = 0; mesh_index < out.num_meshes; ++mesh_index)
-    {
-        aiMesh* ai_mesh = scene->mMeshes[mesh_index];
-        Mesh* mesh = out.meshes + mesh_index;
-
-        out.meshes[mesh_index].num_vertices = ai_mesh->mNumVertices;
-        out.meshes[mesh_index].vertices = PushMemory(&assets->arena, VertexData, ai_mesh->mNumVertices);
-        VertexData* vertices = out.meshes[mesh_index].vertices;
-
-        for (u32 vertex_index = 0; vertex_index < ai_mesh->mNumVertices; ++vertex_index)
-        {
-            vertices->position = V3(ai_mesh->mVertices[vertex_index].x,
-                                    ai_mesh->mVertices[vertex_index].y,
-                                    ai_mesh->mVertices[vertex_index].z);
-
-            vertices->normal = V3(ai_mesh->mNormals[vertex_index].x,
-                                  ai_mesh->mNormals[vertex_index].y,
-                                  ai_mesh->mNormals[vertex_index].z);
-
-            if (ai_mesh->mTextureCoords[0])
-            {
-                vertices->uv = V2(ai_mesh->mTextureCoords[0][vertex_index].x,
-                                  ai_mesh->mTextureCoords[0][vertex_index].y);
-            }
-
-            ++vertices;
-        }
-
-        u32 num_indices = 0;
-        for (u32 i = 0; i < ai_mesh->mNumFaces; ++i)
-        {
-            num_indices += ai_mesh->mFaces->mNumIndices;
-        }
-        out.meshes[mesh_index].num_indices = num_indices;
-        out.meshes[mesh_index].indices = PushMemory(&assets->arena, u32, num_indices);
-
-        u32 indices_index = 0;
-        for (u32 i = 0; i < ai_mesh->mNumFaces; ++i)
-        {
-            aiFace* face = ai_mesh->mFaces + i;
-            for (u32 j = 0; j < face->mNumIndices; ++j)
-            {
-                mesh->indices[indices_index] = face->mIndices[j];
-                indices_index++;
-            }
-        }
-
-        if (ai_mesh->mMaterialIndex >= 0)
-        {
-            aiMaterial* mtl = scene->mMaterials[ai_mesh->mMaterialIndex];
-
-            aiColor4D color = {};
-            if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &color))
-            {
-                mesh->material.diffuse = V3(color.r, color.g, color.b);
-            }
-            if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &color))
-            {
-                mesh->material.specular = V3(color.r, color.g, color.b);
-            }
-            if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &color))
-            {
-                mesh->material.ambient = V3(color.r, color.g, color.b);
-            }
-            f32 shininess = 0.0f;
-            mesh->material.shininess = 32.0f;
-            if (AI_SUCCESS == aiGetMaterialFloat(mtl, 
-                                                 AI_MATKEY_SHININESS_STRENGTH,
-                                                 &shininess))
-            {
-                DEBUG_PRINT("%.2f shininess", shininess);
-                mesh->material.shininess = shininess;
-            }
-
-            if (load_material_texture(assets, &out, path, mtl, aiTextureType_DIFFUSE))
-            {
-                mesh->texture_index = out.num_textures - 1;
-                mesh->material.has_texture = true;
-            }
-        }
-    }
-
-    aiReleaseImport(scene);
 
     return out;
 }
@@ -866,6 +870,14 @@ WinMain(HINSTANCE hinstance,
     setvbuf(hf_in, NULL, _IONBF, 128);
     *stdin = *hf_in;
     freopen("CONOUT$", "w+", stdout);
+
+    u32 i = 1;
+    u32 j = 0;
+    j |= (1 << 5);
+    j |= (1 << 4);
+    DEBUG_PRINT("I : %i", i);
+    DEBUG_PRINT("I : %i", (((i << 5) | (i << 4)) & j));
+
 
     WNDCLASS window_class = {};
     window_class.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
@@ -912,8 +924,8 @@ WinMain(HINSTANCE hinstance,
 
 
     GameMemory game_memory = {};
-    game_memory.permanent_storage_size = MEGABYTES(64);
-    game_memory.temporary_storage_size = MEGABYTES(128);
+    game_memory.permanent_storage_size = Megabytes(64);
+    game_memory.temporary_storage_size = Megabytes(128);
 
     game_memory.is_initialized = false;
     game_memory.permanent_storage = calloc(game_memory.permanent_storage_size, sizeof(u8));
@@ -961,7 +973,7 @@ WinMain(HINSTANCE hinstance,
     while(global_running)
     {
 
-        for (sizet i = 0; i < ARRAY_COUNT(game_input.buttons); ++i)
+        for (sizet i = 0; i < ArrayCount(game_input.buttons); ++i)
         {
             game_input.buttons[i].released = 0;
             game_input.buttons[i].pressed = 0;

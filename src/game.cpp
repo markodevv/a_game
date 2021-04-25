@@ -66,18 +66,26 @@ game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
     }
 }
 
-
-
-inline internal Image
-allocate_image(MemoryArena* memory, i32 w, i32 h)
+internal u32
+add_entity(GameState* game_state)
 {
-    Image image;
-    image.data = PushMemory(memory, u8, (w*h));
-    image.width = w;
-    image.height = h;
-
-    return image;
+    u32 id = game_state->num_entities++;
+    ASSERT(game_state->num_entities < ArrayCount(game_state->entities));
+    return id;
 }
+
+internal Entity*
+get_entity(GameState* game_state, u32 entity_index)
+{
+    Entity* entity = 0;
+    if (entity_index < game_state->num_entities && entity_index >= 0)
+    {
+        entity = &game_state->entities[entity_index];
+    }
+
+    return entity;
+}
+
 
 
 
@@ -89,6 +97,7 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
     if (!memory->is_initialized)
     {
+        memory->is_initialized = true;
         TranState* trans_state = &game_state->trans_state;
 
         init_arena(&game_state->arena, 
@@ -103,7 +112,7 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         Renderer* ren = game_state->renderer;
 
-        sub_arena(&trans_state->arena, &trans_state->assets.arena, MEGABYTES(64));
+        sub_arena(&trans_state->arena, &trans_state->assets.arena, Megabytes(64));
 
         ren->light.ambient = V3(1.0f);
         ren->light.diffuse = V3(1.0f);
@@ -111,57 +120,111 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         ren->light_pos = V3(200, 100, 0.0f);
 
-        ren->camera = {{0.0f, 0.0f, 200.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
+        ren->camera = {{0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
+        // NOTE: needs to be first image loaded
+        ASSERT(trans_state->assets.num_images == 0);
+        ren->white_image = platform->load_image(&trans_state->assets, "../assets/white.png");
 
         //ren->model = memory->load_3D_model(&ren->arena, "../assets/backpack/backpack.obj");
         trans_state->assets.models[M_ID_DUMMY] = platform->load_3D_model(&trans_state->assets, "../assets/character/character.obj");
-        trans_state->assets.models[M_ID_ZOMBIE0] = platform->load_3D_model(&trans_state->assets, "../assets/zombies/obj/Zed_1.obj");
         trans_state->assets.models[M_ID_ZOMBIE1] = platform->load_3D_model(&trans_state->assets, "../assets/zombies/obj/Zed_2.obj");
-
-/*
-        opengl_load_model_to_gpu(ren->shader_program_3D, &game_state->assets.zombie_0);
-        opengl_load_model_to_gpu(ren->shader_program_3D, &game_state->assets.zombie_1);
-        opengl_load_model_to_gpu(ren->shader_program_3D, &game_state->assets.cube);
-        */
 
 
         memory->debug = PushMemory(&game_state->arena, DebugState);
-        sub_arena(&game_state->arena, &memory->debug->arena, MEGABYTES(12));
+        sub_arena(&game_state->arena, &memory->debug->arena, Megabytes(12));
 
 
         FileResult font_file = platform->read_entire_file("../consola.ttf");
 
         DebugState* debug = memory->debug;
-        debug->font_image = allocate_image(&debug->arena, 512, 512);
-        debug->font_image.channels = 1;
+        debug->font_image_handle = create_image_asset(&trans_state->assets, 512, 512, 1);
         debug->font_size = 14.0f;
 
-        /* TODO:
+        Image* font_image = get_loaded_image(&trans_state->assets, debug->font_image_handle);
+
         i32 result = stbtt_BakeFontBitmap((u8*)font_file.data, 
                              0, debug->font_size,
-                             (u8*)debug->font_image.data, 
-                             debug->font_image.width, 
-                             debug->font_image.height,
+                             (u8*)font_image->data, 
+                             font_image->width, 
+                             font_image->height,
                              32, NUM_ASCII, 
                              debug->char_metrics);
+        // NOTE: Advance X is the same for all characters
+        // thats why we set this
         debug->x_advance = (debug->char_metrics + 32)->xadvance;
 
         if (!result)
         {
             DEBUG_PRINT("Failed to bake font map\n");
         }
-        */
 
         game_state->minotaur_image = platform->load_image(&trans_state->assets, "../assets/minotaur.png");
 
         platform->init_renderer(game_state->renderer);
 
         platform->free_file_memory(font_file.data);
-        memory->is_initialized = true;
 
+        u32 player_entity_id = add_entity(game_state);
+        Entity* player_ent = get_entity(game_state, player_entity_id);
+
+        player_ent->transform.position = V2(100, 100);
+        player_ent->render.color = V4(0.5f, 0.1f, 0.0f, 1.0f);
+        player_ent->render.scale = V2(100, 100);
+
+        u32 tile_map[10][19] = {
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            {0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            {0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0},
+            {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        };
+
+        for (u32 y = 0; y < 10; ++y)
+        {
+            for (u32 x = 0; x < 19; ++x)
+            {
+                game_state->tile_map[9-y][x] = tile_map[y][x];
+            }
+        }
+    }
+
+
+    Entity* player_ent= get_entity(game_state, game_state->player_entity_index);
+    if (player_ent)
+    {
+        if (button_down(input->move_left))
+        {
+            player_ent->transform.position.x -= 5.0f;
+        }
+        if (button_down(input->move_right))
+        {
+            player_ent->transform.position.x += 5.0f;
+        }
+
+        if (player_ent->transform.position.y < 0.0f)
+        {
+            player_ent->transform.position.y = 0.0f;
+        }
     }
 
     Camera* cam = &game_state->renderer->camera;
+    if (input->mouse.wheel_delta)
+    {
+        cam->position.z += input->mouse.wheel_delta * delta_time;
+    }
+
+
+
+    if (input->mouse.wheel_delta)
+    {
+        f32 scroll_amount = (f32)input->mouse.wheel_delta;
+        cam->position.z -= scroll_amount * delta_time;
+    }
 
     if (button_down(input->move_left))
     {
@@ -179,11 +242,6 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
     {
         cam->position.y -= 5.0f;
     }
-    if (input->mouse.wheel_delta)
-    {
-        f32 scroll_amount = (f32)input->mouse.wheel_delta;
-        cam->position.z -= scroll_amount * delta_time * 15;
-    }
 
     Renderer* ren = game_state->renderer;
     input->mouse.position.y = ren->screen_height - input->mouse.position.y;
@@ -196,7 +254,6 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
 
 
-
 extern "C" PLATFORM_API void
 game_render(GameMemory* memory)
 {
@@ -206,64 +263,82 @@ game_render(GameMemory* memory)
     TranState* tran_state = &game_state->trans_state;
 
 
+
     TemporaryArena flush_memory = begin_temporary_memory(&tran_state->arena);
 
     ren->vertices_2D = PushMemory(&tran_state->arena, VertexData2D, MAX_VERTICES);
 
-    RenderGroup* render_group = allocate_render_group(&tran_state->arena, 
-                                                      MEGABYTES(4),
+    game_state->render_setup.projection = mat4_orthographic((f32)ren->screen_width,
+                                                            (f32)ren->screen_height);
+    game_state->render_setup.camera= ren->camera;
+
+    RenderGroup render_group = render_group_begin(&game_state->render_setup,
                                                       ren, 
                                                       &tran_state->assets);
-    init_render_group(render_group,
-                      mat4_orthographic((f32)ren->screen_width,
-                                        (f32)ren->screen_height));
-/*
-    opengl_draw_model(ren, ren->cube, ren->light_pos, V3(5, 5, 5));
-    opengl_draw_model(ren, ren->zombie_0, V3(100, 100, 0), V3(20, 20, 20));
-    opengl_draw_model(ren, ren->zombie_1, V3(50, 50, 0), V3(1, 1, 1));
-    opengl_draw_model(ren, ren->cube, V3(0, 0, 0), V3(20, 20, 20));
-    */
 
-    push_rect(render_group, V2(100, 100), V2(200, 300), V4(0.7f, 0.3f, 0.1f, 1.0f));
-    push_rect(render_group, V2(50, 50), V2(50, 50), V4(0.3f, 0.3f, 1.0f, 1.0f));
+    memory->debug->render_setup.projection = mat4_orthographic((f32)ren->screen_width,
+                                                       (f32)ren->screen_height);
+    memory->debug->render_setup.camera = {{0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
+    memory->debug->render_group = render_group_begin(&memory->debug->render_setup,
+                                                     ren, 
+                                                     &tran_state->assets);
 
-    push_textured_rect(render_group, game_state->minotaur_image, V2(200, 200), V2(1000, 1000), V4(1.0f));
+    for (u32 i = 0; i < game_state->num_entities; ++i)
+    {
+        Entity* entity = get_entity(game_state, i);
+        push_quad(&render_group, 
+                  entity->transform.position, 
+                  entity->render.scale, 
+                  entity->render.color);
+    }
 
-#if 0
+    for (u32 x = 0; x < 19; ++x)
+    {
+        for (u32 y = 0; y < 10; ++y)
+        {
+            if (game_state->tile_map[y][x])
+            {
+                push_quad(&render_group, 
+                          V2((f32)x * 100, (f32)y * 100),
+                          V2(95, 95),
+                          V4(0.3f, 0.5f, 1.0f, 1.0f));
+            }
+        }
+    }
+
+
+
     local_persist f32 var = 0.0f;
-    debug_menu_begin(ren, memory->debug, {100, 200}, {400, (f32)ren->screen_height}, "Main Menu");
+    debug_menu_begin(memory->debug, {100, 200}, {400, (f32)ren->screen_height}, "Main Menu");
 
-    draw_debug_fps(ren, memory->debug);
+    debug_fps(memory->debug);
 
-    draw_debug_slider(ren, memory->debug, 0.0f, 30.0f, &var, "my variable"); 
-    debug_menu_newline(ren, memory->debug);
+    debug_slider(memory->debug, 0.0f, 30.0f, &var, "my variable"); 
+    debug_menu_newline(memory->debug);
 
-    if (draw_debug_button(ren, memory->debug, "button 1"))
+    if (debug_button(memory->debug, "button 1"))
     {
         DEBUG_PRINT("button 1 clicked");
     }
 
-    if (draw_debug_button(ren, memory->debug, "button 2"))
+    if (debug_button(memory->debug, "button 2"))
     {
         DEBUG_PRINT("button 2 clicked");
     }
 
-    debug_menu_newline(ren, memory->debug);
+    debug_menu_newline(memory->debug);
 
-    draw_debug_slider(ren, memory->debug, -1000.0f, 1000.0f, &ren->light_pos.z, "light z"); 
-
-
-    debug_vec3_slider(ren, memory->debug, &ren->light.ambient, "light.ambient");
-    debug_vec3_slider(ren, memory->debug, &ren->light.diffuse, "light.diffuse");
-    debug_vec3_slider(ren, memory->debug, &ren->light.specular, "light.specular");
+    debug_slider(memory->debug, -1000.0f, 1000.0f, &ren->light_pos.z, "light z"); 
 
 
-    f32 random_value = 10.0f;
-#endif
+    debug_vec3_slider(memory->debug, &ren->light.ambient, "light.ambient");
+    debug_vec3_slider(memory->debug, &ren->light.diffuse, "light.diffuse");
+    debug_vec3_slider(memory->debug, &ren->light.specular, "light.specular");
 
-    process_render_group(render_group);
 
-    platform->end_frame(render_group);
+
+    platform->end_frame(ren);
+
 
     end_temporary_memory(&flush_memory);
 }

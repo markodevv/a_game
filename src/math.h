@@ -85,6 +85,12 @@ V3(f32 x, f32 y, f32 z)
     return {x, y, z};
 }
 
+inline vec2
+V2(f32 a)
+{
+    return {a, a};
+}
+
 inline vec3
 V3(vec2 v, f32 z)
 {
@@ -416,7 +422,7 @@ mat4_orthographic(f32 w, f32 h)
     mat4 out = {
         2/w,  0.0f, 0.0f, -1.0f, 
         0.0f, 2/h,  0.0f, -1.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 1.0f,  0.0f,
         0.0f, 0.0f, 0.0f,  1.0f
     };
 

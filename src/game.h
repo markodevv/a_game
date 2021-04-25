@@ -76,7 +76,7 @@ typedef Model Load3DModelProc(struct Assets* assets, char* name);
 typedef ImageHandle LoadImageProc(Assets* assets, char* image_path);
 
 typedef void RenderProc(Renderer* ren);
-typedef void EndDrawFrame(RenderGroup* group);
+typedef void EndDrawFrame(Renderer* ren);
 
 
 struct Platform
@@ -139,11 +139,44 @@ struct Assets
     u32 num_images;
 };
 
+
+struct Transform
+{
+    vec2 position;
+    vec2 rotation;
+};
+
+struct Render
+{
+    ImageHandle image;
+    vec2 scale;
+    vec4 color;
+};
+
+enum EntityFlag
+{
+    ENTITY_FLAG_ENABLED,
+};
+
+struct Entity
+{
+    u32 flags;
+
+    Render render;
+    Transform transform;
+};
+
 struct TranState
 {
     MemoryArena arena;
 
     Assets assets;
+};
+
+enum ComponentType
+{
+    COMPONENT_Transform = 0,
+    COMPONENT_Render = 1,
 };
 
 struct GameState
@@ -155,6 +188,14 @@ struct GameState
     i32 tone_volume;
 
     ImageHandle minotaur_image;
+
+    u32 tile_map[19][10];
+
+    RenderSetup render_setup;
+
+    u32 player_entity_index;
+    Entity entities[1024];
+    u32 num_entities;
 
     Renderer* renderer;
 };
@@ -168,29 +209,21 @@ get_loaded_image(Assets* assets, ImageHandle handle)
     return assets->images + handle;
 }
 
+internal ImageHandle
+create_image_asset(Assets* assets, u32 w, u32 h, u32 channels)
+{
+    Image image = {};
+    image.data = PushMemory(&assets->arena, u8, (w*h));
+    image.width = w;
+    image.height = h;
+    image.channels = channels;
+
+    assets->images[assets->num_images] = image;
+    ++assets->num_images;
+
+    return (assets->num_images - 1);
+}
 
 #define MAIN_H
 #endif
-
-// TODO LIST:
-/*
--3D renderer
-    -asset loading
-       -material loading
-       -texture loading
-    -3D model render with textures
-    -3D model render with material maps
-    -Scenes
-
--Debug
-    -Edit boxes
-    -Scene gizmos
-    -Profiler
-
-
--Collision detection
-
--Memory management
-    -variable size allocator
-*/
 

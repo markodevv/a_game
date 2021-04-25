@@ -19,6 +19,13 @@ typedef int GLsizeiptrARB;
 typedef int GLfixed;
 typedef int GLclampx;
 
+/* Swizzle */
+#define GL_TEXTURE_SWIZZLE_R              0x8E42
+#define GL_TEXTURE_SWIZZLE_G              0x8E43
+#define GL_TEXTURE_SWIZZLE_B              0x8E44
+#define GL_TEXTURE_SWIZZLE_A              0x8E45
+#define GL_TEXTURE_SWIZZLE_RGBA           0x8E46
+
 /* Extensions */
 #define GL_OES_VERSION_1_0                1
 #define GL_OES_read_format                1

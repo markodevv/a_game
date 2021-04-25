@@ -28,19 +28,20 @@ struct DebugState
 {
     MemoryArena arena;
 
+    RenderGroup render_group;
+    RenderSetup render_setup;
+
     InteractableUiItem hot_item;
     InteractableUiItem next_hot_item;
     InteractableUiItem interacting_item;
 
-    Image font_image;
+    ImageHandle font_image_handle;
     stbtt_bakedchar char_metrics[NUM_ASCII];
     f32 font_size;
-    u32 font_texture_id;
     f32 x_advance;
 
     vec2 draw_cursor;
     vec2 prev_draw_cursor;
-
 
     f32 game_fps;
     vec2 mouse_pos;
