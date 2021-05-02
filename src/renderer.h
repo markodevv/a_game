@@ -42,8 +42,8 @@ struct Camera
     vec3 up;
 };
 
-typedef i32 ImageHandle;
-struct Image
+typedef i32 SpriteHandle;
+struct Sprite
 {
     char* name;
     void* data;
@@ -73,7 +73,7 @@ struct Model
     Mesh* meshes;
     u32 num_meshes;
 
-    ImageHandle loaded_images[8];
+    SpriteHandle loaded_sprites[8];
     u32 num_textures;
 };
 
@@ -119,8 +119,8 @@ struct RenderSetup
     mat4 projection;
     Camera camera;
 
-    ImageHandle image_handles[32];
-    u32 num_images;
+    SpriteHandle sprite_handles[32];
+    u32 num_sprites;
 };
 
 struct TexturedQuadsEntry
@@ -165,7 +165,7 @@ struct Renderer
 
     struct Assets* assets;
 
-    ImageHandle white_image;
+    SpriteHandle white_sprite;
 };
 
 #endif

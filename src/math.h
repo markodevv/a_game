@@ -10,12 +10,16 @@ struct vec2
 {
     f32 x, y;
 
-    vec2 operator/(f32 a);
     vec2 operator+(vec2& other);
     vec2 operator-(vec2& other);
     void operator-=(f32 n);
     void operator+=(f32 n);
+    void operator+=(vec2 v);
+    void operator-=(vec2 v);
     vec2 operator*(vec2& other);
+    vec2 operator*(f32 a);
+    void operator*=(f32 a);
+    vec2 operator/(f32 a);
 };
 
 struct vec3 
@@ -124,6 +128,20 @@ V4(f32 n)
     return {n, n, n, n};
 }
 
+inline void 
+vec2::operator+=(vec2 v)
+{
+    x += v.x;
+    y += v.y;
+}
+
+inline void 
+vec2::operator-=(vec2 v)
+{
+    x -= v.x;
+    y -= v.y;
+}
+
 inline vec2
 vec2::operator/(f32 a)
 {
@@ -156,10 +174,23 @@ vec2::operator-=(f32 n)
 }
 
 inline void 
+vec2::operator*=(f32 a)
+{
+    x *= a;
+    y *= a;
+}
+
+inline void 
 vec2::operator+=(f32 n)
 {
     x += n;
     y += n;
+}
+
+inline vec2 
+vec2::operator*(f32 a)
+{
+    return {x*a, y*a};
 }
 
 inline vec3

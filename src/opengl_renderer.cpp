@@ -217,7 +217,7 @@ opengl_get_uniform_location(i32 shader, char* uniform)
 }
 
 internal u32
-opengl_load_texture(Image* image, u32 slot)
+opengl_load_texture(Sprite* sprite, u32 slot)
 {
     u32 texture_id = 0;
 
@@ -228,17 +228,17 @@ opengl_load_texture(Image* image, u32 slot)
     u32 internal_format = 0;
     u32 external_format = 0;
 
-    if (image->channels == 4)
+    if (sprite->channels == 4)
     {
         internal_format = GL_RGBA8;
         external_format = GL_RGBA;
     }
-    else if (image->channels == 3)
+    else if (sprite->channels == 3)
     {
         internal_format = GL_RGB8;
         external_format = GL_RGB;
     }
-    else if (image->channels == 1)
+    else if (sprite->channels == 1)
     {
         internal_format = GL_R8;
         external_format = GL_RED;
@@ -258,14 +258,14 @@ opengl_load_texture(Image* image, u32 slot)
     glTexImage2D(GL_TEXTURE_2D,
                  0, 
                  internal_format,
-                 image->width,
-                 image->height,
+                 sprite->width,
+                 sprite->height,
                  0,
                  external_format,
                  GL_UNSIGNED_BYTE, 
-                 image->data);
+                 sprite->data);
 
-    image->loaded_to_gpu = true;
+    sprite->loaded_to_gpu = true;
 
     return texture_id;
 }
@@ -516,16 +516,16 @@ opengl_end_frame(Renderer* ren)
     }
 
     //NOTE: this is a default white texture 
-    Image* white_image = get_loaded_image(ren->assets, ren->white_image);
-    if (!white_image->loaded_to_gpu)
+    Sprite* white_sprite = get_loaded_sprite(ren->assets, ren->white_sprite);
+    if (!white_sprite->loaded_to_gpu)
     {
         ASSERT(ren->slot == 0);
-        white_image->id = opengl_load_texture(white_image, ren->slot);
-        white_image->slot = ren->slot;
+        white_sprite->id = opengl_load_texture(white_sprite, ren->slot);
+        white_sprite->slot = ren->slot;
         ++ren->slot;
     }
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, white_image->id);
+    glBindTexture(GL_TEXTURE_2D, white_sprite->id);
 
 #if 0
 #endif
@@ -549,20 +549,20 @@ opengl_end_frame(Renderer* ren)
                 glUseProgram(ren->shader_program_2D);
                 RenderSetup* setup = quads->render_setup;
 
-                for (u32 image_index = 0; image_index < setup->num_images; ++image_index)
+                for (u32 sprite_index = 0; sprite_index < setup->num_sprites; ++sprite_index)
                 {
-                    Image* image = get_loaded_image(ren->assets, 
-                                                    setup->image_handles[image_index]);
+                    Sprite* sprite = get_loaded_sprite(ren->assets, 
+                                                    setup->sprite_handles[sprite_index]);
 
-                    if (!image->loaded_to_gpu)
+                    if (!sprite->loaded_to_gpu)
                     {
-                        image->id = opengl_load_texture(image, ren->slot);
-                        image->slot = ren->slot;
+                        sprite->id = opengl_load_texture(sprite, ren->slot);
+                        sprite->slot = ren->slot;
                         ++ren->slot;
                         ASSERT(ren->slot < 32);
                     }
-                    glActiveTexture(GL_TEXTURE0 + image->slot);
-                    glBindTexture(GL_TEXTURE_2D, image->id);
+                    glActiveTexture(GL_TEXTURE0 + sprite->slot);
+                    glBindTexture(GL_TEXTURE_2D, sprite->id);
                 }
 
                 i32 vp_loc = opengl_get_uniform_location(ren->shader_program_2D, "u_viewproj");

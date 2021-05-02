@@ -13,4 +13,5 @@ REM 64-bit build
 del *.pdb > NUL 2> NUL
 cl  %win32_compiler_flags% /LD ..\src\game.cpp /link %game_linker_flags%
 cl  %win32_compiler_flags% ..\src\windows_platform.cpp /link %win32_linker_flags%  
+
 popd

@@ -8,9 +8,8 @@
 
 enum InteractableUiItemType
 {
-    INTERACTABLE_TYPE_CLICK = 1,
-    INTERACTABLE_TYPE_DRAG = 2,
-    INTERACTABLE_TYPE_TOGGLE = 3,
+    INTERACTION_TYPE_CLICK = 1,
+    INTERACTION_TYPE_DRAG = 2,
 };
 
 struct InteractableUiItem
@@ -18,6 +17,11 @@ struct InteractableUiItem
     InteractableUiItemType type;
     void* id;
     InteractableUiItem *next_item;
+};
+
+struct DebugMenu
+{
+    b8 menu_is_active;
 };
 
 
@@ -32,7 +36,7 @@ struct DebugState
     InteractableUiItem next_hot_item;
     InteractableUiItem interacting_item;
 
-    ImageHandle font_image_handle;
+    SpriteHandle font_sprite_handle;
     stbtt_bakedchar char_metrics[NUM_ASCII];
     f32 font_size;
     f32 x_advance;
@@ -43,8 +47,12 @@ struct DebugState
     f32 game_fps;
     vec2 mouse_pos;
     vec2 prev_mouse_pos;
+
     vec2 menu_pos;
-    b8 menu_is_active;
+    vec2 menu_size;
+
+    u32 current_menu_index;
+    DebugMenu menus[32];
 };
 
 

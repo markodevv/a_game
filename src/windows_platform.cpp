@@ -663,36 +663,36 @@ win32_process_input_messages(GameInput* game_input)
 }
 
 internal b8 
-image_is_loaded(Assets* assets, char* image_name)
+sprite_is_loaded(Assets* assets, char* sprite_name)
 {
-    for (u32 i = 0; i < assets->num_images; ++i)
+    for (u32 i = 0; i < assets->num_sprites; ++i)
     {
-        if (string_equals(assets->images[i].name, image_name))
+        if (string_equals(assets->sprites[i].name, sprite_name))
             return true;
     }
     return false;
 }
 
-internal ImageHandle
-stb_load_image(Assets* assets, char* image_path)
+internal SpriteHandle
+stb_load_sprite(Assets* assets, char* sprite_path)
 {
-    FileResult file = DEBUG_read_entire_file(image_path);
-    Image* image = assets->images + assets->num_images;
+    FileResult file = DEBUG_read_entire_file(sprite_path);
+    Sprite* sprite = assets->sprites + assets->num_sprites;
 
     stbi_set_flip_vertically_on_load(1);
-    image->data = stbi_load_from_memory((u8*)file.data,
+    sprite->data = stbi_load_from_memory((u8*)file.data,
                                              file.size,
-                                             &image->width,
-                                             &image->height, 
-                                             &image->channels,
+                                             &sprite->width,
+                                             &sprite->height, 
+                                             &sprite->channels,
                                              0);
 
-    image->name = string_copy(&assets->arena, image_path);
+    sprite->name = string_copy(&assets->arena, sprite_path);
 
     DEBUG_free_file_memory(file.data);
-    ++assets->num_images;
+    ++assets->num_sprites;
 
-    return (assets->num_images - 1);
+    return (assets->num_sprites - 1);
 
 }
 
@@ -705,23 +705,23 @@ load_material_texture(Assets* assets,
 {
 
     b8 result = false;
-    char* image_path;
+    char* sprite_path;
     aiString str;
     if (aiGetMaterialTexture(material, texture_type, 0, &str) == AI_SUCCESS)
     {
         TemporaryArena temp_memory = begin_temporary_memory(&assets->arena);
         result = true;
         b8 skip = false;
-        char* image_name = const_cast<char*>(str.C_Str());
+        char* sprite_name = const_cast<char*>(str.C_Str());
 
-        image_path = PushMemory(&assets->arena, char, 256);
-        string_copy(image_path, path, last_backslash_index(path) + 1);
-        string_append(image_path, image_name, (u32)str.length);
+        sprite_path = PushMemory(&assets->arena, char, 256);
+        string_copy(sprite_path, path, last_backslash_index(path) + 1);
+        string_append(sprite_path, sprite_name, (u32)str.length);
 
         for (u32 j = 0; j < model->num_textures; ++j)
         {
             // If texture already loaded
-            if (image_is_loaded(assets, image_path))
+            if (sprite_is_loaded(assets, sprite_path))
             {
                 skip = true;
             }
@@ -732,7 +732,7 @@ load_material_texture(Assets* assets,
         if (!skip)
         {
 
-            model->loaded_images[model->num_textures] = stb_load_image(assets, image_path);
+            model->loaded_sprites[model->num_textures] = stb_load_sprite(assets, sprite_path);
 
             ++model->num_textures;
         }
@@ -939,7 +939,7 @@ WinMain(HINSTANCE hinstance,
     game_memory.platform.write_entire_file = DEBUG_write_entire_file;
     game_memory.platform.free_file_memory = DEBUG_free_file_memory;
     game_memory.platform.load_3D_model = DEBUG_load_3D_model;
-    game_memory.platform.load_image = stb_load_image;
+    game_memory.platform.load_sprite = stb_load_sprite;
 
 // TODO: should be able to change graphics API on runtime
     game_memory.platform.init_renderer = opengl_init;

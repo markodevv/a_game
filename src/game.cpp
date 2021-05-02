@@ -87,6 +87,30 @@ get_entity(GameState* game_state, u32 entity_index)
 }
 
 
+internal b8
+is_colliding(vec2 p1, vec2 s1, vec2 p2, vec2 s2)
+{
+    return (p1.x < p2.x + s2.x &&
+            p1.x + s1.x > p1.x &&
+            p1.y < p2.y + s2.y &&
+            p1.y + s1.y > s2.y);
+
+}
+
+internal void
+integrate(Entity* entity, f32 dt)
+{
+    if (entity->inverse_mass <= 0.0f)
+        return;
+
+    entity->transform.position += entity->velocity * dt;
+
+    entity->velocity += entity->acceleration * dt;
+
+    entity->velocity *= powf(0.5f, dt);
+
+    entity->acceleration = V2(0.0f);
+}
 
 
 extern "C" PLATFORM_API void
@@ -100,6 +124,7 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         memory->is_initialized = true;
         TranState* trans_state = &game_state->trans_state;
 
+
         init_arena(&game_state->arena, 
                    (memory->permanent_storage_size - sizeof(GameState)),
                    (u8*)memory->permanent_storage + sizeof(GameState));
@@ -109,6 +134,7 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
                    (u8*)memory->temporary_storage);
 
         game_state->renderer = PushMemory(&game_state->arena, Renderer);
+
 
         Renderer* ren = game_state->renderer;
 
@@ -121,8 +147,8 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         ren->light_pos = V3(200, 100, 0.0f);
 
         // NOTE: needs to be first image loaded
-        ASSERT(trans_state->assets.num_images == 0);
-        ren->white_image = platform->load_image(&trans_state->assets, "../assets/white.png");
+        ASSERT(trans_state->assets.num_sprites == 0);
+        ren->white_sprite = platform->load_sprite(&trans_state->assets, "../assets/white.png");
 
         //ren->model = memory->load_3D_model(&ren->arena, "../assets/backpack/backpack.obj");
         trans_state->assets.models[M_ID_DUMMY] = platform->load_3D_model(&trans_state->assets, "../assets/character/character.obj");
@@ -136,16 +162,16 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         FileResult font_file = platform->read_entire_file("../consola.ttf");
 
         DebugState* debug = memory->debug;
-        debug->font_image_handle = create_image_asset(&trans_state->assets, 512, 512, 1);
+        debug->font_sprite_handle = create_sprite_asset(&trans_state->assets, 512, 512, 1);
         debug->font_size = 14.0f;
 
-        Image* font_image = get_loaded_image(&trans_state->assets, debug->font_image_handle);
+        Sprite* font_sprite = get_loaded_sprite(&trans_state->assets, debug->font_sprite_handle);
 
         i32 result = stbtt_BakeFontBitmap((u8*)font_file.data, 
                              0, debug->font_size,
-                             (u8*)font_image->data, 
-                             font_image->width, 
-                             font_image->height,
+                             (u8*)font_sprite->data, 
+                             font_sprite->width, 
+                             font_sprite->height,
                              32, NUM_ASCII, 
                              debug->char_metrics);
         // NOTE: Advance X is the same for all characters
@@ -157,7 +183,7 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
             DEBUG_PRINT("Failed to bake font map\n");
         }
 
-        game_state->minotaur_image = platform->load_image(&trans_state->assets, "../assets/minotaur.png");
+        game_state->minotaur_sprite = platform->load_sprite(&trans_state->assets, "../assets/minotaur.png");
 
         platform->init_renderer(game_state->renderer);
 
@@ -166,9 +192,9 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         u32 player_entity_id = add_entity(game_state);
         Entity* player_ent = get_entity(game_state, player_entity_id);
 
-        player_ent->transform.position = V2(100, 100);
+        player_ent->transform.position = V2(100, 300);
         player_ent->render.color = V4(0.5f, 0.1f, 0.0f, 1.0f);
-        player_ent->render.scale = V2(100, 100);
+        player_ent->render.scale = V2(40, 80);
 
         u32 tile_map[10][19] = {
             {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -183,6 +209,26 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
             {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         };
 
+        for (u32 i = 0; i < 10; ++i)
+        {
+            u32 entity_id = add_entity(game_state);
+            Entity* entity = get_entity(game_state, entity_id);
+
+            *entity = {};
+            entity->inverse_mass = 1.0f/10.0f;
+            entity->transform.position = V2(100, 100);
+            i32 seed = rand();
+            entity->acceleration = V2((f32)(seed % 500),
+                                      (f32)(seed % 500));
+            seed = rand();
+            entity->velocity = V2((f32)(seed % 500), 0);
+
+            entity->render.scale = V2(10, 10);
+            entity->render.color = V4(0.1f, 0.6f, 0.2f, 1.0f);
+        }
+
+        game_state->tile_size = 40;
+
         for (u32 y = 0; y < 10; ++y)
         {
             for (u32 x = 0; x < 19; ++x)
@@ -193,7 +239,8 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
     }
 
 
-    Entity* player_ent= get_entity(game_state, game_state->player_entity_index);
+    Entity* player_ent = get_entity(game_state, game_state->player_entity_index);
+
     if (player_ent)
     {
         if (button_down(input->move_left))
@@ -204,14 +251,49 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         {
             player_ent->transform.position.x += 5.0f;
         }
-
-        if (player_ent->transform.position.y < 0.0f)
+        if (button_down(input->move_down))
         {
-            player_ent->transform.position.y = 0.0f;
+            player_ent->transform.position.y -= 5.0f;
         }
+        if (button_down(input->move_up))
+        {
+            player_ent->transform.position.y += 5.0f;
+        }
+
+
+        for (i32 i = -1; i < 2; ++i)
+        {
+            for (i32 j = -1; j < 2; ++j)
+            {
+                u32 x = (u32)(player_ent->transform.position.x / game_state->tile_size) + i;
+                u32 y = (u32)(player_ent->transform.position.y / game_state->tile_size) + j;
+                if (x >= 0)
+                {
+                    if (game_state->tile_map[y][x])
+                    {
+                        if (is_colliding(player_ent->transform.position,
+                                         player_ent->render.scale,
+                                         V2((f32)x * game_state->tile_size, (f32)y * game_state->tile_size),
+                                         V2((f32)game_state->tile_size,
+                                            (f32)game_state->tile_size)))
+                        {
+                            DEBUG_PRINT("Collision detected");
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+
+    for (u32 i = 0; i < 10; ++i)
+    {
+        integrate(get_entity(game_state, i+1), delta_time);
     }
 
     Camera* cam = &game_state->render_setup.camera;
+    Camera cm = *cam;
+
 
     if (game_state->is_free_camera)
     {
@@ -247,7 +329,6 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
     ren->screen_height = memory->screen_height;
 
     process_debug_ui_interactions(memory->debug, input);
-
 }
 
 
@@ -279,8 +360,6 @@ game_render(GameMemory* memory)
         Entity* player = get_entity(game_state, game_state->player_entity_index);
         game_state->render_setup.camera.up = V3(0, 1, 0);
         game_state->render_setup.camera.direction = V3(0, 0, 1);
-        game_state->render_setup.camera.position.x = player->transform.position.x;
-        game_state->render_setup.camera.position.y = player->transform.position.y;
         game_state->render_setup.camera.position.z = 1.0f;
         game_state->render_setup.projection = mat4_orthographic((f32)ren->screen_width, 
                                                                 (f32)ren->screen_height);
@@ -305,6 +384,7 @@ game_render(GameMemory* memory)
                   entity->render.color);
     }
 
+#if 0
     for (u32 x = 0; x < 19; ++x)
     {
         for (u32 y = 0; y < 10; ++y)
@@ -312,22 +392,29 @@ game_render(GameMemory* memory)
             if (game_state->tile_map[y][x])
             {
                 push_quad(&render_group, 
-                          V2((f32)x * 100, (f32)y * 100),
-                          V2(95, 95),
+                          V2((f32)x * game_state->tile_size, (f32)y * game_state->tile_size),
+                          V2(game_state->tile_size - 4.0f, game_state->tile_size - 4.0f),
                           V4(0.3f, 0.5f, 1.0f, 1.0f));
             }
         }
     }
+#endif
 
-    push_quad(&render_group, game_state->minotaur_image, V2(600, 200), V2(500, 500), V4(1.0f));
+    for (u32 i = 0; i < 10; ++i)
+    {
+        Entity* particle = get_entity(game_state, i+1);
+        push_quad(&render_group, particle->transform.position,
+                                 particle->render.scale,
+                                 particle->render.color);
+    }
+
+    push_quad(&render_group, game_state->minotaur_sprite, V2(600, 200), V2(500, 500), V4(1.0f));
 
     debug_fps(memory->debug);
 
+    debug_ui_begin(memory->debug, ren->screen_width, ren->screen_height, "Debug UI");
 
-    if (debug_menu_begin(memory->debug,
-                         V2(100, 200), 
-                         V2(400, (f32)ren->screen_height),
-                         "Main Menu"))
+    if (debug_menu_begin(memory->debug, "Main Menu"))
     {
         if (debug_button(memory->debug, "button 1"))
         {
@@ -348,9 +435,22 @@ game_render(GameMemory* memory)
         debug_vec3_slider(memory->debug, &ren->light.diffuse, "light.diffuse");
         debug_vec3_slider(memory->debug, &ren->light.specular, "light.specular");
 
-        debug_checkbox(memory->debug, &game_state->is_free_camera);
-
+        //debug_checkbox(memory->debug, memory->debug->draw_cursor, &game_state->is_free_camera);
     }
+    debug_menu_end(memory->debug);
+
+    if (debug_menu_begin(memory->debug, "Other Menu"))
+    {
+        debug_slider(memory->debug, -1000.0f, 1000.0f, &ren->light_pos.z, "light z"); 
+
+        debug_menu_newline(memory->debug);
+
+        if (debug_button(memory->debug, "button 3"))
+        {
+            DEBUG_PRINT("button 2 clicked");
+        }
+    }
+    debug_menu_end(memory->debug);
 
 
     platform->end_frame(ren);

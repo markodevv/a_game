@@ -17,16 +17,16 @@ render_group_begin(RenderSetup* render_setup, Renderer* ren, Assets* assets)
 }
 
 internal void
-add_image_to_setup(RenderSetup* render_setup, ImageHandle image_handle)
+add_sprite_to_setup(RenderSetup* render_setup, SpriteHandle sprite_handle)
 {
-    for (u32 i = 0; i < render_setup->num_images; ++i)
+    for (u32 i = 0; i < render_setup->num_sprites; ++i)
     {
-        if (render_setup->image_handles[i] == image_handle)
+        if (render_setup->sprite_handles[i] == sprite_handle)
             return;
     }
-    ASSERT(render_setup->num_images < 32);
-    render_setup->image_handles[render_setup->num_images] = image_handle;
-    ++render_setup->num_images;
+    ASSERT(render_setup->num_sprites < 32);
+    render_setup->sprite_handles[render_setup->num_sprites] = sprite_handle;
+    ++render_setup->num_sprites;
 }
 
 internal void*
@@ -101,13 +101,13 @@ push_quad(RenderGroup* group, vec2 position, vec2 size, vec4 color)
 }
 
 internal void
-push_quad(RenderGroup* group, ImageHandle image_handle, vec2 position, vec2 size, vec4 color)
+push_quad(RenderGroup* group, SpriteHandle sprite_handle, vec2 position, vec2 size, vec4 color)
 {
     TexturedQuadsEntry* quads = get_current_quads(group, 1);
     Renderer* ren = group->renderer;
 
-    add_image_to_setup(group->current_setup, image_handle);
-    Image* image = get_loaded_image(group->assets, image_handle);
+    add_sprite_to_setup(group->current_setup, sprite_handle);
+    Sprite* sprite = get_loaded_sprite(group->assets, sprite_handle);
 
     vec2 rectangle_vertices[] =
     {
@@ -140,7 +140,7 @@ push_quad(RenderGroup* group, ImageHandle image_handle, vec2 position, vec2 size
         vertex->position = rectangle_vertices[i] * size + position;
         vertex->color = color;
         vertex->uv = uvs[i];
-        vertex->texture_slot = (f32)image->slot;
+        vertex->texture_slot = (f32)sprite->slot;
 
         ++vertex;
     }
@@ -149,16 +149,16 @@ push_quad(RenderGroup* group, ImageHandle image_handle, vec2 position, vec2 size
 
 internal void
 push_quad(RenderGroup* group, 
-          ImageHandle image_handle,
+          SpriteHandle sprite_handle,
           vec2 positions[6], 
           vec2 uvs[6],
           vec4 color)
 {
     Renderer* ren = group->renderer;
     TexturedQuadsEntry* quads = get_current_quads(group, 1);
-    add_image_to_setup(group->current_setup, image_handle);
+    add_sprite_to_setup(group->current_setup, sprite_handle);
 
-    Image* image = get_loaded_image(group->assets, image_handle);
+    Sprite* sprite = get_loaded_sprite(group->assets, sprite_handle);
 
     VertexData2D* vertex = ren->vertices_2D + ren->vertex_count_2D;
 
@@ -167,7 +167,7 @@ push_quad(RenderGroup* group,
         vertex->position = positions[i];
         vertex->color = color;
         vertex->uv = uvs[i];
-        vertex->texture_slot = (f32)image->slot;
+        vertex->texture_slot = (f32)sprite->slot;
 
         ++vertex;
     }

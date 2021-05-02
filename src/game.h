@@ -73,7 +73,7 @@ typedef FileResult ReadEntireFileProc(char* path);
 typedef void FreeEntireFileProc(void* memory);
 typedef b8 WriteEntireFileProc(char* file_name, i32 size, void* memory);
 typedef Model Load3DModelProc(struct Assets* assets, char* name);
-typedef ImageHandle LoadImageProc(Assets* assets, char* image_path);
+typedef SpriteHandle LoadSpriteProc(Assets* assets, char* sprite_path);
 
 typedef void RenderProc(Renderer* ren);
 typedef void EndDrawFrame(Renderer* ren);
@@ -86,7 +86,7 @@ struct Platform
     WriteEntireFileProc* write_entire_file;
     Load3DModelProc* load_3D_model;
 
-    LoadImageProc* load_image;
+    LoadSpriteProc* load_sprite;
 
     RenderProc* init_renderer;
     EndDrawFrame* end_frame;
@@ -135,8 +135,8 @@ struct Assets
 
     Model models[3];
 
-    Image images[64];
-    u32 num_images;
+    Sprite sprites[64];
+    u32 num_sprites;
 };
 
 
@@ -148,7 +148,7 @@ struct Transform
 
 struct Render
 {
-    ImageHandle image;
+    SpriteHandle sprite;
     vec2 scale;
     vec4 color;
 };
@@ -164,6 +164,9 @@ struct Entity
 
     Render render;
     Transform transform;
+    vec2 velocity;
+    vec2 acceleration;
+    f32 inverse_mass;
 };
 
 struct TranState
@@ -187,9 +190,10 @@ struct GameState
     i32 tone_hz;
     i32 tone_volume;
 
-    ImageHandle minotaur_image;
+    SpriteHandle minotaur_sprite;
 
     u32 tile_map[19][10];
+    u32 tile_size;
 
     b8 is_free_camera;
 
@@ -202,28 +206,28 @@ struct GameState
     Renderer* renderer;
 };
 
-internal Image*
-get_loaded_image(Assets* assets, ImageHandle handle)
+internal Sprite*
+get_loaded_sprite(Assets* assets, SpriteHandle handle)
 {
-    ASSERT(handle < (i32)assets->num_images &&
+    ASSERT(handle < (i32)assets->num_sprites &&
            handle >= 0);
 
-    return assets->images + handle;
+    return assets->sprites + handle;
 }
 
-internal ImageHandle
-create_image_asset(Assets* assets, u32 w, u32 h, u32 channels)
+internal SpriteHandle
+create_sprite_asset(Assets* assets, u32 w, u32 h, u32 channels)
 {
-    Image image = {};
-    image.data = PushMemory(&assets->arena, u8, (w*h));
-    image.width = w;
-    image.height = h;
-    image.channels = channels;
+    Sprite sprite = {};
+    sprite.data = PushMemory(&assets->arena, u8, (w*h));
+    sprite.width = w;
+    sprite.height = h;
+    sprite.channels = channels;
 
-    assets->images[assets->num_images] = image;
-    ++assets->num_images;
+    assets->sprites[assets->num_sprites] = sprite;
+    ++assets->num_sprites;
 
-    return (assets->num_images - 1);
+    return (assets->num_sprites - 1);
 }
 
 #define MAIN_H
