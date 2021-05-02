@@ -420,38 +420,27 @@ game_render(GameMemory* memory)
         {
             DEBUG_PRINT("button 1 clicked");
         }
-
+        debug_cursor_sameline(memory->debug);
         if (debug_button(memory->debug, "button 2"))
         {
             DEBUG_PRINT("button 2 clicked");
         }
 
-        debug_menu_newline(memory->debug);
-
         debug_slider(memory->debug, -1000.0f, 1000.0f, &ren->light_pos.z, "light z"); 
+        debug_slider(memory->debug, -1000.0f, 1000.0f, &ren->light_pos.y, "light y");
 
-
-        debug_vec3_slider(memory->debug, &ren->light.ambient, "light.ambient");
-        debug_vec3_slider(memory->debug, &ren->light.diffuse, "light.diffuse");
-        debug_vec3_slider(memory->debug, &ren->light.specular, "light.specular");
-
-        //debug_checkbox(memory->debug, memory->debug->draw_cursor, &game_state->is_free_camera);
     }
     debug_menu_end(memory->debug);
 
     if (debug_menu_begin(memory->debug, "Other Menu"))
     {
         debug_slider(memory->debug, -1000.0f, 1000.0f, &ren->light_pos.z, "light z"); 
-
-        debug_menu_newline(memory->debug);
-
         if (debug_button(memory->debug, "button 3"))
         {
             DEBUG_PRINT("button 2 clicked");
         }
     }
     debug_menu_end(memory->debug);
-
 
     platform->end_frame(ren);
 

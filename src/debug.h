@@ -50,6 +50,7 @@ struct DebugState
 
     vec2 menu_pos;
     vec2 menu_size;
+    b8 same_line;
 
     u32 current_menu_index;
     DebugMenu menus[32];
