@@ -428,6 +428,9 @@ game_render(GameMemory* memory)
 
         debug_slider(memory->debug, -1000.0f, 1000.0f, &ren->light_pos.z, "light z"); 
         debug_slider(memory->debug, -1000.0f, 1000.0f, &ren->light_pos.y, "light y");
+        debug_slider(memory->debug, -1000.0f, 1000.0f, &ren->light_pos.x, "light x");
+        local_persist b8 test = false;
+        debug_checkbox(memory->debug, &test, "test value");
 
     }
     debug_menu_end(memory->debug);
@@ -439,6 +442,16 @@ game_render(GameMemory* memory)
         {
             DEBUG_PRINT("button 2 clicked");
         }
+        debug_cursor_sameline(memory->debug);
+        if (debug_button(memory->debug, "button 4"))
+        {
+            DEBUG_PRINT("button 2 clicked");
+        }
+
+        debug_slider(memory->debug, -1000.0f, 1000.0f, &memory->debug->menu_pos.x, "menu x"); 
+        debug_slider(memory->debug, -1000.0f, 1000.0f, &memory->debug->menu_pos.y, "menu y"); 
+        local_persist f32 test = 0.0f;
+        debug_editbox(memory->debug, &test, "test :)");
     }
     debug_menu_end(memory->debug);
 

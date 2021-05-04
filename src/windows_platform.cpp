@@ -553,6 +553,14 @@ win32_init_opengl(HWND window_handle)
 }
 
 internal void
+set_button_state(ButtonState* button, b8 is_down, b8 was_down)
+{
+    button->is_down = is_down;
+    button->pressed = (was_down == 0) && (is_down == 1);
+    button->released = (was_down == 1) && (is_down == 0);
+}
+
+internal void
 win32_process_input_messages(GameInput* game_input)
 {
 
@@ -581,33 +589,31 @@ win32_process_input_messages(GameInput* game_input)
                 {
                     case 'A':
                     {
-                        game_input->move_left.is_down = is_down;
-                        game_input->move_left.pressed = (was_down == 0) && (is_down == 1);
-                        game_input->move_left.released = (was_down == 1) && (is_down == 0);
+                        set_button_state(&game_input->move_left, is_down, was_down);
                     } break;
                     case 'D':
                     {
-                        game_input->move_right.is_down = is_down;
-                        game_input->move_right.pressed = (was_down == 0) && (is_down == 1);
-                        game_input->move_right.released = (was_down == 1) && (is_down == 0);
+                        set_button_state(&game_input->move_right, is_down, was_down);
                     } break;
                     case 'W':
                     {
-                        game_input->move_up.is_down = is_down;
-                        game_input->move_up.pressed = (was_down == 0) && (is_down == 1);
-                        game_input->move_up.released = (was_down == 1) && (is_down == 0);
+                        set_button_state(&game_input->move_up, is_down, was_down);
                     } break;
                     case 'S':
                     {
-                        game_input->move_down.is_down = is_down;
-                        game_input->move_down.pressed = (was_down == 0) && (is_down == 1);
-                        game_input->move_down.released = (was_down == 1) && (is_down == 0);
+                        set_button_state(&game_input->move_down, is_down, was_down);
                     } break;
                     case 'P':
                     {
-                        game_input->pause_button.is_down = is_down;
-                        game_input->pause_button.pressed = (was_down == 0) && (is_down == 1);
-                        game_input->pause_button.released = (was_down == 1) && (is_down == 0);
+                        set_button_state(&game_input->pause_button, is_down, was_down);
+                    } break;
+                    case VK_BACK:
+                    {
+                        set_button_state(&game_input->backspace, is_down, was_down);
+                    } break;
+                    case VK_ESCAPE:
+                    {
+                        set_button_state(&game_input->escape, is_down, was_down);
                     } break;
                 }
                 TranslateMessage(&message);
@@ -620,10 +626,6 @@ win32_process_input_messages(GameInput* game_input)
             } break;
             case WM_MOUSEMOVE:
             {
-                /*
-                game_input->mouse.position.x = (f32)GET_X_LPARAM(message.lParam); 
-                game_input->mouse.position.y = (f32)GET_Y_LPARAM(message.lParam); 
-                */
 
                 game_input->mouse.moved = true;
                 if ((message.wParam & MK_LBUTTON) == MK_LBUTTON)
@@ -977,7 +979,9 @@ WinMain(HINSTANCE hinstance,
         {
             game_input.buttons[i].released = 0;
             game_input.buttons[i].pressed = 0;
+            game_input.buttons[i].repeat_count = 0;
         }
+        game_input.character = -1;
         game_input.mouse.wheel_delta = 0;
         game_input.mouse.moved = false;
 

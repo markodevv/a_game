@@ -3,20 +3,30 @@
 
 #include "stb_truetype.h"
 #include "renderer.h"
-#define MAX_UI_VAR_NAME_LEN 9
 
 
-enum InteractableUiItemType
+enum InterationType
 {
     INTERACTION_TYPE_CLICK = 1,
     INTERACTION_TYPE_DRAG = 2,
+    INTERACTION_TYPE_EDIT = 3,
 };
 
-struct InteractableUiItem
+enum UiItemType
 {
-    InteractableUiItemType type;
+    UI_ITEM_EDITBOX = 1,
+};
+
+struct InteractingItem
+{
     void* id;
-    InteractableUiItem *next_item;
+    InterationType type;
+};
+
+struct HotItem
+{
+    void* id;
+    UiItemType ui_item_type;
 };
 
 struct DebugMenu
@@ -32,9 +42,10 @@ struct DebugState
     RenderGroup render_group;
     RenderSetup render_setup;
 
-    InteractableUiItem hot_item;
-    InteractableUiItem next_hot_item;
-    InteractableUiItem interacting_item;
+    HotItem hot_item;
+    HotItem next_hot_item;
+    InteractingItem interacting_item;
+    InteractingItem first_interaction_check;
 
     SpriteHandle font_sprite_handle;
     stbtt_bakedchar char_metrics[NUM_ASCII];
@@ -44,13 +55,17 @@ struct DebugState
     vec2 draw_cursor;
     f32 cursor_start_x;
 
+    char text_fill_buffer[256];
+    char text_input_buffer[256];
+    u32 text_insert_index;
+
     f32 game_fps;
     vec2 mouse_pos;
     vec2 prev_mouse_pos;
 
     vec2 menu_pos;
     vec2 menu_size;
-    b8 same_line;
+    b8 is_newline;
 
     u32 current_menu_index;
     DebugMenu menus[32];

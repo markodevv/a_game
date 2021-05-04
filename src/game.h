@@ -13,6 +13,8 @@ struct ButtonState
     b8 is_down;
     b8 released;
     b8 pressed;
+
+    u8 repeat_count;
 };
 
 struct MouseInput
@@ -37,26 +39,35 @@ struct GameInput
             ButtonState pause_button;
             ButtonState left_mouse_button;
             ButtonState right_mouse_button;
+            ButtonState backspace;
+            ButtonState escape;
         };
-        ButtonState buttons[9];
+        ButtonState buttons[11];
     };
     MouseInput mouse;
     char character;
 };
 
-inline b8
+internal inline b8
 button_down(ButtonState button)
 {
     return button.is_down;
 }
 
-inline b8
+internal inline b8
+button_repeat(ButtonState button)
+{
+    DEBUG_PRINT("repeat count %i", button.repeat_count);
+    return (button.repeat_count > 0);
+}
+
+internal inline b8
 button_pressed(ButtonState button)
 {
     return button.pressed;
 }
 
-inline b8
+internal inline b8
 button_released(ButtonState button)
 {
     return button.released;
