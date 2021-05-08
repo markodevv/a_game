@@ -64,6 +64,14 @@ struct Sprite
     b8 loaded_to_gpu;
 };
 
+struct SubSprite
+{
+    SpriteHandle sprite_sheet;
+
+    vec2 uvs[6];
+};
+
+
 
 struct Mesh
 {
@@ -140,15 +148,6 @@ struct TexturedQuadsEntry
     u32 num_quads;
 };
 
-struct TexturedQuadEntry
-{
-    vec2 position;
-    vec2 size;
-    Color color;
-    SpriteHandle sprite;
-
-    u8 layer;
-};
 
 const f32 LAYER_BACK = 0.0f;
 const f32 LAYER_BACKMIDDLE = 0.5f;

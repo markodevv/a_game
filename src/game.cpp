@@ -27,6 +27,8 @@ typedef size_t sizet;
 #include <assimp/cimport.h>        // Plain-C interface
 #include <assimp/scene.h>          // Output data structure
 #include <assimp/postprocess.h>    // Post processing flags
+#include <stb_image.h>
+#include <stb_image_write.h>
 
 #include "log.h"
 #include "math.h"
@@ -38,6 +40,7 @@ typedef size_t sizet;
 #include "game.h"
 #include "render_group.cpp"
 #include "debug_ui.cpp"
+#include "asset_loading.cpp"
 
 
 // NOTE: Debug data
@@ -148,7 +151,7 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         // NOTE: needs to be first image loaded
         ASSERT(trans_state->assets.num_sprites == 0);
-        ren->white_sprite = platform->load_sprite(&trans_state->assets, "../assets/white.png");
+        ren->white_sprite = load_sprite(platform, &trans_state->assets, "../assets/white.png");
 
 
         memory->debug = PushMemory(&game_state->arena, DebugState);
@@ -179,9 +182,13 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
             DEBUG_PRINT("Failed to bake font map\n");
         }
 
-        game_state->minotaur_sprite = platform->load_sprite(&trans_state->assets, "../assets/minotaur.png");
-        game_state->hero_sprite = platform->load_sprite(&trans_state->assets, 
+        game_state->minotaur_sprite = load_sprite(platform, &trans_state->assets, "../assets/minotaur.png");
+        game_state->hero_sprite_sheet = load_sprite(platform, &trans_state->assets, 
         "C:/work/game/assets/platform_metroidvania asset pack v1.01/herochar sprites(new)/herochar_spritesheet(new).png");
+        game_state->hero_sprite= subsprite_from_spritesheet(&trans_state->assets,
+                                                                    game_state->hero_sprite_sheet,
+                                                                    0, 11,
+                                                                    16, 16);
 
         platform->init_renderer(game_state->renderer);
 
@@ -191,8 +198,8 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         Entity* player_ent = get_entity(game_state, player_entity_id);
 
         player_ent->transform.position = V2(100, 300);
-        player_ent->render.color = {120, 70, 0, 255};
-        player_ent->render.scale = V2(40, 80);
+        player_ent->render.color = COLOR(255);
+        player_ent->render.scale = V2(40, 40);
 
         u32 tile_map[10][19] = {
             {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -375,7 +382,7 @@ game_render(GameMemory* memory)
 
     Entity* entity = get_entity(game_state, game_state->player_entity_index);
     push_quad(&render_group, 
-              game_state->hero_sprite,
+              &game_state->hero_sprite,
               entity->transform.position, 
               entity->render.scale, 
               entity->render.color,

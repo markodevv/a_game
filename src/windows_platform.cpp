@@ -55,9 +55,6 @@ typedef size_t sizet;
 #include "opengl_renderer.h"
 #include "opengl_renderer.cpp"
 
-#include <stb_image.h>
-#include <stb_image_write.h>
-#include <stb_truetype.h>
 
 
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
@@ -664,6 +661,7 @@ win32_process_input_messages(GameInput* game_input)
 
 }
 
+
 internal b8 
 sprite_is_loaded(Assets* assets, char* sprite_name)
 {
@@ -675,34 +673,7 @@ sprite_is_loaded(Assets* assets, char* sprite_name)
     return false;
 }
 
-internal SpriteHandle
-stb_load_sprite(Assets* assets, char* sprite_path)
-{
-    FileResult file = read_entire_file(sprite_path);
-    Sprite* sprite = assets->sprites + assets->num_sprites;
-
-    u32 result = 0;
-
-    if (file.data)
-    {
-        stbi_set_flip_vertically_on_load(1);
-        sprite->data = stbi_load_from_memory((u8*)file.data,
-                                                 file.size,
-                                                 &sprite->width,
-                                                 &sprite->height, 
-                                                 &sprite->channels,
-                                                 0);
-
-        sprite->name = string_copy(&assets->arena, sprite_path);
-
-        free_file_memory(file.data);
-        result = assets->num_sprites++;
-    }
-
-    return result;
-
-}
-
+#if 0
 internal b8
 load_material_texture(Assets* assets,
                       Model* model,
@@ -748,6 +719,7 @@ load_material_texture(Assets* assets,
 
     return result;
 }
+#endif
 
 
 #if 0
@@ -948,7 +920,6 @@ WinMain(HINSTANCE hinstance,
     game_memory.platform.write_entire_file = write_entire_file;
     game_memory.platform.free_file_memory = free_file_memory;
     //game_memory.platform.load_3D_model = load_3D_model;
-    game_memory.platform.load_sprite = stb_load_sprite;
 
 // TODO: should be able to change graphics API on runtime
     game_memory.platform.init_renderer = opengl_init;

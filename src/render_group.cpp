@@ -153,6 +153,46 @@ push_quad(RenderGroup* group,
 
 internal void
 push_quad(RenderGroup* group, 
+          SubSprite* subsprite,
+          vec2 position, 
+          vec2 size, 
+          Color color, 
+          f32 layer)
+{
+    TexturedQuadsEntry* quads = get_current_quads(group, 1);
+    Renderer* ren = group->renderer;
+
+    add_sprite_to_setup(group->current_setup, subsprite->sprite_sheet);
+    Sprite* sprite_sheet = get_loaded_sprite(group->assets, subsprite->sprite_sheet);
+
+    vec2 rectangle_vertices[] =
+    {
+        {-0.5f, -0.5f},
+        {-0.5f,  0.5f},
+        { 0.5f,  0.5f},
+
+        {-0.5f, -0.5f},
+        { 0.5f, -0.5f},
+        { 0.5f,  0.5f},
+    };
+
+    position = position + (size/2);
+
+    VertexData* vertex = ren->vertices + ren->vertex_count;
+    for (sizet i = 0; i < 6; ++i)
+    {
+        vertex->position = V3(rectangle_vertices[i] * size + position, layer);
+        vertex->color = (color);
+        vertex->uv = subsprite->uvs[i];
+        vertex->texture_slot = (f32)sprite_sheet->slot;
+
+        ++vertex;
+    }
+    ren->vertex_count += 6;
+}
+
+internal void
+push_quad(RenderGroup* group, 
           SpriteHandle sprite_handle,
           vec2 positions[6], 
           vec2 uvs[6],

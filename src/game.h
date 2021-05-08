@@ -95,9 +95,6 @@ struct Platform
     ReadEntireFileProc* read_entire_file;
     FreeEntireFileProc* free_file_memory;
     WriteEntireFileProc* write_entire_file;
-    Load3DModelProc* load_3D_model;
-
-    LoadSpriteProc* load_sprite;
 
     RenderProc* init_renderer;
     EndDrawFrame* end_frame;
@@ -202,7 +199,8 @@ struct GameState
     i32 tone_volume;
 
     SpriteHandle minotaur_sprite;
-    SpriteHandle hero_sprite;
+    SubSprite hero_sprite;
+    SpriteHandle hero_sprite_sheet;
 
     u32 tile_map[19][10];
     u32 tile_size;
