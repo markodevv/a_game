@@ -77,7 +77,7 @@ safe_truncate_u64(u64 value)
 
 
 internal void
-DEBUG_free_file_memory(void* memory)
+free_file_memory(void* memory)
 {
     if (memory)
     {
@@ -86,7 +86,7 @@ DEBUG_free_file_memory(void* memory)
 }
 
 internal FileResult
-DEBUG_read_entire_file(char* file_name)
+read_entire_file(char* file_name)
 {
      FileResult result = {};
     
@@ -109,7 +109,7 @@ DEBUG_read_entire_file(char* file_name)
                 }
                 else
                 {                    
-                    DEBUG_free_file_memory(result.data);
+                    free_file_memory(result.data);
                     result.data = 0;
                 }
             }
@@ -135,7 +135,7 @@ DEBUG_read_entire_file(char* file_name)
 
 
 internal b8
-DEBUG_write_entire_file(char* file_name, i32 size, void* memory)
+write_entire_file(char* file_name, i32 size, void* memory)
 {
     b8 result = false;
     
@@ -336,7 +336,7 @@ struct Win32GameCode
     GameRender render;
 };
 
-Model DEBUG_load_3D_model(MemoryArena* arena, char* path);
+Model load_3D_model(MemoryArena* arena, char* path);
 
 internal Win32GameCode
 win32_load_game_code()
@@ -678,23 +678,28 @@ sprite_is_loaded(Assets* assets, char* sprite_name)
 internal SpriteHandle
 stb_load_sprite(Assets* assets, char* sprite_path)
 {
-    FileResult file = DEBUG_read_entire_file(sprite_path);
+    FileResult file = read_entire_file(sprite_path);
     Sprite* sprite = assets->sprites + assets->num_sprites;
 
-    stbi_set_flip_vertically_on_load(1);
-    sprite->data = stbi_load_from_memory((u8*)file.data,
-                                             file.size,
-                                             &sprite->width,
-                                             &sprite->height, 
-                                             &sprite->channels,
-                                             0);
+    u32 result = 0;
 
-    sprite->name = string_copy(&assets->arena, sprite_path);
+    if (file.data)
+    {
+        stbi_set_flip_vertically_on_load(1);
+        sprite->data = stbi_load_from_memory((u8*)file.data,
+                                                 file.size,
+                                                 &sprite->width,
+                                                 &sprite->height, 
+                                                 &sprite->channels,
+                                                 0);
 
-    DEBUG_free_file_memory(file.data);
-    ++assets->num_sprites;
+        sprite->name = string_copy(&assets->arena, sprite_path);
 
-    return (assets->num_sprites - 1);
+        free_file_memory(file.data);
+        result = assets->num_sprites++;
+    }
+
+    return result;
 
 }
 
@@ -745,8 +750,9 @@ load_material_texture(Assets* assets,
 }
 
 
+#if 0
 internal Model
-DEBUG_load_3D_model(Assets* assets, char* path)
+load_3D_model(Assets* assets, char* path)
 {
     const aiScene* scene = aiImportFile(path, aiProcess_CalcTangentSpace |
                                               aiProcess_Triangulate      |
@@ -851,6 +857,7 @@ DEBUG_load_3D_model(Assets* assets, char* path)
 
     return out;
 }
+#endif
 
 i32
 WinMain(HINSTANCE hinstance,
@@ -937,10 +944,10 @@ WinMain(HINSTANCE hinstance,
     ASSERT(game_memory.permanent_storage);
     ASSERT(game_memory.temporary_storage);
 
-    game_memory.platform.read_entire_file = DEBUG_read_entire_file;
-    game_memory.platform.write_entire_file = DEBUG_write_entire_file;
-    game_memory.platform.free_file_memory = DEBUG_free_file_memory;
-    game_memory.platform.load_3D_model = DEBUG_load_3D_model;
+    game_memory.platform.read_entire_file = read_entire_file;
+    game_memory.platform.write_entire_file = write_entire_file;
+    game_memory.platform.free_file_memory = free_file_memory;
+    //game_memory.platform.load_3D_model = load_3D_model;
     game_memory.platform.load_sprite = stb_load_sprite;
 
 // TODO: should be able to change graphics API on runtime

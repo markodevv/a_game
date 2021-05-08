@@ -150,10 +150,6 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         ASSERT(trans_state->assets.num_sprites == 0);
         ren->white_sprite = platform->load_sprite(&trans_state->assets, "../assets/white.png");
 
-        //ren->model = memory->load_3D_model(&ren->arena, "../assets/backpack/backpack.obj");
-        trans_state->assets.models[M_ID_DUMMY] = platform->load_3D_model(&trans_state->assets, "../assets/character/character.obj");
-        trans_state->assets.models[M_ID_ZOMBIE1] = platform->load_3D_model(&trans_state->assets, "../assets/zombies/obj/Zed_2.obj");
-
 
         memory->debug = PushMemory(&game_state->arena, DebugState);
         sub_arena(&game_state->arena, &memory->debug->arena, Megabytes(12));
@@ -184,6 +180,8 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         }
 
         game_state->minotaur_sprite = platform->load_sprite(&trans_state->assets, "../assets/minotaur.png");
+        game_state->hero_sprite = platform->load_sprite(&trans_state->assets, 
+        "C:/work/game/assets/platform_metroidvania asset pack v1.01/herochar sprites(new)/herochar_spritesheet(new).png");
 
         platform->init_renderer(game_state->renderer);
 
@@ -193,7 +191,7 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         Entity* player_ent = get_entity(game_state, player_entity_id);
 
         player_ent->transform.position = V2(100, 300);
-        player_ent->render.color = V4(0.5f, 0.1f, 0.0f, 1.0f);
+        player_ent->render.color = {120, 70, 0, 255};
         player_ent->render.scale = V2(40, 80);
 
         u32 tile_map[10][19] = {
@@ -224,7 +222,7 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
             entity->velocity = V2((f32)(seed % 500), 0);
 
             entity->render.scale = V2(10, 10);
-            entity->render.color = V4(0.1f, 0.6f, 0.2f, 1.0f);
+            entity->render.color = {100, 150, 70, 255};
         }
 
         game_state->tile_size = 40;
@@ -345,7 +343,7 @@ game_render(GameMemory* memory)
 
     TemporaryArena flush_memory = begin_temporary_memory(&tran_state->arena);
 
-    ren->vertices_2D = PushMemory(&tran_state->arena, VertexData2D, MAX_VERTICES);
+    ren->vertices = PushMemory(&tran_state->arena, VertexData, MAX_VERTICES);
 
     if (game_state->is_free_camera)
     {
@@ -375,14 +373,14 @@ game_render(GameMemory* memory)
                                                      ren, 
                                                      &tran_state->assets);
 
-    for (u32 i = 0; i < game_state->num_entities; ++i)
-    {
-        Entity* entity = get_entity(game_state, i);
-        push_quad(&render_group, 
-                  entity->transform.position, 
-                  entity->render.scale, 
-                  entity->render.color);
-    }
+    Entity* entity = get_entity(game_state, game_state->player_entity_index);
+    push_quad(&render_group, 
+              game_state->hero_sprite,
+              entity->transform.position, 
+              entity->render.scale, 
+              entity->render.color,
+              LAYER_BACK);
+
 
 #if 0
     for (u32 x = 0; x < 19; ++x)
@@ -405,10 +403,11 @@ game_render(GameMemory* memory)
         Entity* particle = get_entity(game_state, i+1);
         push_quad(&render_group, particle->transform.position,
                                  particle->render.scale,
-                                 particle->render.color);
+                                 particle->render.color,
+                                 LAYER_BACKMIDDLE);
     }
 
-    push_quad(&render_group, game_state->minotaur_sprite, V2(600, 200), V2(500, 500), V4(1.0f));
+    push_quad(&render_group, game_state->minotaur_sprite, V2(600, 200), V2(500, 500), {255, 255, 255, 255}, LAYER_BACK);
 
     debug_fps(memory->debug);
 
@@ -447,11 +446,19 @@ game_render(GameMemory* memory)
         {
             DEBUG_PRINT("button 2 clicked");
         }
+        local_persist i32 i;
+        DEBUG_PRINT("IS INT %d", is_integer((f32)i));
 
         debug_slider(memory->debug, -1000.0f, 1000.0f, &memory->debug->menu_pos.x, "menu x"); 
         debug_slider(memory->debug, -1000.0f, 1000.0f, &memory->debug->menu_pos.y, "menu y"); 
         local_persist f32 test = 0.0f;
         debug_editbox(memory->debug, &test, "test :)");
+        local_persist vec3 tmp = V3(1.0f, 0.3f, 1.0f);
+        local_persist vec4 tmp1 = V4(10.0f, 2.3f, 1.0f, 20.0f);
+        local_persist vec2 tmp2 = V2(10.0f, 2.3f);
+        DebugFloatEditbox(memory->debug, &tmp, "test vec0");
+        DebugFloatEditbox(memory->debug, &tmp1, "test vec1");
+        DebugFloatEditbox(memory->debug, &tmp2, "test vec2");
     }
     debug_menu_end(memory->debug);
 

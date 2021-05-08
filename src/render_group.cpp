@@ -59,7 +59,7 @@ get_current_quads(RenderGroup* group, u32 num_quads)
     {
         quads = PushRenderEntry(group, TexturedQuadsEntry);
         *quads = {};
-        quads->vertex_offset = group->renderer->vertex_count_2D;
+        quads->vertex_offset = group->renderer->vertex_count;
         quads->render_setup = group->current_setup;
         group->current_quads = quads;
     }
@@ -69,7 +69,7 @@ get_current_quads(RenderGroup* group, u32 num_quads)
 }
 
 internal void
-push_quad(RenderGroup* group, vec2 position, vec2 size, vec4 color)
+push_quad(RenderGroup* group, vec2 position, vec2 size, Color color, f32 layer)
 {
     TexturedQuadsEntry* quads = get_current_quads(group, 1);
     Renderer* ren = group->renderer;
@@ -87,21 +87,25 @@ push_quad(RenderGroup* group, vec2 position, vec2 size, vec4 color)
 
     position = position + (size/2);
 
-
-    VertexData2D* vertex = ren->vertices_2D + ren->vertex_count_2D;
+    VertexData* vertex = ren->vertices + ren->vertex_count;
     for (sizet i = 0; i < 6; ++i)
     {
-        vertex->position = rectangle_vertices[i] * size + position;
+        vertex->position = V3(rectangle_vertices[i] * size + position, layer);
         vertex->color = color;
         vertex->uv = {};
         vertex->texture_slot = 0;
         ++vertex;
     }
-    ren->vertex_count_2D += 6;
+    ren->vertex_count += 6;
 }
 
 internal void
-push_quad(RenderGroup* group, SpriteHandle sprite_handle, vec2 position, vec2 size, vec4 color)
+push_quad(RenderGroup* group, 
+          SpriteHandle sprite_handle,
+          vec2 position, 
+          vec2 size, 
+          Color color, 
+          f32 layer)
 {
     TexturedQuadsEntry* quads = get_current_quads(group, 1);
     Renderer* ren = group->renderer;
@@ -134,17 +138,17 @@ push_quad(RenderGroup* group, SpriteHandle sprite_handle, vec2 position, vec2 si
 
 
 
-    VertexData2D* vertex = ren->vertices_2D + ren->vertex_count_2D;
+    VertexData* vertex = ren->vertices + ren->vertex_count;
     for (sizet i = 0; i < 6; ++i)
     {
-        vertex->position = rectangle_vertices[i] * size + position;
-        vertex->color = color;
+        vertex->position = V3(rectangle_vertices[i] * size + position, layer);
+        vertex->color = (color);
         vertex->uv = uvs[i];
         vertex->texture_slot = (f32)sprite->slot;
 
         ++vertex;
     }
-    ren->vertex_count_2D += 6;
+    ren->vertex_count += 6;
 }
 
 internal void
@@ -152,7 +156,8 @@ push_quad(RenderGroup* group,
           SpriteHandle sprite_handle,
           vec2 positions[6], 
           vec2 uvs[6],
-          vec4 color)
+          Color color,
+          f32 layer)
 {
     Renderer* ren = group->renderer;
     TexturedQuadsEntry* quads = get_current_quads(group, 1);
@@ -160,18 +165,18 @@ push_quad(RenderGroup* group,
 
     Sprite* sprite = get_loaded_sprite(group->assets, sprite_handle);
 
-    VertexData2D* vertex = ren->vertices_2D + ren->vertex_count_2D;
+    VertexData* vertex = ren->vertices + ren->vertex_count;
 
     for (sizet i = 0; i < 6; ++i)
     {
-        vertex->position = positions[i];
-        vertex->color = color;
+        vertex->position = V3(positions[i], layer);
+        vertex->color = (color);
         vertex->uv = uvs[i];
         vertex->texture_slot = (f32)sprite->slot;
 
         ++vertex;
     }
-    ren->vertex_count_2D += 6;
+    ren->vertex_count += 6;
 }
 
 

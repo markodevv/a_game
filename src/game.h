@@ -161,7 +161,7 @@ struct Render
 {
     SpriteHandle sprite;
     vec2 scale;
-    vec4 color;
+    Color color;
 };
 
 enum EntityFlag
@@ -202,6 +202,7 @@ struct GameState
     i32 tone_volume;
 
     SpriteHandle minotaur_sprite;
+    SpriteHandle hero_sprite;
 
     u32 tile_map[19][10];
     u32 tile_size;

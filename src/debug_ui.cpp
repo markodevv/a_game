@@ -1,6 +1,6 @@
-global_variable vec4 ui_color = {0.1f, 0.1f, 0.1f, 1.0f};
-global_variable vec4 hover_color = {0.4f, 0.4f, 0.4f, 1.0f};
-global_variable vec4 clicked_color = {1.0f, 1.0f, 1.0f, 1.0f};
+global_variable Color ui_color = {50, 50, 50, 255};
+global_variable Color hover_color = {120, 120, 120, 255};
+global_variable Color clicked_color = {255, 255, 255, 255};
 #define PADDING 4.0f
 #define MAX_NAME_WIDTH 120
 
@@ -70,7 +70,7 @@ process_debug_ui_interactions(DebugState* debug, GameInput* input)
                         ++debug->text_insert_index;
                     }
                 }
-                if (button_repeat(input->backspace) &&
+                if (button_pressed(input->backspace) &&
                     debug->text_insert_index)
                 {
                         --debug->text_insert_index;
@@ -158,8 +158,11 @@ truncate_var_name(DebugState* debug, char* name)
 internal void
 fill_text_buffer(DebugState* debug, f32 value)
 {
-    sprintf(debug->text_input_buffer, "%f", value);
+    DEBUG_PRINT("%zu", ArrayCount(debug->text_input_buffer));
+    snprintf(debug->text_input_buffer, ArrayCount(debug->text_input_buffer), "%f", value);
     debug->text_insert_index = string_length(debug->text_input_buffer);
+    DEBUG_PRINT("value s%s", debug->text_input_buffer);
+    DEBUG_PRINT("value f%f", value);
 
     for (u32 i = debug->text_insert_index-1;;--i)
     {
@@ -181,7 +184,7 @@ debug_text(DebugState* debug,
            char* text,
            vec2 position,
            TextAlign align = TEXT_ALIGN_LEFT,
-           vec4 color = {1.0f, 1.0f, 1.0f, 1.0f})
+           Color color = {255, 255, 255, 255})
 {
     RenderGroup* group = &debug->render_group;
     if (align == TEXT_ALIGN_MIDDLE)
@@ -239,7 +242,7 @@ debug_text(DebugState* debug,
                 {q.s1, q.t1},
             };
 
-            push_quad(group, debug->font_sprite_handle, positions, uvs, color);
+            push_quad(group, debug->font_sprite_handle, positions, uvs, color, LAYER_MIDDLE);
         }
         text++;
     }
@@ -248,7 +251,7 @@ debug_text(DebugState* debug,
 internal void
 debug_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
 {
-    vec4 color = ui_color;
+    Color color = ui_color;
 
     if (is_interacting(debug, title))
     {
@@ -274,7 +277,7 @@ debug_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
         debug->next_hot_item.id = title;
     }
 
-    push_quad(&debug->render_group, position, size, color);
+    push_quad(&debug->render_group, position, size, color, LAYER_BACK);
     debug_text(debug, 
                title, 
                V2(position.x + (size.x / 2),
@@ -286,7 +289,7 @@ debug_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
 internal void
 debug_menu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
 {
-    vec4 color = ui_color;
+    Color color = ui_color;
 
     if (is_interacting(debug, title))
     {
@@ -311,7 +314,7 @@ debug_menu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
         debug->next_hot_item.id = title;
     }
 
-    push_quad(&debug->render_group, position, size, color);
+    push_quad(&debug->render_group, position, size, color, LAYER_BACK);
     debug_text(debug, 
                title, 
                V2(position.x + (size.x / 2),
@@ -329,7 +332,7 @@ debug_ui_begin(DebugState* debug, i32 screen_width, i32 screen_height, char* tit
 
     debug->draw_cursor = V2(0);
 
-    push_quad(&debug->render_group, debug->menu_pos, debug->menu_size, V4(0.5f));
+    push_quad(&debug->render_group, debug->menu_pos, debug->menu_size, {122, 122, 122, 122}, LAYER_BACK);
 
     debug_menu_titlebar(debug, titlebar_pos, titlebar_size, title);
 
@@ -361,7 +364,7 @@ debug_checkbox(DebugState* debug, b8* toggle_var, char* var_name)
 {
     RenderGroup* group = &debug->render_group;
 
-    vec2 size = V2(debug->font_size);
+    vec2 size = V2(20);
     debug_cursor_newline(debug, size.x, size.y);
     vec2 pos = debug->draw_cursor;
 
@@ -369,9 +372,9 @@ debug_checkbox(DebugState* debug, b8* toggle_var, char* var_name)
     debug_text(debug, var_name, V2(pos.x, pos.y + (size.y - debug->font_size)));
     pos.x += MAX_NAME_WIDTH;
 
-    push_quad(group, pos, size, ui_color);
+    push_quad(group, pos, size, ui_color, LAYER_BACK);
 
-    vec4 check_color = V4(0.5f, 0.5f, 0.5f, 1.0f);
+    Color check_color = {100, 100, 100, 255};
 
     if (is_interacting(debug, toggle_var))
     {
@@ -387,11 +390,15 @@ debug_checkbox(DebugState* debug, b8* toggle_var, char* var_name)
 
     if (*toggle_var)
     {
-        check_color *= 3.0f;
-        check_color.w = 1.0f;
+        check_color.r *= 2;
+        check_color.g *= 2;
+        check_color.b *= 2;
     }
 
-    push_quad(group, pos, size, check_color);
+    push_quad(group, pos, size, ui_color, LAYER_BACK);
+    size -= 8;
+    pos += 4;
+    push_quad(group, pos, size, check_color, LAYER_BACK);
 
     if (point_is_inside(debug->mouse_pos,
                         pos,
@@ -411,7 +418,7 @@ debug_button(DebugState* debug,
     debug_cursor_newline(debug, button_size.x, button_size.y);
 
     vec2 button_pos = debug->draw_cursor;
-    vec4 button_color = ui_color;
+    Color button_color = ui_color;
     b8 result = false;
 
 
@@ -426,7 +433,7 @@ debug_button(DebugState* debug,
     }
 
 
-    push_quad(group, button_pos, button_size, button_color);
+    push_quad(group, button_pos, button_size, button_color, LAYER_BACK);
     vec2 text_pos = V2(
         button_pos.x + (button_size.x / 2.0f),
         button_pos.y + (button_size.y / 4.0f)
@@ -444,16 +451,89 @@ debug_button(DebugState* debug,
     return result;
 }
 
+internal inline f32
+next_after(float a) 
+{
+    *(int*)&a += a < 0 ? -1 : 1;
+    return a;
+}
+
+internal b8 
+is_integer(f32 n)
+{
+    double int_part;
+    //DEBUG_PRINT("before n %f", n);
+    u64 i = *((u64*)&n);
+    i |= (1 << 0) | (1 << 1);
+    n = *((f32*)&i);
+
+   // DEBUG_PRINT("after n %f", n);
+    double fractpart = modf(n, &int_part);
+
+    return (!(fractpart > 0));
+}
+
 
 internal void
-debug_editbox(DebugState* debug, f32* value, char* var_name)
+draw_variable_value(DebugState* debug, vec2 pos, vec2 size, b8 is_interacting, void* var)
+{
+    b8 is_int = is_integer(*((f32*)var));
+
+    if (!is_interacting)
+    {
+        char text[32];
+        if (is_int)
+        {
+            snprintf(text, 32, "%d", *((i32*)(var)));
+        }
+        else
+        {
+            snprintf(text, 32, "%.2f", *((f32*)(var)));
+        }
+        debug_text(debug, text, V2(pos.x + (size.x / 2), 
+                                   pos.y + (size.y - debug->font_size)),
+                                TEXT_ALIGN_MIDDLE);
+    }
+    else
+    {
+        debug_text(debug, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font_size)));
+
+        debug->text_input_buffer[debug->text_insert_index] = '\0';
+
+        if (is_int)
+        {
+            *((i32*)var) = atoi(debug->text_input_buffer);
+        }
+        else
+        {
+            f64 temp = atof(debug->text_input_buffer);
+            f32 value = (f32)temp;
+            if ((f64)(value) < temp)
+            {
+                *((f32*)(var)) = nextafterf(value, FLT_MAX);
+            }
+        }
+
+        f32 cursor_x = pos.x + debug->x_advance * string_length(debug->text_input_buffer);
+        push_quad(&debug->render_group, V2(cursor_x, pos.y), V2(1, size.y), {255, 0, 0, 255}, LAYER_BACK);
+    }
+}
+
+internal void
+debug_editbox(DebugState* debug, f32* value, char* var_name, vec2 size = V2(240.0f, 20.0f))
 {
     RenderGroup* group = &debug->render_group;
 
-    vec2 size = V2(200.0f, 20.0f);
-    debug_cursor_newline(debug, size.x + MAX_NAME_WIDTH, size.y);
+    if (var_name)
+    {
+        debug_cursor_newline(debug, size.x + MAX_NAME_WIDTH, size.y);
+    }
+    else
+    {
+        debug_cursor_newline(debug, size.x, size.y);
+    }
     vec2 pos = debug->draw_cursor;
-    vec4 color = ui_color;
+    Color color = ui_color;
 
     b8 interacting = false;
 
@@ -466,36 +546,27 @@ debug_editbox(DebugState* debug, f32* value, char* var_name)
     }
     else if (is_hot(debug, value))
     {
-        color *= 3;
-        color.w = 1.0f;
+        color.r *= 2;
+        color.g *= 2;
+        color.b *= 2;
     }
 
-    truncate_var_name(debug, var_name);
-    debug_text(debug, var_name, V2(pos.x, pos.y + (size.y - debug->font_size)));
+
+    if (var_name)
+    {
+        truncate_var_name(debug, var_name);
+        debug_text(debug, var_name, V2(pos.x, pos.y + (size.y - debug->font_size)));
+    }
 
     pos.x += MAX_NAME_WIDTH;
-    push_quad(group, pos, size, color);
+    push_quad(group, pos, size, color, LAYER_BACK);
 
     if (is_first_interaction(debug, value))
     {
         fill_text_buffer(debug, *value);
     }
 
-    if (!interacting)
-    {
-        char text[32];
-        sprintf(text, "%.3f", *value);
-        debug_text(debug, text, V2(pos.x + (size.x / 2), 
-                                   pos.y + (size.y - debug->font_size)),
-                                TEXT_ALIGN_MIDDLE);
-    }
-    else
-    {
-        debug_text(debug, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font_size)));
-        *value = (f32)atof(debug->text_input_buffer);
-        f32 cursor_x = pos.x + debug->x_advance * string_length(debug->text_input_buffer);
-        push_quad(group, V2(cursor_x, pos.y), V2(1, size.y), V4(1.0f, 0.0f, 0.0f, 1.0f));
-    }
+    draw_variable_value(debug, pos, size, interacting, value);
 
     if (point_is_inside(debug->mouse_pos, pos, size))
     {
@@ -504,6 +575,22 @@ debug_editbox(DebugState* debug, f32* value, char* var_name)
     }
 }
 
+
+#define DebugFloatEditbox(debug, var, name) \
+    debug_vec_editbox(debug, var, (sizeof(*var)/sizeof(f32)), name);
+
+internal void
+debug_vec_editbox(DebugState* debug, void* v, u32 num_components, char* var_name)
+{
+    f32 total_width = 240.0f - ((num_components-1) * PADDING);
+    debug_editbox(debug, (f32*)v, var_name, V2(total_width/num_components, 20));
+
+    for (u32 i = 1; i < num_components; ++i)
+    {
+        debug_cursor_sameline(debug);
+        debug_editbox(debug, (((f32*)v)+i), 0, V2(total_width/num_components, 20));
+    }
+}
 
 internal void
 debug_slider(DebugState* debug, 
@@ -514,7 +601,7 @@ debug_slider(DebugState* debug,
 {
     RenderGroup* group = &debug->render_group;
 
-    vec2 bar_size = V2(200.0f, 20.0f);
+    vec2 bar_size = V2(240.0f, 20.0f);
     debug_cursor_newline(debug, bar_size.x + MAX_NAME_WIDTH, bar_size.y);
 
     vec2 pos = debug->draw_cursor;
@@ -532,14 +619,15 @@ debug_slider(DebugState* debug,
     f32 range = max - min;
 
 
-    vec4 button_color = V4(0.5f);
+    Color button_color = {255, 255, 255, 255};
 
     if (is_interacting(debug, value))
     {
         if (debug->interacting_item.type ==
             INTERACTION_TYPE_DRAG)
         {
-            button_color = V4(clicked_color.xyz, 0.5f);
+            button_color = clicked_color;
+            button_color.a /= 2;
             f32 slide_amount = (debug->mouse_pos.x - pos.x);
             slide_amount = CLAMP(slide_amount, 0.0f, bar_size.x - button_size.x);
 
@@ -550,19 +638,20 @@ debug_slider(DebugState* debug,
     }
     else if (is_hot(debug, value))
     {
-        button_color = V4(hover_color.xyz, 0.5f);
+        button_color = hover_color;
+        button_color.a /= 2;
     }
 
-    push_quad(group, pos, bar_size, ui_color);
+    push_quad(group, pos, bar_size, ui_color, LAYER_BACK);
 
 
     vec2 text_pos = V2(pos.x+(bar_size.x/2), pos.y + (bar_size.y - debug->font_size));
-    char *text = PushMemory(&debug->arena, char, 30);
-    sprintf_s(text, 30, "%.2f", *value);
+    char text[32];
+    snprintf(text, 32, "%.2f", *value);
     debug_text(debug, text, text_pos, TEXT_ALIGN_MIDDLE);
 
     button_position.x += (((*value)-min)/range) * (bar_size.x - button_size.x);
-    push_quad(group, button_position, button_size, button_color);
+    push_quad(group, button_position, button_size, button_color, LAYER_BACK);
 
     if (point_is_inside(debug->mouse_pos, button_position, button_size))
     {
@@ -600,7 +689,7 @@ internal b8
 debug_menu_begin(DebugState* debug, char* title)
 {
     RenderGroup* group = &debug->render_group;
-    vec4 color = ui_color;
+    Color color = ui_color;
 
 
     debug_submenu_titlebar(debug, 

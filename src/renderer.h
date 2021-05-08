@@ -1,6 +1,23 @@
 #if !defined(RENDERER_H)
 #define RENDERER_H
 
+struct Color
+{
+    u8 r, g, b, a;
+};
+
+internal inline Color
+COLOR(u8 r, u8 b, u8 g, u8 a)
+{
+    return {r, b, g, a};
+}
+
+internal inline Color
+COLOR(u8 n)
+{
+    return {n, n, n, n};
+}
+
 struct Material
 {
     vec3 ambient;
@@ -18,19 +35,12 @@ struct Light
     vec3 specular;
 };
 
+
 struct VertexData
 {
     vec3 position;
-    vec3 normal;
     vec2 uv;
-    f32 texture_id;
-};
-
-struct VertexData2D
-{
-    vec2 position;
-    vec2 uv;
-    vec4 color;
+    Color color;
     f32 texture_slot;
 };
 
@@ -130,6 +140,20 @@ struct TexturedQuadsEntry
     u32 num_quads;
 };
 
+struct TexturedQuadEntry
+{
+    vec2 position;
+    vec2 size;
+    Color color;
+    SpriteHandle sprite;
+
+    u8 layer;
+};
+
+const f32 LAYER_BACK = 0.0f;
+const f32 LAYER_BACKMIDDLE = 0.5f;
+const f32 LAYER_MIDDLE = 1.0f;
+
 struct RenderGroup
 {
     TexturedQuadsEntry* current_quads;
@@ -146,14 +170,11 @@ struct Renderer
     u32 push_buffer_size;
     u32 push_buffer_max_size;
 
-    i32 shader_program_3D;
-    u32 VBO, VAO;
-
-    VertexData2D* vertices_2D;
-    i32 shader_program_2D;
-    u32 vertex_count_2D;
-    u32 VBO_2D;
-    u32 VAO_2D;
+    VertexData* vertices;
+    i32 shader_program;
+    u32 vertex_count;
+    u32 VBO;
+    u32 VAO;
 
     u32 slot;
 
