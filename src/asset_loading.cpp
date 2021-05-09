@@ -38,12 +38,10 @@ subsprite_from_spritesheet(Assets* assets,
     f32 sheet_height = (f32)sprite_sheet->height;
 
     sub_sprite.sprite_sheet = sprite_sheet_handle;
-    sub_sprite.uvs[0] = V2((x*sprite_width)     / sheet_width, (y*sprite_height)     / sheet_height);
-    sub_sprite.uvs[1] = V2((x*sprite_width)     / sheet_width, ((y+1)*sprite_height) / sheet_height);
-    sub_sprite.uvs[2] = V2(((x+1)*sprite_width) / sheet_width, ((y+1)*sprite_height) / sheet_height);
-    sub_sprite.uvs[3] = V2((x*sprite_width)     / sheet_width, (y*sprite_height)     / sheet_height);
-    sub_sprite.uvs[4] = V2(((x+1)*sprite_width) / sheet_width, (y*sprite_height)     / sheet_height);
-    sub_sprite.uvs[5] = V2(((x+1)*sprite_width) / sheet_width, ((y+1)*sprite_height) / sheet_height);
+    sub_sprite.uvs[0] = V2(((x+1)*sprite_width) / sheet_width, ((y+1)*sprite_height) / sheet_height);
+    sub_sprite.uvs[1] = V2(((x+1)*sprite_width) / sheet_width, (y*sprite_height)     / sheet_height);
+    sub_sprite.uvs[2] = V2((x*sprite_width)     / sheet_width, (y*sprite_height)     / sheet_height);
+    sub_sprite.uvs[3] = V2((x*sprite_width)     / sheet_width, ((y+1)*sprite_height) / sheet_height);
 
     return sub_sprite;
 }

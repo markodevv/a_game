@@ -185,10 +185,12 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         game_state->minotaur_sprite = load_sprite(platform, &trans_state->assets, "../assets/minotaur.png");
         game_state->hero_sprite_sheet = load_sprite(platform, &trans_state->assets, 
         "C:/work/game/assets/platform_metroidvania asset pack v1.01/herochar sprites(new)/herochar_spritesheet(new).png");
-        game_state->hero_sprite= subsprite_from_spritesheet(&trans_state->assets,
+        game_state->hero_sprite = subsprite_from_spritesheet(&trans_state->assets,
                                                                     game_state->hero_sprite_sheet,
                                                                     0, 11,
                                                                     16, 16);
+        game_state->backgroud_sprite = load_sprite(platform, &trans_state->assets,
+                                                   "C:/work/game/assets/platform_metroidvania asset pack v1.01/tiles and background_foreground/background.png");
 
         platform->init_renderer(game_state->renderer);
 
@@ -348,10 +350,6 @@ game_render(GameMemory* memory)
 
 
 
-    TemporaryArena flush_memory = begin_temporary_memory(&tran_state->arena);
-
-    ren->vertices = PushMemory(&tran_state->arena, VertexData, MAX_VERTICES);
-
     if (game_state->is_free_camera)
     {
         game_state->render_setup.projection = mat4_perspective((f32)ren->screen_width, 
@@ -373,20 +371,23 @@ game_render(GameMemory* memory)
                                                       ren, 
                                                       &tran_state->assets);
 
-    memory->debug->render_setup.projection = mat4_orthographic((f32)ren->screen_width,
-                                                       (f32)ren->screen_height);
-    memory->debug->render_setup.camera = {{0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
-    memory->debug->render_group = render_group_begin(&memory->debug->render_setup,
-                                                     ren, 
-                                                     &tran_state->assets);
 
     Entity* entity = get_entity(game_state, game_state->player_entity_index);
+
+    push_quad(&render_group,
+              game_state->backgroud_sprite,
+              V2(0),
+              V2((f32)ren->screen_width,
+                 (f32)ren->screen_height),
+              COLOR(255),
+              LAYER_BACK);
+
     push_quad(&render_group, 
               &game_state->hero_sprite,
               entity->transform.position, 
               entity->render.scale, 
               entity->render.color,
-              LAYER_BACK);
+              LAYER_MID);
 
 
 #if 0
@@ -411,14 +412,15 @@ game_render(GameMemory* memory)
         push_quad(&render_group, particle->transform.position,
                                  particle->render.scale,
                                  particle->render.color,
-                                 LAYER_BACKMIDDLE);
+                                 LAYER_BACKMID);
     }
 
     push_quad(&render_group, game_state->minotaur_sprite, V2(600, 200), V2(500, 500), {255, 255, 255, 255}, LAYER_BACK);
 
-    debug_fps(memory->debug);
 
-    debug_ui_begin(memory->debug, ren->screen_width, ren->screen_height, "Debug UI");
+    debug_ui_begin(memory->debug, &tran_state->assets, ren, ren->screen_width, ren->screen_height, "Debug UI");
+
+    debug_fps(memory->debug);
 
     if (debug_menu_begin(memory->debug, "Main Menu"))
     {
@@ -471,7 +473,5 @@ game_render(GameMemory* memory)
 
     platform->end_frame(ren);
 
-
-    end_temporary_memory(&flush_memory);
 }
 

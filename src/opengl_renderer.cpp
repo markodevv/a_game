@@ -275,8 +275,7 @@ opengl_init(Renderer* ren)
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
     glEnableVertexAttribArray(1); 
 
-    // uv
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6*sizeof(f32)));
+    // uví*sizeof(f32)));
     glEnableVertexAttribArray(2); 
 
     // texture id
@@ -291,10 +290,18 @@ opengl_init(Renderer* ren)
 
     glGenVertexArrays(1, &ren->VAO);
     glGenBuffers(1, &ren->VBO);
+    glGenBuffers(1, &ren->EBO);
+
 
     glBindVertexArray(ren->VAO);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ren->EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * MAX_INDICES, NULL, GL_DYNAMIC_DRAW);
+
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * MAX_VERTICES, NULL, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * MAX_VERTICES, NULL, GL_DYNAMIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ren->EBO);
 
     u32 stride = sizeof(f32) * 6 + sizeof(u8) * 4;
 
@@ -321,10 +328,10 @@ opengl_init(Renderer* ren)
         i32 loc = opengl_get_uniform_location(ren->shader_program, texture_uniform_name);
         glUniform1i(loc, tex_id);
     }
-
-    glBindVertexArray(0);
     glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glBindVertexArray(0);
 }
 
 
@@ -412,6 +419,9 @@ opengl_draw_model(Renderer* ren, Model* model, vec3 position, vec3 size)
 internal void
 opengl_end_frame(Renderer* ren)
 {
+    glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
     local_persist i32 w, h;
     if (w != ren->screen_width || h != ren->screen_height)
     {
@@ -432,8 +442,6 @@ opengl_end_frame(Renderer* ren)
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, white_sprite->id);
 
-    glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
     u32 header_size = sizeof(RenderEntryHeader);
     u32 last_quads_offset = 0;
@@ -470,18 +478,27 @@ opengl_end_frame(Renderer* ren)
                 i32 vp_loc = opengl_get_uniform_location(ren->shader_program, "u_viewproj");
                 mat4 viewproj = setup->projection * 
                                 camera_transform(&setup->camera);
-                u32 num_vertices = quads->num_quads * 6;
-                u32 size = num_vertices * sizeof(VertexData);
-                u32 offset = quads->vertex_offset;
+                u32 num_vertices = quads->num_quads * VERTICES_PER_QUAD;
+                u32 num_indices = quads->num_quads * INDICES_PER_QUAD;
+
+                u32 vertices_size = num_vertices * sizeof(VertexData);
+                u32 indices_size = num_indices * sizeof(u32);
+
+                u32 vertex_offset = quads->vertex_offset;
+                u32 index_offset = quads->index_offset;
 
                 glUniformMatrix4fv(vp_loc, 1, true, (f32*)viewproj.data);
 
+
                 glBindVertexArray(ren->VAO);
-                glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
+                //glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
 
+                glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indices_size, ren->indices + index_offset); 
+                glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, ren->vertices + vertex_offset); 
 
-                glBufferSubData(GL_ARRAY_BUFFER, 0, size, ren->vertices+ offset); 
-                glDrawArrays(GL_TRIANGLES, 0, num_vertices);
+                glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, 0);
+                //glDrawArrays(GL_TRIANGLES, 0, num_vertices);
+                //glDeleteBuffers(1, &ren->EBO);
 
                 base_offset += sizeof(TexturedQuadsEntry) + header_size;
             } break;
@@ -494,7 +511,8 @@ opengl_end_frame(Renderer* ren)
     }
 
     ren->push_buffer_size = 0;
-    ren->vertex_count= 0;
+    ren->vertex_count = 0;
+    ren->indices_count = 0;
 
 }
 #if 0

@@ -68,7 +68,7 @@ struct SubSprite
 {
     SpriteHandle sprite_sheet;
 
-    vec2 uvs[6];
+    vec2 uvs[4];
 };
 
 
@@ -116,6 +116,9 @@ camera_transform(Camera* cam)
 
 
 #define MAX_VERTICES 10000
+#define MAX_INDICES 15000
+#define VERTICES_PER_QUAD 4
+#define INDICES_PER_QUAD 6
 #define NUM_ASCII 96
 
 struct Renderer;
@@ -145,13 +148,23 @@ struct TexturedQuadsEntry
 {
     RenderSetup* render_setup;
     u32 vertex_offset;
+    u32 index_offset;
     u32 num_quads;
 };
 
 
-const f32 LAYER_BACK = 0.0f;
-const f32 LAYER_BACKMIDDLE = 0.5f;
-const f32 LAYER_MIDDLE = 1.0f;
+const f32 LAYER_BACK = 1.0f;
+const f32 LAYER_BACKMID = 0.75;
+const f32 LAYER_MID= 0.5f;
+const f32 LAYER_MIDFRONT = 0.25;
+
+const f32 UI_LAYER_BACK = 0.20f;
+const f32 UI_LAYER_BACKMID = 0.17f;
+const f32 UI_LAYER_MID = 0.12f;
+const f32 UI_LAYER_MIDFRONT = 0.7f;
+const f32 UI_LAYER_FRONT = 0.2f;
+
+const f32 LAYER_FRONT = 0.0f;
 
 struct RenderGroup
 {
@@ -169,10 +182,14 @@ struct Renderer
     u32 push_buffer_size;
     u32 push_buffer_max_size;
 
-    VertexData* vertices;
-    i32 shader_program;
+    VertexData vertices[MAX_VERTICES];
     u32 vertex_count;
+    u32 indices[MAX_INDICES];
+    u32 indices_count;
+
+    i32 shader_program;
     u32 VBO;
+    u32 EBO;
     u32 VAO;
 
     u32 slot;

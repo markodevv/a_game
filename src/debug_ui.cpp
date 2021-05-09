@@ -118,6 +118,32 @@ process_debug_ui_interactions(DebugState* debug, GameInput* input)
     debug->mouse_pos = input->mouse.position;
 }
 
+enum TextAlign
+{
+    TEXT_ALIGN_MIDDLE,
+    TEXT_ALIGN_LEFT,
+};
+
+
+internal vec2
+text_box_size(DebugState* debug, char* text)
+{
+    vec2 out = {};
+    while(*text)
+    {
+        if (*text >= 32 && *text <= 128)
+        {
+            i32 index = *text-32;
+            stbtt_bakedchar* b = debug->char_metrics + index;
+            out.x += b->xadvance;
+        }
+        text++;
+    }
+    out.y = debug->font_size;
+
+    return out;
+}
+
 internal inline void
 debug_cursor_sameline(DebugState* debug)
 {
@@ -224,25 +250,21 @@ debug_text(DebugState* debug,
 
             vec2 positions[] =
             {
-                {q.x0, q.y0},
-                {q.x0, q.y1},
-                {q.x1, q.y1},
-                {q.x0, q.y0},
                 {q.x1, q.y1},
                 {q.x1, q.y0},
+                {q.x0, q.y0},
+                {q.x0, q.y1},
             };
 
             vec2 uvs[] =
             {
-                {q.s0, q.t1},
-                {q.s0, q.t0},
-                {q.s1, q.t0},
-                {q.s0, q.t1},
-                {q.s1, q.t0},
                 {q.s1, q.t1},
+                {q.s1, q.t0},
+                {q.s0, q.t0},
+                {q.s0, q.t1},
             };
 
-            push_quad(group, debug->font_sprite_handle, positions, uvs, color, LAYER_MIDDLE);
+            push_quad(group, debug->font_sprite_handle, positions, uvs, color);
         }
         text++;
     }
@@ -277,7 +299,7 @@ debug_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
         debug->next_hot_item.id = title;
     }
 
-    push_quad(&debug->render_group, position, size, color, LAYER_BACK);
+    push_quad(&debug->render_group, position, size, color, UI_LAYER_BACKMID);
     debug_text(debug, 
                title, 
                V2(position.x + (size.x / 2),
@@ -314,7 +336,7 @@ debug_menu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
         debug->next_hot_item.id = title;
     }
 
-    push_quad(&debug->render_group, position, size, color, LAYER_BACK);
+    push_quad(&debug->render_group, position, size, color, UI_LAYER_BACKMID);
     debug_text(debug, 
                title, 
                V2(position.x + (size.x / 2),
@@ -324,15 +346,22 @@ debug_menu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
 }
 
 internal void
-debug_ui_begin(DebugState* debug, i32 screen_width, i32 screen_height, char* title)
+debug_ui_begin(DebugState* debug, Assets* assets, Renderer* ren, i32 screen_width, i32 screen_height, char* title)
 {
+    debug->render_setup.projection = mat4_orthographic((f32)ren->screen_width,
+                                                       (f32)ren->screen_height);
+    debug->render_setup.camera = {{0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
+    debug->render_group = render_group_begin(&debug->render_setup,
+                                             ren, 
+                                             assets);
+
     debug->menu_size = V2((f32)400, (f32)screen_height);
     vec2 titlebar_pos = debug->menu_pos + V2(0, screen_height - debug->font_size);
     vec2 titlebar_size = V2((f32)400, debug->font_size);
 
     debug->draw_cursor = V2(0);
 
-    push_quad(&debug->render_group, debug->menu_pos, debug->menu_size, {122, 122, 122, 122}, LAYER_BACK);
+    //push_quad(&debug->render_group, debug->menu_pos, debug->menu_size, {122, 122, 122, 122}, UI_LAYER_BACKMID);
 
     debug_menu_titlebar(debug, titlebar_pos, titlebar_size, title);
 
@@ -372,7 +401,7 @@ debug_checkbox(DebugState* debug, b8* toggle_var, char* var_name)
     debug_text(debug, var_name, V2(pos.x, pos.y + (size.y - debug->font_size)));
     pos.x += MAX_NAME_WIDTH;
 
-    push_quad(group, pos, size, ui_color, LAYER_BACK);
+    push_quad(group, pos, size, ui_color, UI_LAYER_BACKMID);
 
     Color check_color = {100, 100, 100, 255};
 
@@ -395,10 +424,10 @@ debug_checkbox(DebugState* debug, b8* toggle_var, char* var_name)
         check_color.b *= 2;
     }
 
-    push_quad(group, pos, size, ui_color, LAYER_BACK);
+    push_quad(group, pos, size, ui_color, UI_LAYER_BACKMID);
     size -= 8;
     pos += 4;
-    push_quad(group, pos, size, check_color, LAYER_BACK);
+    push_quad(group, pos, size, check_color, UI_LAYER_BACKMID);
 
     if (point_is_inside(debug->mouse_pos,
                         pos,
@@ -433,7 +462,7 @@ debug_button(DebugState* debug,
     }
 
 
-    push_quad(group, button_pos, button_size, button_color, LAYER_BACK);
+    push_quad(group, button_pos, button_size, button_color, UI_LAYER_BACKMID);
     vec2 text_pos = V2(
         button_pos.x + (button_size.x / 2.0f),
         button_pos.y + (button_size.y / 4.0f)
@@ -515,7 +544,7 @@ draw_variable_value(DebugState* debug, vec2 pos, vec2 size, b8 is_interacting, v
         }
 
         f32 cursor_x = pos.x + debug->x_advance * string_length(debug->text_input_buffer);
-        push_quad(&debug->render_group, V2(cursor_x, pos.y), V2(1, size.y), {255, 0, 0, 255}, LAYER_BACK);
+        push_quad(&debug->render_group, V2(cursor_x, pos.y), V2(1, size.y), {255, 0, 0, 255}, UI_LAYER_BACKMID);
     }
 }
 
@@ -559,7 +588,7 @@ debug_editbox(DebugState* debug, f32* value, char* var_name, vec2 size = V2(240.
     }
 
     pos.x += MAX_NAME_WIDTH;
-    push_quad(group, pos, size, color, LAYER_BACK);
+    push_quad(group, pos, size, color, UI_LAYER_BACKMID);
 
     if (is_first_interaction(debug, value))
     {
@@ -642,7 +671,7 @@ debug_slider(DebugState* debug,
         button_color.a /= 2;
     }
 
-    push_quad(group, pos, bar_size, ui_color, LAYER_BACK);
+    push_quad(group, pos, bar_size, ui_color, UI_LAYER_BACKMID);
 
 
     vec2 text_pos = V2(pos.x+(bar_size.x/2), pos.y + (bar_size.y - debug->font_size));
@@ -651,7 +680,7 @@ debug_slider(DebugState* debug,
     debug_text(debug, text, text_pos, TEXT_ALIGN_MIDDLE);
 
     button_position.x += (((*value)-min)/range) * (bar_size.x - button_size.x);
-    push_quad(group, button_position, button_size, button_color, LAYER_BACK);
+    push_quad(group, button_position, button_size, button_color, UI_LAYER_BACKMID);
 
     if (point_is_inside(debug->mouse_pos, button_position, button_size))
     {

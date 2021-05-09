@@ -1,6 +1,10 @@
 #define PushRenderEntry(group, type) \
 (type *)push_render_entry(group, sizeof(type), RENDER_ENTRY_##type) \
 
+u32 Quad_Indices[] = {
+    0, 1, 3,
+    1, 2, 3,
+};
 
 internal RenderGroup 
 render_group_begin(RenderSetup* render_setup, Renderer* ren, Assets* assets)
@@ -60,7 +64,9 @@ get_current_quads(RenderGroup* group, u32 num_quads)
         quads = PushRenderEntry(group, TexturedQuadsEntry);
         *quads = {};
         quads->vertex_offset = group->renderer->vertex_count;
+        quads->index_offset = group->renderer->indices_count;
         quads->render_setup = group->current_setup;
+
         group->current_quads = quads;
     }
     quads->num_quads += num_quads;
@@ -68,35 +74,52 @@ get_current_quads(RenderGroup* group, u32 num_quads)
     return quads;
 }
 
-internal void
-push_quad(RenderGroup* group, vec2 position, vec2 size, Color color, f32 layer)
+
+internal inline void 
+write_quad(RenderGroup* group,
+           SpriteHandle sprite_handle, 
+           vec2 positions[4],
+           vec2 uvs[4],
+           Color color)
 {
-    TexturedQuadsEntry* quads = get_current_quads(group, 1);
+    Sprite* sprite = get_loaded_sprite(group->assets, sprite_handle);
     Renderer* ren = group->renderer;
 
-    vec2 rectangle_vertices[] =
-    {
-        {-0.5f, -0.5f},
-        {-0.5f,  0.5f},
-        { 0.5f,  0.5f},
-
-        {-0.5f, -0.5f},
-        { 0.5f, -0.5f},
-        { 0.5f,  0.5f},
-    };
-
-    position = position + (size/2);
-
     VertexData* vertex = ren->vertices + ren->vertex_count;
-    for (sizet i = 0; i < 6; ++i)
+    u32* index = ren->indices + ren->indices_count;
+
+    for (u32 i = 0; i < VERTICES_PER_QUAD; ++i)
     {
-        vertex->position = V3(rectangle_vertices[i] * size + position, layer);
+        vertex->position = V3(positions[i], 0.0f);
         vertex->color = color;
-        vertex->uv = {};
-        vertex->texture_slot = 0;
+        vertex->uv = uvs[i];
+        vertex->texture_slot = (f32)sprite->slot;
+
         ++vertex;
+
     }
-    ren->vertex_count += 6;
+
+    for (u32 i = 0; i < INDICES_PER_QUAD; ++i)
+    {
+        *index = ren->vertex_count + Quad_Indices[i];
+        ++index;
+    }
+
+
+    ren->vertex_count += VERTICES_PER_QUAD;
+    ren->indices_count += INDICES_PER_QUAD;
+}
+
+internal void
+push_quad(RenderGroup* group, 
+          SpriteHandle sprite_handle,
+          vec2 positions[4], 
+          vec2 uvs[4],
+          Color color)
+{
+    TexturedQuadsEntry* quads = get_current_quads(group, 1);
+
+    write_quad(group, sprite_handle, positions, uvs, color);
 }
 
 internal void
@@ -111,45 +134,27 @@ push_quad(RenderGroup* group,
     Renderer* ren = group->renderer;
 
     add_sprite_to_setup(group->current_setup, sprite_handle);
-    Sprite* sprite = get_loaded_sprite(group->assets, sprite_handle);
 
-    vec2 rectangle_vertices[] =
+
+    vec2 positions[] =
     {
-        {-0.5f, -0.5f},
-        {-0.5f,  0.5f},
-        { 0.5f,  0.5f},
-
-        {-0.5f, -0.5f},
-        { 0.5f, -0.5f},
-        { 0.5f,  0.5f},
+        V2(1.0f,  1.0f) * size + position, // top right
+        V2(1.0f,  0.0f) * size + position, // bottom right
+        V2(0.0f,  0.0f) * size + position, // bottom left
+        V2(0.0f,  1.0f) * size + position, // top left
     };
 
     vec2 uvs[] = {
-        { 0.0f, 0.0f},
-        { 0.0f, 1.0f},
-        { 1.0f, 1.0f},
-
-        { 0.0f, 0.0f},
-        { 1.0f, 0.0f},
-        { 1.0f, 1.0f},
+        V2(1.0f, 1.0f),
+        V2(1.0f, 0.0f),
+        V2(0.0f, 0.0f),
+        V2(0.0f, 1.0f),
     };
 
-    position = position + (size/2);
-
-
-
-    VertexData* vertex = ren->vertices + ren->vertex_count;
-    for (sizet i = 0; i < 6; ++i)
-    {
-        vertex->position = V3(rectangle_vertices[i] * size + position, layer);
-        vertex->color = (color);
-        vertex->uv = uvs[i];
-        vertex->texture_slot = (f32)sprite->slot;
-
-        ++vertex;
-    }
-    ren->vertex_count += 6;
+    write_quad(group, sprite_handle, positions, uvs, color);
 }
+
+
 
 internal void
 push_quad(RenderGroup* group, 
@@ -165,59 +170,19 @@ push_quad(RenderGroup* group,
     add_sprite_to_setup(group->current_setup, subsprite->sprite_sheet);
     Sprite* sprite_sheet = get_loaded_sprite(group->assets, subsprite->sprite_sheet);
 
-    vec2 rectangle_vertices[] =
+    vec2 positions[] =
     {
-        {-0.5f, -0.5f},
-        {-0.5f,  0.5f},
-        { 0.5f,  0.5f},
-
-        {-0.5f, -0.5f},
-        { 0.5f, -0.5f},
-        { 0.5f,  0.5f},
+        V2(1.0f,  1.0f) * size + position, // top right
+        V2(1.0f,  0.0f) * size + position, // bottom right
+        V2(0.0f,  0.0f) * size + position, // bottom left
+        V2(0.0f,  1.0f) * size + position, // top left
     };
 
-    position = position + (size/2);
-
-    VertexData* vertex = ren->vertices + ren->vertex_count;
-    for (sizet i = 0; i < 6; ++i)
-    {
-        vertex->position = V3(rectangle_vertices[i] * size + position, layer);
-        vertex->color = (color);
-        vertex->uv = subsprite->uvs[i];
-        vertex->texture_slot = (f32)sprite_sheet->slot;
-
-        ++vertex;
-    }
-    ren->vertex_count += 6;
+    write_quad(group, subsprite->sprite_sheet, positions, subsprite->uvs, color);
 }
 
 internal void
-push_quad(RenderGroup* group, 
-          SpriteHandle sprite_handle,
-          vec2 positions[6], 
-          vec2 uvs[6],
-          Color color,
-          f32 layer)
+push_quad(RenderGroup* group, vec2 position, vec2 size, Color color, f32 layer)
 {
-    Renderer* ren = group->renderer;
-    TexturedQuadsEntry* quads = get_current_quads(group, 1);
-    add_sprite_to_setup(group->current_setup, sprite_handle);
-
-    Sprite* sprite = get_loaded_sprite(group->assets, sprite_handle);
-
-    VertexData* vertex = ren->vertices + ren->vertex_count;
-
-    for (sizet i = 0; i < 6; ++i)
-    {
-        vertex->position = V3(positions[i], layer);
-        vertex->color = (color);
-        vertex->uv = uvs[i];
-        vertex->texture_slot = (f32)sprite->slot;
-
-        ++vertex;
-    }
-    ren->vertex_count += 6;
+    push_quad(group, 0, position, size, color, layer);
 }
-
-
-

@@ -201,6 +201,7 @@ struct GameState
     SpriteHandle minotaur_sprite;
     SubSprite hero_sprite;
     SpriteHandle hero_sprite_sheet;
+    SpriteHandle backgroud_sprite;
 
     u32 tile_map[19][10];
     u32 tile_size;
