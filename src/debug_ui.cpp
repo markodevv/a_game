@@ -250,10 +250,10 @@ debug_text(DebugState* debug,
 
             vec2 positions[] =
             {
-                {q.x1, q.y1},
                 {q.x1, q.y0},
-                {q.x0, q.y0},
+                {q.x1, q.y1},
                 {q.x0, q.y1},
+                {q.x0, q.y0},
             };
 
             vec2 uvs[] =

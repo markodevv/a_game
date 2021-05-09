@@ -118,6 +118,7 @@ push_quad(RenderGroup* group,
           Color color)
 {
     TexturedQuadsEntry* quads = get_current_quads(group, 1);
+    add_sprite_to_setup(group->current_setup, sprite_handle);
 
     write_quad(group, sprite_handle, positions, uvs, color);
 }

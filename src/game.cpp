@@ -367,13 +367,14 @@ game_render(GameMemory* memory)
         game_state->render_setup.projection = mat4_orthographic((f32)ren->screen_width, 
                                                                 (f32)ren->screen_height);
     }
+
     RenderGroup render_group = render_group_begin(&game_state->render_setup,
                                                       ren, 
                                                       &tran_state->assets);
 
-
     Entity* entity = get_entity(game_state, game_state->player_entity_index);
 
+#if 0
     push_quad(&render_group,
               game_state->backgroud_sprite,
               V2(0),
@@ -389,6 +390,7 @@ game_render(GameMemory* memory)
               entity->render.color,
               LAYER_MID);
 
+#endif
 
 #if 0
     for (u32 x = 0; x < 19; ++x)
@@ -404,7 +406,6 @@ game_render(GameMemory* memory)
             }
         }
     }
-#endif
 
     for (u32 i = 0; i < 10; ++i)
     {
@@ -417,6 +418,7 @@ game_render(GameMemory* memory)
 
     push_quad(&render_group, game_state->minotaur_sprite, V2(600, 200), V2(500, 500), {255, 255, 255, 255}, LAYER_BACK);
 
+#endif
 
     debug_ui_begin(memory->debug, &tran_state->assets, ren, ren->screen_width, ren->screen_height, "Debug UI");
 
