@@ -63,10 +63,11 @@ get_current_quads(RenderGroup* group, u32 num_quads)
     {
         quads = PushRenderEntry(group, TexturedQuadsEntry);
         *quads = {};
+
         quads->vertex_offset = group->renderer->vertex_count;
         quads->index_offset = group->renderer->indices_count;
-        quads->render_setup = group->current_setup;
 
+        quads->render_setup = group->current_setup;
         group->current_quads = quads;
     }
     quads->num_quads += num_quads;
@@ -101,7 +102,8 @@ write_quad(RenderGroup* group,
 
     for (u32 i = 0; i < INDICES_PER_QUAD; ++i)
     {
-        *index = ren->vertex_count + Quad_Indices[i];
+        *index = ((group->current_quads->num_quads-1) * VERTICES_PER_QUAD) + Quad_Indices[i];
+        // *index = ren->vertex_count + Quad_Indices[i];
         ++index;
     }
 

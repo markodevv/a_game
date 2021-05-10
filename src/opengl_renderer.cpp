@@ -41,7 +41,7 @@ void main()
     highp int index = int(tex_id);
     if (index == 0)
     {
-        frag_color = color * texture(u_textures[0], uv);
+        frag_color = color;
     }
     else if (index == 1)
     {
@@ -54,6 +54,10 @@ void main()
     else if (index == 3)
     {
         frag_color = color * texture(u_textures[3], uv);
+    }
+    else if (index == 4)
+    {
+        frag_color = color * texture(u_textures[4], uv);
     }
 }
 
@@ -481,11 +485,12 @@ opengl_end_frame(Renderer* ren)
                 u32 num_vertices = quads->num_quads * VERTICES_PER_QUAD;
                 u32 num_indices = quads->num_quads * INDICES_PER_QUAD;
 
-                u32 vertices_size = num_vertices * sizeof(VertexData);
-                u32 indices_size = num_indices * sizeof(u32);
 
                 u32 vertex_offset = quads->vertex_offset;
                 u32 index_offset = quads->index_offset;
+
+                u32 vertices_size = num_vertices * sizeof(VertexData);
+                u32 indices_size = num_indices * sizeof(u32);
 
                 glUniformMatrix4fv(vp_loc, 1, true, (f32*)viewproj.data);
 
@@ -493,8 +498,8 @@ opengl_end_frame(Renderer* ren)
                 glBindVertexArray(ren->VAO);
                 //glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
 
-                glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indices_size, ren->indices + index_offset); 
-                glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, ren->vertices + vertex_offset); 
+                glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indices_size, (ren->indices + index_offset)); 
+                glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, (ren->vertices + vertex_offset)); 
 
                 glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, 0);
                 //glDrawArrays(GL_TRIANGLES, 0, num_vertices);

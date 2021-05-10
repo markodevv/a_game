@@ -374,7 +374,6 @@ game_render(GameMemory* memory)
 
     Entity* entity = get_entity(game_state, game_state->player_entity_index);
 
-#if 0
     push_quad(&render_group,
               game_state->backgroud_sprite,
               V2(0),
@@ -390,9 +389,18 @@ game_render(GameMemory* memory)
               entity->render.color,
               LAYER_MID);
 
-#endif
+    for (u32 i = 0; i < 10; ++i)
+    {
+        Entity* particle = get_entity(game_state, i+1);
+        push_quad(&render_group, particle->transform.position,
+                                 particle->render.scale,
+                                 particle->render.color,
+                                 LAYER_BACKMID);
+    }
 
+    push_quad(&render_group, game_state->minotaur_sprite, V2(600, 200), V2(500, 500), {255, 255, 255, 255}, LAYER_BACK);
 #if 0
+
     for (u32 x = 0; x < 19; ++x)
     {
         for (u32 y = 0; y < 10; ++y)
@@ -406,19 +414,9 @@ game_render(GameMemory* memory)
             }
         }
     }
-
-    for (u32 i = 0; i < 10; ++i)
-    {
-        Entity* particle = get_entity(game_state, i+1);
-        push_quad(&render_group, particle->transform.position,
-                                 particle->render.scale,
-                                 particle->render.color,
-                                 LAYER_BACKMID);
-    }
-
-    push_quad(&render_group, game_state->minotaur_sprite, V2(600, 200), V2(500, 500), {255, 255, 255, 255}, LAYER_BACK);
-
 #endif
+
+
 
     debug_ui_begin(memory->debug, &tran_state->assets, ren, ren->screen_width, ren->screen_height, "Debug UI");
 
