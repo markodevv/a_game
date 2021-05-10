@@ -1,9 +1,16 @@
 global_variable Color ui_color = {50, 50, 50, 255};
 global_variable Color hover_color = {120, 120, 120, 255};
 global_variable Color clicked_color = {255, 255, 255, 255};
+
 #define PADDING 4.0f
 #define MAX_NAME_WIDTH 120
 
+// NOTE: macros below only work with 32bit seperated components
+#define DebugFloatEditbox(debug, var, name) \
+    debug_generic_editbox(debug, var, DEBUG_VAR_FLOAT, (sizeof(*var)/sizeof(f32)), name);
+
+#define DebugIntEditbox(debug, var, name) \
+    debug_generic_editbox(debug, var, DEBUG_VAR_INT, (sizeof(*var)/sizeof(i32)), name);
 
 internal b8
 is_hot(DebugState* debug, void* id)
@@ -184,11 +191,11 @@ truncate_var_name(DebugState* debug, char* name)
 internal void
 fill_text_buffer(DebugState* debug, f32 value)
 {
-    DEBUG_PRINT("%zu", ArrayCount(debug->text_input_buffer));
-    snprintf(debug->text_input_buffer, ArrayCount(debug->text_input_buffer), "%f", value);
+    snprintf(debug->text_input_buffer, 
+             ArrayCount(debug->text_input_buffer), 
+             "%f",
+             value);
     debug->text_insert_index = string_length(debug->text_input_buffer);
-    DEBUG_PRINT("value s%s", debug->text_input_buffer);
-    DEBUG_PRINT("value f%f", value);
 
     for (u32 i = debug->text_insert_index-1;;--i)
     {
@@ -202,6 +209,17 @@ fill_text_buffer(DebugState* debug, f32 value)
         }
     }
 
+    debug->text_input_buffer[debug->text_insert_index] = '\0';
+}
+
+internal void
+fill_text_buffer(DebugState* debug, i32 value)
+{
+    snprintf(debug->text_input_buffer, 
+             ArrayCount(debug->text_input_buffer), 
+             "%d",
+             value);
+    debug->text_insert_index = string_length(debug->text_input_buffer);
     debug->text_input_buffer[debug->text_insert_index] = '\0';
 }
 
@@ -480,76 +498,64 @@ debug_button(DebugState* debug,
     return result;
 }
 
-internal inline f32
-next_after(float a) 
+enum DebugVariableType
 {
-    *(int*)&a += a < 0 ? -1 : 1;
-    return a;
-}
-
-internal b8 
-is_integer(f32 n)
-{
-    double int_part;
-    //DEBUG_PRINT("before n %f", n);
-    u64 i = *((u64*)&n);
-    i |= (1 << 0) | (1 << 1);
-    n = *((f32*)&i);
-
-   // DEBUG_PRINT("after n %f", n);
-    double fractpart = modf(n, &int_part);
-
-    return (!(fractpart > 0));
-}
-
+    DEBUG_VAR_FLOAT,
+    DEBUG_VAR_INT,
+};
 
 internal void
-draw_variable_value(DebugState* debug, vec2 pos, vec2 size, b8 is_interacting, void* var)
+draw_variabe(DebugState* debug, void* value, vec2 pos, vec2 size, DebugVariableType type)
 {
-    b8 is_int = is_integer(*((f32*)var));
-
-    if (!is_interacting)
+    if (is_first_interaction(debug, value))
     {
-        char text[32];
-        if (is_int)
-        {
-            snprintf(text, 32, "%d", *((i32*)(var)));
-        }
-        else
-        {
-            snprintf(text, 32, "%.2f", *((f32*)(var)));
-        }
-        debug_text(debug, text, V2(pos.x + (size.x / 2), 
-                                   pos.y + (size.y - debug->font_size)),
-                                TEXT_ALIGN_MIDDLE);
+        if (type == DEBUG_VAR_FLOAT)
+            fill_text_buffer(debug,  *((f32*)value));
+        else if (type == DEBUG_VAR_INT)
+            fill_text_buffer(debug,  *((i32*)value));
     }
-    else
+
+    char text[32];
+
+    if (type == DEBUG_VAR_FLOAT)
+    {
+        snprintf(text, 32, "%.2f", *((f32*)(value)));
+    }
+    else if (type == DEBUG_VAR_INT)
+    {
+        snprintf(text, 32, "%d", *((i32*)(value)));
+    }
+
+    b8 is_editing_box = is_interacting(debug, value) && 
+                        (debug->interacting_item.type == INTERACTION_TYPE_EDIT);
+
+    if (is_editing_box)
     {
         debug_text(debug, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font_size)));
 
         debug->text_input_buffer[debug->text_insert_index] = '\0';
 
-        if (is_int)
-        {
-            *((i32*)var) = atoi(debug->text_input_buffer);
-        }
-        else
-        {
-            f64 temp = atof(debug->text_input_buffer);
-            f32 value = (f32)temp;
-            if ((f64)(value) < temp)
-            {
-                *((f32*)(var)) = nextafterf(value, FLT_MAX);
-            }
-        }
+        if (type == DEBUG_VAR_FLOAT)
+            *((f32*)value) = (f32)atof(debug->text_input_buffer);
+        else if (type == DEBUG_VAR_INT)
+            *((i32*)value) = (i32)atoi(debug->text_input_buffer);
 
         f32 cursor_x = pos.x + debug->x_advance * string_length(debug->text_input_buffer);
         push_quad(&debug->render_group, V2(cursor_x, pos.y), V2(1, size.y), {255, 0, 0, 255}, UI_LAYER_BACKMID);
     }
+    else
+    {
+        debug_text(debug, 
+                   text, 
+                   V2(pos.x + (size.x / 2), 
+                      pos.y + (size.y - debug->font_size)),
+                   TEXT_ALIGN_MIDDLE);
+    }
 }
 
+
 internal void
-debug_editbox(DebugState* debug, f32* value, char* var_name, vec2 size = V2(240.0f, 20.0f))
+debug_editbox(DebugState* debug, void* value, char* var_name, DebugVariableType type, vec2 size = V2(240.0f, 20.0f))
 {
     RenderGroup* group = &debug->render_group;
 
@@ -564,14 +570,8 @@ debug_editbox(DebugState* debug, f32* value, char* var_name, vec2 size = V2(240.
     vec2 pos = debug->draw_cursor;
     Color color = ui_color;
 
-    b8 interacting = false;
-
     if (is_interacting(debug, value))
     {
-        if (debug->interacting_item.type == INTERACTION_TYPE_EDIT)
-        {
-            interacting = true;
-        }
     }
     else if (is_hot(debug, value))
     {
@@ -590,12 +590,7 @@ debug_editbox(DebugState* debug, f32* value, char* var_name, vec2 size = V2(240.
     pos.x += MAX_NAME_WIDTH;
     push_quad(group, pos, size, color, UI_LAYER_BACKMID);
 
-    if (is_first_interaction(debug, value))
-    {
-        fill_text_buffer(debug, *value);
-    }
-
-    draw_variable_value(debug, pos, size, interacting, value);
+    draw_variabe(debug, value, pos, size, type);
 
     if (point_is_inside(debug->mouse_pos, pos, size))
     {
@@ -605,19 +600,16 @@ debug_editbox(DebugState* debug, f32* value, char* var_name, vec2 size = V2(240.
 }
 
 
-#define DebugFloatEditbox(debug, var, name) \
-    debug_vec_editbox(debug, var, (sizeof(*var)/sizeof(f32)), name);
-
 internal void
-debug_vec_editbox(DebugState* debug, void* v, u32 num_components, char* var_name)
+debug_generic_editbox(DebugState* debug, void* v, DebugVariableType type, u32 num_components, char* var_name)
 {
     f32 total_width = 240.0f - ((num_components-1) * PADDING);
-    debug_editbox(debug, (f32*)v, var_name, V2(total_width/num_components, 20));
+    debug_editbox(debug, v, var_name, type, V2(total_width/num_components, 20));
 
     for (u32 i = 1; i < num_components; ++i)
     {
         debug_cursor_sameline(debug);
-        debug_editbox(debug, (((f32*)v)+i), 0, V2(total_width/num_components, 20));
+        debug_editbox(debug, (((u8*)v)+(i*4)), 0, type, V2(total_width/num_components, 20));
     }
 }
 

@@ -22,6 +22,11 @@ struct vec2
     vec2 operator/(f32 a);
 };
 
+struct vec2i
+{
+    i32 x, y;
+};
+
 struct vec3 
 {
     union
@@ -44,6 +49,11 @@ struct vec3
     vec3 operator*(vec3& other);
     vec3 operator*(f32 a);
     vec3 operator/(f32 a);
+};
+
+struct vec3i
+{
+    i32 x, y, z;
 };
 
 struct vec4
@@ -80,14 +90,31 @@ struct mat4
     vec4 operator*(vec4& other);
 };
 
+struct vec4i
+{
+    i32 x, y, z, w;
+};
+
 inline vec2
 V2(f32 x, f32 y)
 {
     return {x, y};
 }
 
+inline vec2i
+V2I(i32 x, i32 y)
+{
+    return {x, y};
+}
+
 inline vec3
 V3(f32 x, f32 y, f32 z)
+{
+    return {x, y, z};
+}
+
+inline vec3i
+V3I(i32 x, i32 y, i32 z)
 {
     return {x, y, z};
 }

@@ -299,8 +299,6 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
     }
 
     Camera* cam = &game_state->render_setup.camera;
-    Camera cm = *cam;
-
 
     if (game_state->is_free_camera)
     {
@@ -456,18 +454,20 @@ game_render(GameMemory* memory)
             DEBUG_PRINT("button 2 clicked");
         }
         local_persist i32 i;
-        DEBUG_PRINT("IS INT %d", is_integer((f32)i));
 
         debug_slider(memory->debug, -1000.0f, 1000.0f, &memory->debug->menu_pos.x, "menu x"); 
         debug_slider(memory->debug, -1000.0f, 1000.0f, &memory->debug->menu_pos.y, "menu y"); 
-        local_persist f32 test = 0.0f;
-        debug_editbox(memory->debug, &test, "test :)");
         local_persist vec3 tmp = V3(1.0f, 0.3f, 1.0f);
         local_persist vec4 tmp1 = V4(10.0f, 2.3f, 1.0f, 20.0f);
         local_persist vec2 tmp2 = V2(10.0f, 2.3f);
         DebugFloatEditbox(memory->debug, &tmp, "test vec0");
         DebugFloatEditbox(memory->debug, &tmp1, "test vec1");
         DebugFloatEditbox(memory->debug, &tmp2, "test vec2");
+
+        local_persist vec2i tmp2i = V2I(10, 1);
+        DebugIntEditbox(memory->debug, &tmp2i, "test vec2int");
+        local_persist vec3i tmp3i = V3I(123, 8, 33);
+        DebugIntEditbox(memory->debug, &tmp3i, "test vec2int");
     }
     debug_menu_end(memory->debug);
 
