@@ -5,7 +5,7 @@ global_variable Color clicked_color = {255, 255, 255, 255};
 #define PADDING 4.0f
 #define MAX_NAME_WIDTH 120
 
-// NOTE: macros below only work with 32bit seperated components
+// NOTE: macros below only work with 4byte per component types
 #define DebugFloatEditbox(debug, var, name) \
     debug_generic_editbox(debug, var, DEBUG_VAR_FLOAT, (sizeof(*var)/sizeof(f32)), name);
 
@@ -310,7 +310,7 @@ debug_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
         color = hover_color;
     }
 
-    if (point_is_inside(debug->mouse_pos,
+    if (point_rect_intersect(debug->mouse_pos,
                         position,
                         size))
     {
@@ -327,7 +327,7 @@ debug_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
 }
 
 internal void
-debug_menu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
+debug_menu_titlebar(DebugState* debug, char* title)
 {
     Color color = ui_color;
 
@@ -347,7 +347,10 @@ debug_menu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
         color = hover_color;
     }
 
-    if (point_is_inside(debug->mouse_pos,
+    vec2 position = debug->menu_pos + V2(0, debug->menu_size.y - debug->font_size);
+    vec2 size = V2((f32)400, debug->font_size);
+
+    if (point_rect_intersect(debug->mouse_pos,
                         position,
                         size))
     {
@@ -373,20 +376,18 @@ debug_ui_begin(DebugState* debug, Assets* assets, Renderer* ren, i32 screen_widt
                                              ren, 
                                              assets);
 
-    debug->menu_size = V2((f32)400, (f32)screen_height);
-    vec2 titlebar_pos = debug->menu_pos + V2(0, screen_height - debug->font_size);
-    vec2 titlebar_size = V2((f32)400, debug->font_size);
+    debug->menu_size = V2((f32)400, 500);
 
     debug->draw_cursor = V2(0);
 
-    //push_quad(&debug->render_group, debug->menu_pos, debug->menu_size, {122, 122, 122, 122}, UI_LAYER_BACKMID);
 
-    debug_menu_titlebar(debug, titlebar_pos, titlebar_size, title);
+    debug_menu_titlebar(debug, title);
 
-    debug->draw_cursor.x = debug->menu_pos.x + debug->font_size/4;
-    debug->draw_cursor.y = debug->menu_pos.y + debug->menu_size.y - (debug->font_size * 2 + 5);
+    push_quad(&debug->render_group, debug->menu_pos, debug->menu_size, COLOR(122, 122, 122, 122), UI_LAYER_BACKMID);
 
-    debug->cursor_start_x = debug->menu_pos.x + PADDING;
+    debug->draw_cursor.x = debug->menu_pos.x + PADDING;
+    debug->draw_cursor.y = debug->menu_pos.y + debug->menu_size.y - (2 * debug->font_size) - PADDING;
+
 
     debug->current_menu_index = 0;
 }
@@ -447,7 +448,7 @@ debug_checkbox(DebugState* debug, b8* toggle_var, char* var_name)
     pos += 4;
     push_quad(group, pos, size, check_color, UI_LAYER_BACKMID);
 
-    if (point_is_inside(debug->mouse_pos,
+    if (point_rect_intersect(debug->mouse_pos,
                         pos,
                         size))
     {
@@ -487,7 +488,7 @@ debug_button(DebugState* debug,
     );
     debug_text(debug, name, text_pos, TEXT_ALIGN_MIDDLE);
 
-    if (point_is_inside(debug->mouse_pos,
+    if (point_rect_intersect(debug->mouse_pos,
                         button_pos,
                         button_size))
     {
@@ -592,7 +593,7 @@ debug_editbox(DebugState* debug, void* value, char* var_name, DebugVariableType 
 
     draw_variabe(debug, value, pos, size, type);
 
-    if (point_is_inside(debug->mouse_pos, pos, size))
+    if (point_rect_intersect(debug->mouse_pos, pos, size))
     {
         debug->next_hot_item.id = value;
         debug->next_hot_item.ui_item_type = UI_ITEM_EDITBOX;
@@ -674,7 +675,7 @@ debug_slider(DebugState* debug,
     button_position.x += (((*value)-min)/range) * (bar_size.x - button_size.x);
     push_quad(group, button_position, button_size, button_color, UI_LAYER_BACKMID);
 
-    if (point_is_inside(debug->mouse_pos, button_position, button_size))
+    if (point_rect_intersect(debug->mouse_pos, button_position, button_size))
     {
         debug->next_hot_item.id = {value};
     }
@@ -714,10 +715,10 @@ debug_menu_begin(DebugState* debug, char* title)
 
 
     debug_submenu_titlebar(debug, 
-                        debug->draw_cursor, 
-                        V2(debug->menu_size.x - (debug->font_size/2),
-                           debug->font_size),
-                        title);
+                           debug->draw_cursor, 
+                           V2(debug->menu_size.x - 2*PADDING,
+                              debug->font_size),
+                           title);
 
     b8 active = debug->menus[debug->current_menu_index].menu_is_active;
 
@@ -728,7 +729,7 @@ internal void
 debug_menu_end(DebugState* debug)
 {
     debug->draw_cursor.y -=  debug->font_size + PADDING;
-    debug->draw_cursor.x = debug->cursor_start_x;
+    debug->draw_cursor.x = debug->menu_pos.x + PADDING;
 
     ++debug->current_menu_index;
 }

@@ -12,6 +12,7 @@ struct vec2
 
     vec2 operator+(vec2& other);
     vec2 operator-(vec2& other);
+    vec2 operator-(f32 n);
     void operator-=(f32 n);
     void operator+=(f32 n);
     void operator+=(vec2 v);
@@ -185,6 +186,12 @@ inline vec2
 vec2::operator+(vec2& other)
 {
     return {other.x+x, other.y+y};
+}
+
+inline vec2
+vec2::operator-(f32 n)
+{
+    return {x-n, y-n};
 }
 
 inline vec2
@@ -530,7 +537,7 @@ mat4_perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
 }
 
 inline b8
-point_is_inside(vec2 p, vec2 pos, vec2 scale)
+point_rect_intersect(vec2 p, vec2 pos, vec2 scale)
 {
     return (p.x >= pos.x && 
             p.x <= (pos.x + scale.x) &&
