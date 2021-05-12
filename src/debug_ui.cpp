@@ -172,19 +172,21 @@ debug_cursor_newline(DebugState* debug, f32 w, f32 h)
     debug->is_newline = true;
 }
 
-internal void
-truncate_var_name(DebugState* debug, char* name)
+internal b8
+is_name_too_long(char* name, f32 x_advance)
 {
-    f32 name_render_width = debug->x_advance * string_length(name);
+    u32 len = string_length(name);
+    f32 name_render_width = x_advance * len;
 
-    if (name_render_width > MAX_NAME_WIDTH)
-    {
-        u32 max_name_len = MAX_NAME_WIDTH / (u32)debug->x_advance;
-        name[max_name_len] = '\0';
-        name[max_name_len-1] = '.';
-        name[max_name_len-2] = '.';
-    }
+    return (name_render_width > MAX_NAME_WIDTH);
+}
 
+internal void
+truncate_var_name(char* name, u32 max_len)
+{
+    name[max_len-1] = '\0';
+    name[max_len-2] = '.';
+    name[max_len-3] = '.';
 }
 
 
@@ -282,7 +284,8 @@ debug_text(DebugState* debug,
                 {q.s0, q.t1},
             };
 
-            push_quad(group, debug->font_sprite_handle, positions, uvs, color);
+            //TODO
+            // push_quad(group, debug->font_sprite_handle, positions, uvs, color);
         }
         text++;
     }
@@ -371,8 +374,10 @@ debug_ui_begin(DebugState* debug, Assets* assets, Renderer* ren, i32 screen_widt
 {
     debug->render_setup.projection = mat4_orthographic((f32)ren->screen_width,
                                                        (f32)ren->screen_height);
-    debug->render_setup.camera = {{0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
-    debug->render_group = render_group_begin(&debug->render_setup,
+    Camera cam = {{0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
+    debug->render_group = setup_render_group(mat4_orthographic((f32)screen_width,
+                                                               (f32)screen_height),
+                                             cam,
                                              ren, 
                                              assets);
 
@@ -383,13 +388,19 @@ debug_ui_begin(DebugState* debug, Assets* assets, Renderer* ren, i32 screen_widt
 
     debug_menu_titlebar(debug, title);
 
-    push_quad(&debug->render_group, debug->menu_pos, debug->menu_size, COLOR(122, 122, 122, 122), UI_LAYER_BACKMID);
+    //push_quad(&debug->render_group, debug->menu_pos, debug->menu_size, COLOR(122, 122, 122, 255), UI_LAYER_BACKMID);
 
     debug->draw_cursor.x = debug->menu_pos.x + PADDING;
     debug->draw_cursor.y = debug->menu_pos.y + debug->menu_size.y - (2 * debug->font_size) - PADDING;
-
-
     debug->current_menu_index = 0;
+    
+    debug->temp_arena = begin_temporary_memory(&debug->arena);
+}
+
+internal void
+debug_ui_end(DebugState* debug)
+{
+    end_temporary_memory(&debug->temp_arena);
 }
 
 
@@ -416,7 +427,13 @@ debug_checkbox(DebugState* debug, b8* toggle_var, char* var_name)
     debug_cursor_newline(debug, size.x, size.y);
     vec2 pos = debug->draw_cursor;
 
-    truncate_var_name(debug, var_name);
+    if (is_name_too_long(var_name, debug->x_advance))
+    {
+        var_name = string_copy(&debug->arena, var_name);
+
+        u32 max_len = MAX_NAME_WIDTH / (u32)debug->x_advance;
+        truncate_var_name(var_name, max_len);
+    }
     debug_text(debug, var_name, V2(pos.x, pos.y + (size.y - debug->font_size)));
     pos.x += MAX_NAME_WIDTH;
 
@@ -581,10 +598,15 @@ debug_editbox(DebugState* debug, void* value, char* var_name, DebugVariableType 
         color.b *= 2;
     }
 
-
     if (var_name)
     {
-        truncate_var_name(debug, var_name);
+        if (is_name_too_long(var_name, debug->x_advance))
+        {
+            var_name = string_copy(&debug->arena, var_name);
+
+            u32 max_len = MAX_NAME_WIDTH / (u32)debug->x_advance;
+            truncate_var_name(var_name, max_len);
+        }
         debug_text(debug, var_name, V2(pos.x, pos.y + (size.y - debug->font_size)));
     }
 
@@ -629,7 +651,13 @@ debug_slider(DebugState* debug,
     vec2 pos = debug->draw_cursor;
 
 
-    truncate_var_name(debug, var_name);
+    if (is_name_too_long(var_name, debug->x_advance))
+    {
+        var_name = string_copy(&debug->arena, var_name);
+
+        u32 max_len = MAX_NAME_WIDTH / (u32)debug->x_advance;
+        truncate_var_name(var_name, max_len);
+    }
     debug_text(debug, var_name, V2(pos.x, pos.y + (bar_size.y - debug->font_size)));
 
     pos.x += MAX_NAME_WIDTH;

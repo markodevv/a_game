@@ -38,6 +38,7 @@ struct DebugMenu
 struct DebugState
 {
     MemoryArena arena;
+    TemporaryArena temp_arena;
 
     RenderGroup render_group;
     RenderSetup render_setup;
@@ -75,9 +76,9 @@ struct DebugState
 internal inline void
 print_vec3(vec3 v, char* name)
 {
-    DEBUG_PRINT("v.x: %.2f", v.x);
-    DEBUG_PRINT("v.y: %.2f", v.y);
-    DEBUG_PRINT("v.z: %.2f", v.z);
+    PRINT("v.x: %.2f", v.x);
+    PRINT("v.y: %.2f", v.y);
+    PRINT("v.z: %.2f", v.z);
 }
 
 #endif

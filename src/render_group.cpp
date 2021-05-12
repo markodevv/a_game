@@ -1,21 +1,18 @@
 #define PushRenderEntry(group, type) \
 (type *)push_render_entry(group, sizeof(type), RENDER_ENTRY_##type) \
 
-u32 Quad_Indices[] = {
-    0, 1, 3,
-    1, 2, 3,
-};
 
 internal RenderGroup 
-render_group_begin(RenderSetup* render_setup, Renderer* ren, Assets* assets)
+setup_render_group(mat4 projection, Camera camera, Renderer* ren, Assets* assets)
 {
     RenderGroup render_group = {};
 
-    render_group.current_setup = render_setup;
-    render_group.assets = assets;
+    render_group.setup.projection = projection;
+    render_group.setup.camera = camera;
     render_group.renderer = ren;
+    render_group.assets = assets;
 
-    ren->assets = assets;
+
 
     return render_group;
 }
@@ -50,32 +47,12 @@ push_render_entry(RenderGroup* group, u32 size, RenderEntryType type)
        ASSERT(false);
     }
 
-    group->current_quads = 0;
 
     return ((u8*)header) + sizeof(*header);
 }
 
-internal TexturedQuadsEntry*
-get_current_quads(RenderGroup* group, u32 num_quads)
-{
-    TexturedQuadsEntry* quads = group->current_quads;
-    if (!quads)
-    {
-        quads = PushRenderEntry(group, TexturedQuadsEntry);
-        *quads = {};
 
-        quads->vertex_offset = group->renderer->vertex_count;
-        quads->index_offset = group->renderer->indices_count;
-
-        quads->render_setup = group->current_setup;
-        group->current_quads = quads;
-    }
-    quads->num_quads += num_quads;
-
-    return quads;
-}
-
-
+#if 0
 internal inline void 
 write_quad(RenderGroup* group,
            SpriteHandle sprite_handle, 
@@ -103,7 +80,6 @@ write_quad(RenderGroup* group,
     for (u32 i = 0; i < INDICES_PER_QUAD; ++i)
     {
         *index = ((group->current_quads->num_quads-1) * VERTICES_PER_QUAD) + Quad_Indices[i];
-        // *index = ren->vertex_count + Quad_Indices[i];
         ++index;
     }
 
@@ -111,32 +87,41 @@ write_quad(RenderGroup* group,
     ren->vertex_count += VERTICES_PER_QUAD;
     ren->indices_count += INDICES_PER_QUAD;
 }
+#endif
+
+// internal void
+// push_quad(RenderGroup* group, 
+          // SpriteHandle sprite_handle,
+          // vec2 positions[4], 
+          // vec2 uvs[4],
+          // Color color)
+// {
+    // TexturedQuadsEntry* quads = get_current_quads(group, 1);
+    // add_sprite_to_setup(group->current_setup, sprite_handle);
+// 
+    // write_quad(group, sprite_handle, positions, uvs, color);
+// }
 
 internal void
 push_quad(RenderGroup* group, 
-          SpriteHandle sprite_handle,
-          vec2 positions[4], 
-          vec2 uvs[4],
-          Color color)
-{
-    TexturedQuadsEntry* quads = get_current_quads(group, 1);
-    add_sprite_to_setup(group->current_setup, sprite_handle);
-
-    write_quad(group, sprite_handle, positions, uvs, color);
-}
-
-internal void
-push_quad(RenderGroup* group, 
-          SpriteHandle sprite_handle,
           vec2 position, 
           vec2 size, 
           Color color, 
-          f32 layer)
+          u32 layer,
+          SpriteHandle sprite_handle = 0)
 {
-    TexturedQuadsEntry* quads = get_current_quads(group, 1);
+    add_sprite_to_setup(&group->setup, sprite_handle);
+    //TexturedQuadsEntry* quads = get_current_quads(group, 1);
+    QuadEntry* entry = PushRenderEntry(group, QuadEntry);
+
+    entry->position = position;
+    entry->size = size;
+    entry->color = color;
+    entry->sprite_handle = sprite_handle;
+
+#if 0
     Renderer* ren = group->renderer;
 
-    add_sprite_to_setup(group->current_setup, sprite_handle);
 
 
     vec2 positions[] =
@@ -155,6 +140,7 @@ push_quad(RenderGroup* group,
     };
 
     write_quad(group, sprite_handle, positions, uvs, color);
+#endif
 }
 
 
@@ -165,27 +151,27 @@ push_quad(RenderGroup* group,
           vec2 position, 
           vec2 size, 
           Color color, 
-          f32 layer)
+          u32 layer)
 {
-    TexturedQuadsEntry* quads = get_current_quads(group, 1);
-    Renderer* ren = group->renderer;
+    add_sprite_to_setup(&group->setup, subsprite->sprite_sheet);
+    //TexturedQuadsEntry* quads = get_current_quads(group, 1);
+    QuadEntry* entry = PushRenderEntry(group, QuadEntry);
 
-    add_sprite_to_setup(group->current_setup, subsprite->sprite_sheet);
-    Sprite* sprite_sheet = get_loaded_sprite(group->assets, subsprite->sprite_sheet);
+    entry->position = position;
+    entry->size = size;
+    entry->color = color;
+    entry->subsprite = subsprite;
 
-    vec2 positions[] =
-    {
-        V2(1.0f,  1.0f) * size + position, // top right
-        V2(1.0f,  0.0f) * size + position, // bottom right
-        V2(0.0f,  0.0f) * size + position, // bottom left
-        V2(0.0f,  1.0f) * size + position, // top left
-    };
-
-    write_quad(group, subsprite->sprite_sheet, positions, subsprite->uvs, color);
+    // Sprite* sprite_sheet = get_loaded_sprite(group->assets, subsprite->sprite_sheet);
+// 
+    // vec2 positions[] =
+    // {
+        // V2(1.0f,  1.0f) * size + position, // top right
+        // V2(1.0f,  0.0f) * size + position, // bottom right
+        // V2(0.0f,  0.0f) * size + position, // bottom left
+        // V2(0.0f,  1.0f) * size + position, // top left
+    // };
+// 
+    // write_quad(group, subsprite->sprite_sheet, positions, subsprite->uvs, color);
 }
 
-internal void
-push_quad(RenderGroup* group, vec2 position, vec2 size, Color color, f32 layer)
-{
-    push_quad(group, 0, position, size, color, layer);
-}

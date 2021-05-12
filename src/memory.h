@@ -57,6 +57,8 @@ end_temporary_memory(TemporaryArena* temp_arena)
     MemoryArena *arena = temp_arena->arena;
     ASSERT(arena->used >= temp_arena->used);
     arena->used = temp_arena->used;
+
+    *temp_arena = {};
 }
 
 #endif

@@ -128,11 +128,23 @@ typedef void RendererProc(Renderer* ren);
 enum RenderEntryType
 {
     RENDER_ENTRY_TexturedQuadsEntry,
+    RENDER_ENTRY_QuadEntry,
 };
 
 struct RenderEntryHeader
 {
     RenderEntryType entry_type;
+};
+
+struct QuadEntry
+{
+    vec2 position;
+    vec2 size;
+    Color color;
+    SpriteHandle sprite_handle;
+    SubSprite* subsprite;
+
+    u32 layer;
 };
 
 struct RenderSetup
@@ -153,26 +165,30 @@ struct TexturedQuadsEntry
 };
 
 
-const f32 LAYER_BACK = 1.0f;
-const f32 LAYER_BACKMID = 0.75;
-const f32 LAYER_MID= 0.5f;
-const f32 LAYER_MIDFRONT = 0.25;
+ u32 LAYER_BACK;
+ u32 LAYER_BACKMID;
+ u32 LAYER_MID;
+ u32 LAYER_MIDFRONT;
 
-const f32 UI_LAYER_BACK = 0.20f;
-const f32 UI_LAYER_BACKMID = 0.17f;
-const f32 UI_LAYER_MID = 0.12f;
-const f32 UI_LAYER_MIDFRONT = 0.7f;
-const f32 UI_LAYER_FRONT = 0.2f;
+ u32 UI_LAYER_BACK;
+ u32 UI_LAYER_BACKMID;
+ u32 UI_LAYER_MID;
+ u32 UI_LAYER_MIDFRONT;
+ u32 UI_LAYER_FRONT;
 
-const f32 LAYER_FRONT = 0.0f;
+ u32 LAYER_FRONT;
 
 struct RenderGroup
 {
-    TexturedQuadsEntry* current_quads;
-    RenderSetup* current_setup;
-
-    struct Assets* assets;
+    RenderSetup setup;
     Renderer* renderer;
+    struct Assets* assets;
+};
+
+struct RenderSortEntry
+{
+    f32 sort_key;
+    u32 push_buffer_offset;
 };
 
 
@@ -202,6 +218,7 @@ struct Renderer
 
     struct Assets* assets;
 
+    RenderSetup* render_setup;
     SpriteHandle white_sprite;
 };
 

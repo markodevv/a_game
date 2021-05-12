@@ -13,42 +13,19 @@
 
 #define WGL_CONTEXT_MAJOR_VERSION_ARB             0x2091
 #define WGL_CONTEXT_MINOR_VERSION_ARB             0x2092
+#define WGL_CONTEXT_PROFILE_MASK_ARB              0x9126
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB          0x00000001
+
+
 typedef HGLRC WINAPI wglCreateContextAttribsARB_type(HDC hdc, HGLRC hShareContext, const int *attribList);
 wglCreateContextAttribsARB_type *wglCreateContextAttribsARB;
 
-#define internal static 
-#define global_variable static 
-#define local_persist static
-
-#include <assimp/cimport.h>        // Plain-C interface
-#include <assimp/scene.h>          // Output data structure
-#include <assimp/postprocess.h>    // Post processing flags
-
-#include <stdint.h>
-#include <stddef.h>
-
-typedef int8_t i8;
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
-
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-
-typedef float f32;
-typedef double f64;
-
-typedef i8 b8;
-typedef size_t sizet;
-
-
-#include "log.h"
+#include "common.h"
 #include "memory.h"
+#include "string.cpp"
+#include "log.h"
 #include "math.h"
 #include "debug.h"
-#include "common.h"
 #include "renderer.h"
 #include "renderer.cpp"
 #include "game.h"
@@ -112,19 +89,19 @@ read_entire_file(char* file_name)
             }
             else
             {
-                DEBUG_PRINT("File malloc failed for file %s.\n", file_name);
+                PRINT("File malloc failed for file %s.\n", file_name);
             }
         }
         else
         {
-            DEBUG_PRINT("Trying to open invalid file %s.\n", file_name);
+            PRINT("Trying to open invalid file %s.\n", file_name);
         }
 
         CloseHandle(file_handle);
     }
     else
     {
-        DEBUG_PRINT("Trying to open invalid file %s.\n", file_name);
+        PRINT("Trying to open invalid file %s.\n", file_name);
     }
 
     return result;
@@ -146,14 +123,14 @@ write_entire_file(char* file_name, i32 size, void* memory)
         }
         else
         {
-            DEBUG_PRINT("Failed to write entire file: %s.\n", file_name);
+            PRINT("Failed to write entire file: %s.\n", file_name);
         }
 
         CloseHandle(file_handle);
     }
     else
     {
-        DEBUG_PRINT("Invalid file handle \n");
+        PRINT("Invalid file handle \n");
     }
 
     return result;
@@ -192,13 +169,13 @@ win32_init_dsound(HWND window, i32 samples_per_sec, i32 buffer_size)
 
             if (!FAILED(direct_sound->CreateSoundBuffer(&buffer_description, &global_sound_buffer, 0)))
             {
-                DEBUG_PRINT("Created sound buffer. \n");
+                PRINT("Created sound buffer. \n");
             }
         }
     }
     else
     {
-        DEBUG_PRINT("Failed to create sound buffer. \n");
+        PRINT("Failed to create sound buffer. \n");
     }
 }
 
@@ -434,6 +411,7 @@ win32_init_opengl(HWND window_handle)
     {
         WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
         WGL_CONTEXT_MINOR_VERSION_ARB, 3,
+        WGL_CONTEXT_PROFILE_MASK_ARB,  WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
         0,
     };
     HGLRC opengl_rc = wglCreateContext(window_dc);
@@ -464,12 +442,12 @@ win32_init_opengl(HWND window_handle)
         }
         else
         {
-            DEBUG_PRINT("Failed to set current 3.0+ OpenGL context!\n");
+            PRINT("Failed to set current 3.0+ OpenGL context!\n");
         }
     }
     else
     {
-        DEBUG_PRINT("Failed to create 3.0+ OpenGL context!\n");
+        PRINT("Failed to create 3.0+ OpenGL context!\n");
     }
 
     
@@ -481,7 +459,7 @@ win32_init_opengl(HWND window_handle)
         name = (name##proc *)GetProcAddress(module, #name); \
         if (!name) \
         { \
-            DEBUG_PRINT("Function " #name " couldn't be loaded.\n"); \
+            PRINT("Function " #name " couldn't be loaded.\n"); \
         } \
     } 
     // NOTE: Vsync
@@ -572,7 +550,7 @@ win32_process_input_messages(GameInput* game_input)
             } break;
             case WM_QUIT:
                 global_running= false;
-                DEBUG_PRINT("Closing game...\n");
+                PRINT("Closing game...\n");
             case WM_KEYUP:
             case WM_KEYDOWN:
             {
@@ -807,7 +785,7 @@ load_3D_model(Assets* assets, char* path)
                                                      AI_MATKEY_SHININESS_STRENGTH,
                                                      &shininess))
                 {
-                    DEBUG_PRINT("%.2f shininess", shininess);
+                    PRINT("%.2f shininess", shininess);
                     mesh->material.shininess = shininess;
                 }
 
@@ -822,7 +800,7 @@ load_3D_model(Assets* assets, char* path)
     }
     else
     {
-        DEBUG_PRINT("%s", aiGetErrorString());
+        PRINT("%s", aiGetErrorString());
         ASSERT(0);
     }
 
@@ -856,8 +834,8 @@ WinMain(HINSTANCE hinstance,
     u32 j = 0;
     j |= (1 << 5);
     j |= (1 << 4);
-    DEBUG_PRINT("I : %i", i);
-    DEBUG_PRINT("I : %i", (((i << 5) | (i << 4)) & j));
+    PRINT("I : %i", i);
+    PRINT("I : %i", (((i << 5) | (i << 4)) & j));
 
 
     WNDCLASS window_class = {};
@@ -1025,7 +1003,7 @@ WinMain(HINSTANCE hinstance,
         {
             // TODO: logging
             sound_is_valid = false;
-            DEBUG_PRINT("Could not get sound buffer cursor position! \n");
+            PRINT("Could not get sound buffer cursor position! \n");
         }
 
         GameSoundBuffer sound_buffer = {};
@@ -1045,7 +1023,7 @@ WinMain(HINSTANCE hinstance,
 
                 if (FAILED(hresult))
                 {
-                    DEBUG_PRINT("Failed to play sound. \n");
+                    PRINT("Failed to play sound. \n");
                 }
                 sound_is_playing = true;
             }
@@ -1071,7 +1049,9 @@ WinMain(HINSTANCE hinstance,
 
      }
 
+#ifdef GAME_DEBUG
      system("pause");
+#endif
 
      return 0;
 }
