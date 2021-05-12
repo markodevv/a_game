@@ -512,8 +512,25 @@ opengl_end_frame(Renderer* ren)
                 QuadEntry* quad = (QuadEntry*)(base + header_size);
                 u32 sprite_slot = 0;
 
-                if (quad->sprite_handle)
+                vec2 uvs[] = {
+                    V2(1.0f, 1.0f),
+                    V2(1.0f, 0.0f),
+                    V2(0.0f, 0.0f),
+                    V2(0.0f, 1.0f),
+                };
+
+                if (quad->subsprite)
+                {
+                    uvs[0] = quad->subsprite->uvs[0];
+                    uvs[1] = quad->subsprite->uvs[1];
+                    uvs[2] = quad->subsprite->uvs[2];
+                    uvs[3] = quad->subsprite->uvs[3];
+                    sprite_slot = get_loaded_sprite(ren->assets, quad->subsprite->sprite_sheet)->slot;
+                }
+                else if (quad->sprite_handle)
+                {
                     sprite_slot = get_loaded_sprite(ren->assets, quad->sprite_handle)->slot;
+                }
 
 
                 vec2 positions[] =
@@ -524,12 +541,6 @@ opengl_end_frame(Renderer* ren)
                     V2(0.0f,  1.0f) * quad->size + quad->position, // top left
                 };
 
-                vec2 uvs[] = {
-                    V2(1.0f, 1.0f),
-                    V2(1.0f, 0.0f),
-                    V2(0.0f, 0.0f),
-                    V2(0.0f, 1.0f),
-                };
 
                 u32 indices[] = {
                     0, 1, 3,
@@ -552,7 +563,6 @@ opengl_end_frame(Renderer* ren)
 
                 for (u32 i = 0; i < INDICES_PER_QUAD; ++i)
                 {
-                    //// *index = ((group->current_quads->num_quads-1) * VERTICES_PER_QUAD) + Quad_Indices[i];
                     *index = ren->vertex_count + indices[i];
                     ++index;
                 }

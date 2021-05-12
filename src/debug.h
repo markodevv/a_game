@@ -48,10 +48,7 @@ struct DebugState
     InteractingItem interacting_item;
     InteractingItem first_interaction_check;
 
-    SpriteHandle font_sprite_handle;
-    stbtt_bakedchar char_metrics[NUM_ASCII];
-    f32 font_size;
-    f32 x_advance;
+    Font font;
 
     vec2 draw_cursor;
     f32 cursor_start_x;

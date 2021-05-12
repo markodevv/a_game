@@ -132,24 +132,24 @@ enum TextAlign
 };
 
 
-internal vec2
-text_box_size(DebugState* debug, char* text)
-{
-    vec2 out = {};
-    while(*text)
-    {
-        if (*text >= 32 && *text <= 128)
-        {
-            i32 index = *text-32;
-            stbtt_bakedchar* b = debug->char_metrics + index;
-            out.x += b->xadvance;
-        }
-        text++;
-    }
-    out.y = debug->font_size;
-
-    return out;
-}
+// internal vec2
+// text_box_size(DebugState* debug, char* text)
+// {
+    // vec2 out = {};
+    // while(*text)
+    // {
+        // if (*text >= 32 && *text <= 128)
+        // {
+            // i32 index = *text-32;
+            // stbtt_bakedchar* b = debug->char_metrics + index;
+            // out.x += b->xadvance;
+        // }
+        // text++;
+    // }
+    // out.y = debug->font.font_size;
+// 
+    // return out;
+// }
 
 internal inline void
 debug_cursor_sameline(DebugState* debug)
@@ -225,22 +225,89 @@ fill_text_buffer(DebugState* debug, i32 value)
     debug->text_input_buffer[debug->text_insert_index] = '\0';
 }
 
+internal Font
+debug_load_font(MemoryArena* arena, Platform* platform, Assets* assets, char* font_path, i32 font_size)
+{
+    Font font = {};
+    font.char_subsprites = PushMemory(arena, SubSprite, NUM_ASCII);
+    font.char_metrics = PushMemory(arena, CharMetric, NUM_ASCII);
+    font.num_chars = NUM_ASCII;
+
+
+    font.font_sprite_handle = create_empthy_sprite(assets, 512, 512, 1);
+    font.font_size = font_size;
+
+    Sprite* font_sprite = get_loaded_sprite(assets, font.font_sprite_handle);
+    FileResult font_file = platform->read_entire_file(font_path);
+
+    stbtt_bakedchar char_metrics[NUM_ASCII];
+    i32 result = stbtt_BakeFontBitmap((u8*)font_file.data, 
+                                      0, (f32)font_size,
+                                      (u8*)font_sprite->data, 
+                                      font_sprite->width, 
+                                      font_sprite->height,
+                                      32, NUM_ASCII, 
+                                      char_metrics);
+    if (!result)
+    {
+        PRINT("Failed to bake font map\n");
+    }
+
+    for(u8 i = 0; i < NUM_ASCII; ++i)
+    {
+        #define IFLOOR(x) ((int) floor(x))
+        stbtt_aligned_quad q;
+        // i32 index = *text-32;
+        stbtt_bakedchar* b = char_metrics + i;
+
+        font.char_metrics[i].x0 = b->x0;
+        font.char_metrics[i].y0 = b->y0;
+        font.char_metrics[i].x1 = b->x1;
+        font.char_metrics[i].y1 = b->y1;
+        font.char_metrics[i].xoff = b->xoff;
+        font.char_metrics[i].yoff = b->yoff;
+        font.char_metrics[i].xadvance = b->xadvance;
+
+        f32 ipw = 1.0f / font_sprite->width;
+        f32 iph = 1.0f / font_sprite->height;
+
+        q.s0 = b->x0 * ipw;
+        q.t0 = b->y0 * iph;
+        q.s1 = b->x1 * ipw;
+        q.t1 = b->y1 * iph;
+
+        SubSprite* subsprite = font.char_subsprites + i;
+
+        subsprite->uvs[0] = {q.s1, q.t1};
+        subsprite->uvs[1] = {q.s1, q.t0};
+        subsprite->uvs[2] = {q.s0, q.t0};
+        subsprite->uvs[3] = {q.s0, q.t1};
+
+        subsprite->sprite_sheet = font.font_sprite_handle;
+    }
+
+    platform->free_file_memory(font_file.data);
+
+    return font;
+}
+
 internal void
-debug_text(DebugState* debug,
+debug_text(RenderGroup* render_group,
+           Font* font,
            char* text,
            vec2 position,
            TextAlign align = TEXT_ALIGN_LEFT,
            Color color = {255, 255, 255, 255})
 {
-    RenderGroup* group = &debug->render_group;
     if (align == TEXT_ALIGN_MIDDLE)
     {
-        vec2 text_size = text_box_size(debug, text);
-        position.x -= text_size.x / 2.0f;
+        // TODO
+        // vec2 text_size = text_box_size(debug, text);
+        //position.x -= text_size.x / 2.0f;
     }
 
 
-    Sprite* font_sprite = get_loaded_sprite(group->assets, debug->font_sprite_handle);
+    Sprite* font_sprite = get_loaded_sprite(render_group->assets, font->font_sprite_handle);
 
     while(*text)
     {
@@ -249,43 +316,45 @@ debug_text(DebugState* debug,
             #define IFLOOR(x) ((int) floor(x))
             stbtt_aligned_quad q;
             i32 index = *text-32;
-            stbtt_bakedchar* b = debug->char_metrics + index;
+            CharMetric* cm = font->char_metrics + index;
 
             float d3d_bias = 0.0f;
             f32 ipw = 1.0f / font_sprite->width;
             f32 iph = 1.0f / font_sprite->height;
-            i32 round_x = IFLOOR((position.x + b->xoff) + 0.5f);
-            i32 round_y = IFLOOR((position.y - b->yoff) + 0.5f);
-
+            i32 round_x = IFLOOR((position.x + cm->xoff) + 0.5f);
+            i32 round_y = IFLOOR((position.y - cm->yoff) + 0.5f);
+// 
             q.x0 = round_x + d3d_bias;
             q.y1 = round_y + d3d_bias;
-            q.x1 = round_x + b->x1 - b->x0 + d3d_bias;
-            q.y0 = round_y - b->y1 + b->y0 + d3d_bias;
-            q.s0 = b->x0 * ipw;
-            q.t0 = b->y0 * iph;
-            q.s1 = b->x1 * ipw;
-            q.t1 = b->y1 * iph;
+            q.x1 = round_x + cm->x1 - cm->x0 + d3d_bias;
+            q.y0 = round_y - cm->y1 + cm->y0 + d3d_bias;
 
-            position.x += b->xadvance;
+            vec2 size = V2(q.x1 - q.x0,
+                           q.y0 - q.x1);
+            // q.s0 = b->x0 * ipw;
+            // q.t0 = b->y0 * iph;
+            // q.s1 = b->x1 * ipw;
+            // q.t1 = b->y1 * iph;
+// 
+            // position.x += b->xadvance;
+// 
+            // vec2 positions[] =
+            // {
+                // {q.x1, q.y0},
+                // {q.x1, q.y1},
+                // {q.x0, q.y1},
+                // {q.x0, q.y0},
+            // };
+// 
+            // vec2 uvs[] =
+            // {
+                // {q.s1, q.t1},
+                // {q.s1, q.t0},
+                // {q.s0, q.t0},
+                // {q.s0, q.t1},
+            // };
 
-            vec2 positions[] =
-            {
-                {q.x1, q.y0},
-                {q.x1, q.y1},
-                {q.x0, q.y1},
-                {q.x0, q.y0},
-            };
-
-            vec2 uvs[] =
-            {
-                {q.s1, q.t1},
-                {q.s1, q.t0},
-                {q.s0, q.t0},
-                {q.s0, q.t1},
-            };
-
-            //TODO
-            // push_quad(group, debug->font_sprite_handle, positions, uvs, color);
+            push_quad(render_group, font->char_subsprites + index, V2((f32)round_x, (f32)round_y), size, color, LAYER_BACK);
         }
         text++;
     }
@@ -321,7 +390,8 @@ debug_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
     }
 
     push_quad(&debug->render_group, position, size, color, UI_LAYER_BACKMID);
-    debug_text(debug, 
+    debug_text(&debug->render_group, 
+               &debug->font, 
                title, 
                V2(position.x + (size.x / 2),
                   position.y + 2),
@@ -350,8 +420,8 @@ debug_menu_titlebar(DebugState* debug, char* title)
         color = hover_color;
     }
 
-    vec2 position = debug->menu_pos + V2(0, debug->menu_size.y - debug->font_size);
-    vec2 size = V2((f32)400, debug->font_size);
+    vec2 position = debug->menu_pos + V2(0, debug->menu_size.y - debug->font.font_size);
+    vec2 size = V2((f32)400, (f32)debug->font.font_size);
 
     if (point_rect_intersect(debug->mouse_pos,
                         position,
@@ -361,7 +431,8 @@ debug_menu_titlebar(DebugState* debug, char* title)
     }
 
     push_quad(&debug->render_group, position, size, color, UI_LAYER_BACKMID);
-    debug_text(debug, 
+    debug_text(&debug->render_group, 
+               &debug->font,
                title, 
                V2(position.x + (size.x / 2),
                   position.y + 2),
@@ -391,7 +462,7 @@ debug_ui_begin(DebugState* debug, Assets* assets, Renderer* ren, i32 screen_widt
     //push_quad(&debug->render_group, debug->menu_pos, debug->menu_size, COLOR(122, 122, 122, 255), UI_LAYER_BACKMID);
 
     debug->draw_cursor.x = debug->menu_pos.x + PADDING;
-    debug->draw_cursor.y = debug->menu_pos.y + debug->menu_size.y - (2 * debug->font_size) - PADDING;
+    debug->draw_cursor.y = debug->menu_pos.y + debug->menu_size.y - (2 * debug->font.font_size) - PADDING;
     debug->current_menu_index = 0;
     
     debug->temp_arena = begin_temporary_memory(&debug->arena);
@@ -411,9 +482,9 @@ debug_fps(DebugState* debug)
     char* fps_text = "%.2f fps";
     char out[32];
     sprintf_s(out, fps_text, debug->game_fps);
-    vec2 position = V2(0.0f, (f32)group->renderer->screen_height - debug->font_size);
+    vec2 position = V2(0.0f, (f32)group->renderer->screen_height - debug->font.font_size);
 
-    debug_text(debug, out, position);
+    debug_text(&debug->render_group, &debug->font, out, position);
 }
 
 
@@ -427,14 +498,15 @@ debug_checkbox(DebugState* debug, b8* toggle_var, char* var_name)
     debug_cursor_newline(debug, size.x, size.y);
     vec2 pos = debug->draw_cursor;
 
-    if (is_name_too_long(var_name, debug->x_advance))
+    // TODO
+    if (is_name_too_long(var_name, 12))
     {
         var_name = string_copy(&debug->arena, var_name);
 
-        u32 max_len = MAX_NAME_WIDTH / (u32)debug->x_advance;
+        u32 max_len = MAX_NAME_WIDTH / 12;
         truncate_var_name(var_name, max_len);
     }
-    debug_text(debug, var_name, V2(pos.x, pos.y + (size.y - debug->font_size)));
+    debug_text(&debug->render_group, &debug->font, var_name, V2(pos.x, pos.y + (size.y - debug->font.font_size)));
     pos.x += MAX_NAME_WIDTH;
 
     push_quad(group, pos, size, ui_color, UI_LAYER_BACKMID);
@@ -478,7 +550,7 @@ debug_button(DebugState* debug,
              char* name)
 {
     RenderGroup* group = &debug->render_group;
-    vec2 button_size = V2(70, debug->font_size + 2.0f);
+    vec2 button_size = V2(70, debug->font.font_size + 2.0f);
 
     debug_cursor_newline(debug, button_size.x, button_size.y);
 
@@ -503,7 +575,7 @@ debug_button(DebugState* debug,
         button_pos.x + (button_size.x / 2.0f),
         button_pos.y + (button_size.y / 4.0f)
     );
-    debug_text(debug, name, text_pos, TEXT_ALIGN_MIDDLE);
+    debug_text(&debug->render_group, &debug->font, name, text_pos, TEXT_ALIGN_MIDDLE);
 
     if (point_rect_intersect(debug->mouse_pos,
                         button_pos,
@@ -549,7 +621,7 @@ draw_variabe(DebugState* debug, void* value, vec2 pos, vec2 size, DebugVariableT
 
     if (is_editing_box)
     {
-        debug_text(debug, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font_size)));
+        debug_text(&debug->render_group, &debug->font, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font.font_size)));
 
         debug->text_input_buffer[debug->text_insert_index] = '\0';
 
@@ -558,15 +630,16 @@ draw_variabe(DebugState* debug, void* value, vec2 pos, vec2 size, DebugVariableT
         else if (type == DEBUG_VAR_INT)
             *((i32*)value) = (i32)atoi(debug->text_input_buffer);
 
-        f32 cursor_x = pos.x + debug->x_advance * string_length(debug->text_input_buffer);
+        f32 cursor_x = pos.x + 12 * string_length(debug->text_input_buffer);
         push_quad(&debug->render_group, V2(cursor_x, pos.y), V2(1, size.y), {255, 0, 0, 255}, UI_LAYER_BACKMID);
     }
     else
     {
-        debug_text(debug, 
+        debug_text(&debug->render_group, 
+                   &debug->font,
                    text, 
                    V2(pos.x + (size.x / 2), 
-                      pos.y + (size.y - debug->font_size)),
+                      pos.y + (size.y - debug->font.font_size)),
                    TEXT_ALIGN_MIDDLE);
     }
 }
@@ -600,14 +673,14 @@ debug_editbox(DebugState* debug, void* value, char* var_name, DebugVariableType 
 
     if (var_name)
     {
-        if (is_name_too_long(var_name, debug->x_advance))
+        if (is_name_too_long(var_name, 12))
         {
             var_name = string_copy(&debug->arena, var_name);
 
-            u32 max_len = MAX_NAME_WIDTH / (u32)debug->x_advance;
+            u32 max_len = MAX_NAME_WIDTH / 12;
             truncate_var_name(var_name, max_len);
         }
-        debug_text(debug, var_name, V2(pos.x, pos.y + (size.y - debug->font_size)));
+        debug_text(&debug->render_group, &debug->font, var_name, V2(pos.x, pos.y + (size.y - debug->font.font_size)));
     }
 
     pos.x += MAX_NAME_WIDTH;
@@ -651,14 +724,14 @@ debug_slider(DebugState* debug,
     vec2 pos = debug->draw_cursor;
 
 
-    if (is_name_too_long(var_name, debug->x_advance))
+    if (is_name_too_long(var_name, 12))
     {
         var_name = string_copy(&debug->arena, var_name);
 
-        u32 max_len = MAX_NAME_WIDTH / (u32)debug->x_advance;
+        u32 max_len = MAX_NAME_WIDTH / 12;
         truncate_var_name(var_name, max_len);
     }
-    debug_text(debug, var_name, V2(pos.x, pos.y + (bar_size.y - debug->font_size)));
+    debug_text(&debug->render_group, &debug->font, var_name, V2(pos.x, pos.y + (bar_size.y - debug->font.font_size)));
 
     pos.x += MAX_NAME_WIDTH;
 
@@ -695,10 +768,10 @@ debug_slider(DebugState* debug,
     push_quad(group, pos, bar_size, ui_color, UI_LAYER_BACKMID);
 
 
-    vec2 text_pos = V2(pos.x+(bar_size.x/2), pos.y + (bar_size.y - debug->font_size));
+    vec2 text_pos = V2(pos.x+(bar_size.x/2), pos.y + (bar_size.y - debug->font.font_size));
     char text[32];
     snprintf(text, 32, "%.2f", *value);
-    debug_text(debug, text, text_pos, TEXT_ALIGN_MIDDLE);
+    debug_text(&debug->render_group, &debug->font, text, text_pos, TEXT_ALIGN_MIDDLE);
 
     button_position.x += (((*value)-min)/range) * (bar_size.x - button_size.x);
     push_quad(group, button_position, button_size, button_color, UI_LAYER_BACKMID);
@@ -714,7 +787,7 @@ debug_slider(DebugState* debug,
 internal void
 debug_vec3_slider(DebugState* debug, vec3* v, char* name)
 {
-    debug_text(debug, name, debug->draw_cursor);
+    debug_text(&debug->render_group, &debug->font,  name, debug->draw_cursor);
     debug_slider(debug, 0.0f, 1.0f, &v->x, "x");
     debug_slider(debug, 0.0f, 1.0f, &v->y, "y");
     debug_slider(debug, 0.0f, 1.0f, &v->z, "z");
@@ -745,7 +818,7 @@ debug_menu_begin(DebugState* debug, char* title)
     debug_submenu_titlebar(debug, 
                            debug->draw_cursor, 
                            V2(debug->menu_size.x - 2*PADDING,
-                              debug->font_size),
+                              (f32)debug->font.font_size),
                            title);
 
     b8 active = debug->menus[debug->current_menu_index].menu_is_active;
@@ -756,7 +829,7 @@ debug_menu_begin(DebugState* debug, char* title)
 internal void
 debug_menu_end(DebugState* debug)
 {
-    debug->draw_cursor.y -=  debug->font_size + PADDING;
+    debug->draw_cursor.y -=  debug->font.font_size + PADDING;
     debug->draw_cursor.x = debug->menu_pos.x + PADDING;
 
     ++debug->current_menu_index;

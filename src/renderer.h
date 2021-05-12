@@ -71,6 +71,22 @@ struct SubSprite
     vec2 uvs[4];
 };
 
+struct CharMetric
+{
+   u16 x0,y0,x1,y1;
+   f32 xoff,yoff,xadvance;
+};
+
+struct Font
+
+{
+    SubSprite* char_subsprites;
+    CharMetric* char_metrics;
+    u16 num_chars;
+    i32 font_size;
+    SpriteHandle font_sprite_handle;
+};
+
 
 
 struct Mesh

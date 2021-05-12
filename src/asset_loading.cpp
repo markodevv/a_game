@@ -27,6 +27,15 @@ load_sprite(Platform* platform, Assets* assets, char* sprite_path)
 }
 
 
+internal Sprite*
+get_loaded_sprite(Assets* assets, SpriteHandle handle)
+{
+    ASSERT(handle < (i32)assets->num_sprites &&
+           handle >= 0);
+
+    return assets->sprites + handle;
+}
+
 internal SubSprite
 subsprite_from_spritesheet(Assets* assets, 
                            SpriteHandle sprite_sheet_handle, 
@@ -47,4 +56,17 @@ subsprite_from_spritesheet(Assets* assets,
 }
 
 
+internal SpriteHandle
+create_empthy_sprite(Assets* assets, u32 w, u32 h, u32 channels)
+{
+    Sprite sprite = {};
+    sprite.data = PushMemory(&assets->arena, u8, (w*h));
+    sprite.width = w;
+    sprite.height = h;
+    sprite.channels = channels;
 
+    assets->sprites[assets->num_sprites] = sprite;
+    ++assets->num_sprites;
+
+    return (assets->num_sprites - 1);
+}

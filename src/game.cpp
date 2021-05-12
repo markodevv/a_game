@@ -2,9 +2,6 @@
 #include <stdio.h>
 
 
-#include <assimp/cimport.h>        // Plain-C interface
-#include <assimp/scene.h>          // Output data structure
-#include <assimp/postprocess.h>    // Post processing flags
 #include <stb_image.h>
 #include <stb_image_write.h>
 
@@ -18,8 +15,8 @@
 #include "renderer.cpp"
 #include "game.h"
 #include "render_group.cpp"
-#include "debug_ui.cpp"
 #include "asset_loading.cpp"
+#include "debug_ui.cpp"
 
 /* TODO:
 
@@ -203,29 +200,15 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         sub_arena(&game_state->arena, &memory->debug->arena, Megabytes(12));
 
 
-        FileResult font_file = platform->read_entire_file("../consola.ttf");
-
-        DebugState* debug = memory->debug;
-        debug->font_sprite_handle = create_sprite_asset(&trans_state->assets, 512, 512, 1);
-        debug->font_size = 14.0f;
-
-        Sprite* font_sprite = get_loaded_sprite(&trans_state->assets, debug->font_sprite_handle);
-
-        i32 result = stbtt_BakeFontBitmap((u8*)font_file.data, 
-                             0, debug->font_size,
-                             (u8*)font_sprite->data, 
-                             font_sprite->width, 
-                             font_sprite->height,
-                             32, NUM_ASCII, 
-                             debug->char_metrics);
+        memory->debug->font = debug_load_font(&memory->debug->arena,
+                                              platform,
+                                              &trans_state->assets,
+                                              "../consola.ttf",
+                                              12);
         // NOTE: Advance X is the same for all characters
         // thats why we set this
-        debug->x_advance = (debug->char_metrics + 32)->xadvance;
+        // debug->x_advance = (debug->char_metrics + 32)->xadvance;
 
-        if (!result)
-        {
-            PRINT("Failed to bake font map\n");
-        }
 
         game_state->minotaur_sprite = load_sprite(platform, &trans_state->assets, "../assets/minotaur.png");
         game_state->hero_sprite_sheet = load_sprite(platform, &trans_state->assets, 
@@ -239,7 +222,6 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         platform->init_renderer(game_state->renderer);
 
-        platform->free_file_memory(font_file.data);
 
 
         init_particle_system(&game_state->particle_system, 

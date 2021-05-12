@@ -244,30 +244,6 @@ struct GameState
     Renderer* renderer;
 };
 
-internal Sprite*
-get_loaded_sprite(Assets* assets, SpriteHandle handle)
-{
-    ASSERT(handle < (i32)assets->num_sprites &&
-           handle >= 0);
-
-    return assets->sprites + handle;
-}
-
-internal SpriteHandle
-create_sprite_asset(Assets* assets, u32 w, u32 h, u32 channels)
-{
-    Sprite sprite = {};
-    sprite.data = PushMemory(&assets->arena, u8, (w*h));
-    sprite.width = w;
-    sprite.height = h;
-    sprite.channels = channels;
-
-    assets->sprites[assets->num_sprites] = sprite;
-    ++assets->num_sprites;
-
-    return (assets->num_sprites - 1);
-}
-
 #define MAIN_H
 #endif
 

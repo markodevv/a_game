@@ -20,6 +20,8 @@
 typedef HGLRC WINAPI wglCreateContextAttribsARB_type(HDC hdc, HGLRC hShareContext, const int *attribList);
 wglCreateContextAttribsARB_type *wglCreateContextAttribsARB;
 
+#include <stb_image.h>
+
 #include "common.h"
 #include "memory.h"
 #include "string.cpp"
@@ -29,6 +31,7 @@ wglCreateContextAttribsARB_type *wglCreateContextAttribsARB;
 #include "renderer.h"
 #include "renderer.cpp"
 #include "game.h"
+#include "asset_loading.cpp"
 #include "opengl_renderer.h"
 #include "opengl_renderer.cpp"
 
