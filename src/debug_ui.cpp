@@ -307,8 +307,6 @@ debug_text(RenderGroup* render_group,
     }
 
 
-    Sprite* font_sprite = get_loaded_sprite(render_group->assets, font->font_sprite_handle);
-
     while(*text)
     {
         if (*text >= 32 && *text <= 128)
@@ -319,8 +317,8 @@ debug_text(RenderGroup* render_group,
             CharMetric* cm = font->char_metrics + index;
 
             float d3d_bias = 0.0f;
-            f32 ipw = 1.0f / font_sprite->width;
-            f32 iph = 1.0f / font_sprite->height;
+            // f32 ipw = 1.0f / font_sprite->width;
+            // f32 iph = 1.0f / font_sprite->height;
             i32 round_x = IFLOOR((position.x + cm->xoff) + 0.5f);
             i32 round_y = IFLOOR((position.y - cm->yoff) + 0.5f);
 // 
@@ -411,7 +409,8 @@ debug_menu_titlebar(DebugState* debug, char* title)
             case INTERACTION_TYPE_DRAG:
             {
                 color = hover_color;
-                debug->menu_pos = debug->menu_pos + (debug->mouse_pos - debug->prev_mouse_pos);
+                vec2 mouse_delta = (debug->mouse_pos - debug->prev_mouse_pos);
+                debug->menu_pos = debug->menu_pos + mouse_delta;
             } break;
         }
     }
@@ -481,7 +480,7 @@ debug_fps(DebugState* debug)
     RenderGroup* group = &debug->render_group;
     char* fps_text = "%.2f fps";
     char out[32];
-    sprintf_s(out, fps_text, debug->game_fps);
+    sprintf(out, fps_text, debug->game_fps);
     vec2 position = V2(0.0f, (f32)group->renderer->screen_height - debug->font.font_size);
 
     debug_text(&debug->render_group, &debug->font, out, position);
@@ -811,10 +810,6 @@ debug_color_slider(DebugState* debug, vec4* color)
 internal b8
 debug_menu_begin(DebugState* debug, char* title)
 {
-    RenderGroup* group = &debug->render_group;
-    Color color = ui_color;
-
-
     debug_submenu_titlebar(debug, 
                            debug->draw_cursor, 
                            V2(debug->menu_size.x - 2*PADDING,

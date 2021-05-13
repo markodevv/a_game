@@ -1,7 +1,6 @@
 #if !defined(DEBUG_H)
 #define DEBUG_H
 
-#include "stb_truetype.h"
 #include "renderer.h"
 
 

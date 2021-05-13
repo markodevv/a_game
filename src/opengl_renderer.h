@@ -14,8 +14,8 @@ typedef unsigned int GLuint;
 typedef float GLfloat;
 typedef float GLclampf;
 typedef void GLvoid;
-typedef int GLintptrARB;
-typedef int GLsizeiptrARB;
+// typedef int GLintptrARB;
+// typedef int GLsizeiptrARB;
 typedef int GLfixed;
 typedef int GLclampx;
 
@@ -512,20 +512,20 @@ OpenGLFunction(void,     glBindVertexArray,         GLuint array);
 OpenGLFunction(void,     glDeleteShader,            GLuint shader);
 OpenGLFunction(void,     glGetProgramInfoLog,       GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
 OpenGLFunction(void,     glGetProgramiv,            GLuint program, GLenum pname, GLint *params);
-OpenGLFunction(void,     glActiveTexture,           GLenum texture);
-OpenGLFunction(void,     glGenTextures,             GLsizei n, GLuint* texture);
-OpenGLFunction(void,     glBindTexture,             GLenum target, GLuint texture);
-OpenGLFunction(void,     glPixelStorei,             GLenum pnamel, GLint param);
-OpenGLFunction(void,     glTexParameteri,           GLenum target, GLenum pname, GLint param);
-OpenGLFunction(void,     glTexImage2D,	            GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid * data);
-OpenGLFunction(void,     glEnable,                  GLenum cap);
-OpenGLFunction(void,     glDisable,                  GLenum cap);
-OpenGLFunction(void,     glBlendFunc,               GLenum sfactor, GLenum dfactor);
-OpenGLFunction(void,     glClearColor,              GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
-OpenGLFunction(void,     glClear,                   GLbitfield mask);
-OpenGLFunction(void,     glViewport,                GLint x, GLint y, GLsizei width, GLsizei height);
-OpenGLFunction(void,     glDrawArrays,	            GLenum mode, GLint first, GLsizei count);
-OpenGLFunction(void,     glDrawElements,            GLenum mode, GLsizei count, GLenum type, const GLvoid *indices);
+// OpenGLFunction(void,     glActiveTexture,           GLenum texture);
+// OpenGLFunction(void,     glGenTextures,             GLsizei n, GLuint* texture);
+// OpenGLFunction(void,     glBindTexture,             GLenum target, GLuint texture);
+// OpenGLFunction(void,     glPixelStorei,             GLenum pnamel, GLint param);
+// OpenGLFunction(void,     glTexParameteri,           GLenum target, GLenum pname, GLint param);
+// OpenGLFunction(void,     glTexImage2D,	            GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid * data);
+// OpenGLFunction(void,     glEnable,                  GLenum cap);
+// OpenGLFunction(void,     glDisable,                  GLenum cap);
+// OpenGLFunction(void,     glBlendFunc,               GLenum sfactor, GLenum dfactor);
+// OpenGLFunction(void,     glClearColor,              GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
+// OpenGLFunction(void,     glClear,                   GLbitfield mask);
+// OpenGLFunction(void,     glViewport,                GLint x, GLint y, GLsizei width, GLsizei height);
+// OpenGLFunction(void,     glDrawArrays,	            GLenum mode, GLint first, GLsizei count);
+// OpenGLFunction(void,     glDrawElements,            GLenum mode, GLsizei count, GLenum type, const GLvoid *indices);
 
 
 

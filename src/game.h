@@ -244,6 +244,9 @@ struct GameState
     Renderer* renderer;
 };
 
+typedef void (*GameUpdate)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
+typedef void (*GameRender)(GameMemory* memory);
+
 #define MAIN_H
 #endif
 

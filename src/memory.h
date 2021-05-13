@@ -1,7 +1,7 @@
 #if !defined(MEMORY_H)
 #define MEMORY_H
 
-#define PushMemory(arena, type, ...)  (type *)push_memory(arena, sizeof(type), __VA_ARGS__)
+#define PushMemory(arena, type, ...)  (type *)push_memory(arena, sizeof(type), ##__VA_ARGS__)
 
 struct MemoryArena
 {

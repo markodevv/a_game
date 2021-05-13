@@ -7,8 +7,15 @@
 
 #ifdef GAME_DEBUG
 
+#include <assert.h>
+
+#ifdef PLATFORM_WIN32
 #define ASSERT(condition) \
     if (!(condition)) *(int *)0 = 0 
+#elif PLATFORM_LINUX 
+#define ASSERT(condition) \
+    assert(condition)
+#endif
 
 #else
 
@@ -42,11 +49,27 @@ typedef size_t sizet;
 #define GigaBytes(n) n*1024*1024*1024
 
 
-#ifdef LIBRARY_IMPORT
+#ifdef PLATFORM_WIN32
+
 #define PLATFORM_API __declspec(dllimport)
-#else
-#define PLATFORM_API __declspec(dllexport)
+
+#elif PLATFORM_LINUX
+
+#define PLATFORM_API __attribute__((visibility("default")))
+
 #endif
+
+// #if 0
+// #else
+// 
+    // #ifdef PLATFORM_WIN32
+// #define PLATFORM_API __declspec(dllexport)
+    // #elif PLATFORM_LINUX
+// #define PLATFORM_API 
+    // #endif
+// 
+// #endif
+
 
 
 

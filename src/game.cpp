@@ -2,7 +2,11 @@
 #include <stdio.h>
 
 
+#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#define STB_TRUETYPE_IMPLEMENTATION
+#include <stb_truetype.h>
+
 #include <stb_image_write.h>
 
 #include "common.h"
@@ -33,7 +37,7 @@ game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
     i32 wave_period = game_sound->samples_per_sec / game_state->tone_hz;
 
     i16* samples = game_sound->samples;
-    for (sizet sample_index = 0;
+    for (i32 sample_index = 0;
         sample_index < game_sound->sample_count;
         ++sample_index)
     {
@@ -212,13 +216,13 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         game_state->minotaur_sprite = load_sprite(platform, &trans_state->assets, "../assets/minotaur.png");
         game_state->hero_sprite_sheet = load_sprite(platform, &trans_state->assets, 
-        "C:/work/game/assets/platform_metroidvania asset pack v1.01/herochar sprites(new)/herochar_spritesheet(new).png");
+        "../assets/platform_metroidvania asset pack v1.01/herochar sprites(new)/herochar_spritesheet(new).png");
         game_state->hero_sprite = subsprite_from_spritesheet(&trans_state->assets,
                                                                     game_state->hero_sprite_sheet,
                                                                     0, 11,
                                                                     16, 16);
         game_state->backgroud_sprite = load_sprite(platform, &trans_state->assets,
-                                                   "C:/work/game/assets/platform_metroidvania asset pack v1.01/tiles and background_foreground/background.png");
+                                                   "../assets/platform_metroidvania asset pack v1.01/tiles and background_foreground/background.png");
 
         platform->init_renderer(game_state->renderer);
 
@@ -453,7 +457,6 @@ game_render(GameMemory* memory)
         {
             PRINT("button 2 clicked");
         }
-        local_persist i32 i;
 
         debug_slider(memory->debug, -1000.0f, 1000.0f, &memory->debug->menu_pos.x, ("menu x")); 
         debug_slider(memory->debug, -1000.0f, 1000.0f, &memory->debug->menu_pos.y, ("menu y")); 

@@ -303,8 +303,6 @@ win32_get_preformance_counter()
 
 #define AUDIO_SAMPLE_RATE 48000
 
-typedef void (*GameUpdate)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
-typedef void (*GameRender)(GameMemory* memory);
 
 struct Win32GameCode
 {
@@ -894,7 +892,6 @@ WinMain(HINSTANCE hinstance,
     game_memory.platform.read_entire_file = read_entire_file;
     game_memory.platform.write_entire_file = write_entire_file;
     game_memory.platform.free_file_memory = free_file_memory;
-    //game_memory.platform.load_3D_model = load_3D_model;
 
 // TODO: should be able to change graphics API on runtime
     game_memory.platform.init_renderer = opengl_init;

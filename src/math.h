@@ -10,14 +10,14 @@ struct vec2
 {
     f32 x, y;
 
-    vec2 operator+(vec2& other);
-    vec2 operator-(vec2& other);
+    vec2 operator+(vec2 other);
+    vec2 operator-(vec2 other);
     vec2 operator-(f32 n);
     void operator-=(f32 n);
     void operator+=(f32 n);
     void operator+=(vec2 v);
     void operator-=(vec2 v);
-    vec2 operator*(vec2& other);
+    vec2 operator*(vec2 other);
     vec2 operator*(f32 a);
     void operator*=(f32 a);
     vec2 operator/(f32 a);
@@ -44,9 +44,9 @@ struct vec3
     };
 
     f32 &operator[](sizet i);
-    vec3 operator+(vec3& other);
-    vec3 operator-(vec3& other);
-    vec3 operator*(vec3& other);
+    vec3 operator+(vec3 other);
+    vec3 operator-(vec3 other);
+    vec3 operator*(vec3 other);
     vec3 operator*(f32 a);
     vec3 operator/(f32 a);
 };
@@ -72,8 +72,8 @@ struct vec4
     };
 
     f32 &operator[](sizet i);
-    vec4 operator+(vec4& other);
-    vec4 operator-(vec4& other);
+    vec4 operator+(vec4 other);
+    vec4 operator-(vec4 other);
     void operator*=(f32 n);
 };
 
@@ -86,8 +86,8 @@ struct mat4
     };
 
     vec4 &operator[](sizet i);
-    mat4 operator*(mat4& other);
-    vec4 operator*(vec4& other);
+    mat4 operator*(mat4 other);
+    vec4 operator*(vec4 other);
 };
 
 struct vec4i
@@ -176,13 +176,13 @@ vec2::operator/(f32 a)
 }
 
 inline vec2 
-vec2::operator*(vec2& other)
+vec2::operator*(vec2 other)
 {
     return V2(other.x*x, other.y*y);
 }
 
 inline vec2
-vec2::operator+(vec2& other)
+vec2::operator+(vec2 other)
 {
     return {other.x+x, other.y+y};
 }
@@ -194,7 +194,7 @@ vec2::operator-(f32 n)
 }
 
 inline vec2
-vec2::operator-(vec2& other)
+vec2::operator-(vec2 other)
 {
     return {x-other.x, y-other.y};
 }
@@ -227,19 +227,19 @@ vec2::operator*(f32 a)
 }
 
 inline vec3
-vec3::operator+(vec3& other)
+vec3::operator+(vec3 other)
 {
     return {x+other.x, y+other.y, z+other.z};
 }
 
 inline vec3
-vec3::operator-(vec3& other)
+vec3::operator-(vec3 other)
 {
     return {x-other.x, y-other.y, z-other.z};
 }
 
 inline vec3
-vec3::operator*(vec3& other)
+vec3::operator*(vec3 other)
 {
     return {x*other.x, y*other.y, z*other.z};
 }
@@ -305,7 +305,7 @@ inline f32
 }
 
 inline vec4 
-vec4::operator+(vec4& other)
+vec4::operator+(vec4 other)
 {
     vec4 out;
     for (sizet i = 0; i < 4; ++i)
@@ -325,7 +325,7 @@ vec4::operator*=(f32 n)
 }
 
 inline vec4 
-vec4::operator-(vec4& other)
+vec4::operator-(vec4 other)
 {
     vec4 out;
     for (sizet i = 0; i < 4; ++i)
@@ -342,7 +342,7 @@ inline vec4
 }
 
 inline mat4 
-mat4::operator*(mat4& other)
+mat4::operator*(mat4 other)
 {
     mat4 out;
     for (sizet x = 0; x < 4; ++x)
@@ -361,7 +361,7 @@ mat4::operator*(mat4& other)
 }
 
 inline vec4 
-mat4::operator*(vec4& other)
+mat4::operator*(vec4 other)
 {
     vec4 out = {};
     for (sizet x = 0; x < 4; ++x)
