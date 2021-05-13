@@ -467,7 +467,7 @@ typedef char GLchar;
 typedef ptrdiff_t GLintptr;
 typedef ptrdiff_t GLsizeiptr;
 #define GLDECL 
-#define OpenGLFunction(ret, name, ...) typedef ret GLDECL name##proc(__VA_ARGS__); name##proc * ##name
+#define OpenGLFunction(ret, name, ...) typedef ret GLDECL name##proc(__VA_ARGS__); name##proc*  name
 
 OpenGLFunction(void,     glAttachShader,            GLuint program, GLuint shader);
 OpenGLFunction(void,     glBindBuffer,              GLenum target, GLuint buffer);

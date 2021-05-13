@@ -82,7 +82,7 @@ struct FileResult
 
 typedef FileResult ReadEntireFileProc(char* path);
 typedef void FreeEntireFileProc(void* memory);
-typedef b8 WriteEntireFileProc(char* file_name, i32 size, void* memory);
+typedef b8 WriteEntireFileProc(char* file_name, u32 size, void* memory);
 typedef Model Load3DModelProc(struct Assets* assets, char* name);
 typedef SpriteHandle LoadSpriteProc(Assets* assets, char* sprite_path);
 

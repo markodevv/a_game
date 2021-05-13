@@ -39,7 +39,6 @@ struct vec3
         struct
         {
             vec2 xy;
-            f32 z;
         };
         f32 data[3];
     };

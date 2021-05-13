@@ -111,7 +111,7 @@ struct Model
     u32 num_textures;
 };
 
-inline mat4
+internal mat4
 camera_transform(Camera* cam)
 {
     vec3 f = vec3_normalized(cam->direction);

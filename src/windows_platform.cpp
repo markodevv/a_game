@@ -462,7 +462,7 @@ win32_init_opengl(HWND window_handle)
         name = (name##proc *)GetProcAddress(module, #name); \
         if (!name) \
         { \
-            PRINT("Function " #name " couldn't be loaded.\n"); \
+            PRINT("OpenGL function " #name " couldn't be loaded.\n"); \
         } \
     } 
     // NOTE: Vsync
@@ -833,12 +833,6 @@ WinMain(HINSTANCE hinstance,
     *stdin = *hf_in;
     freopen("CONOUT$", "w+", stdout);
 
-    u32 i = 1;
-    u32 j = 0;
-    j |= (1 << 5);
-    j |= (1 << 4);
-    PRINT("I : %i", i);
-    PRINT("I : %i", (((i << 5) | (i << 4)) & j));
 
 
     WNDCLASS window_class = {};

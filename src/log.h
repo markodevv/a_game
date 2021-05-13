@@ -4,8 +4,9 @@
 #ifdef GAME_DEBUG
 #include <stdio.h>
 
+// NOTE: hashes are a fix for linux, don't know if it works for windows
 #define PRINT(msg, ...) \
-printf(msg"\n", __VA_ARGS__) 
+printf(msg"\n", ##__VA_ARGS__) 
 
 #else
 

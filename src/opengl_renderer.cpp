@@ -178,7 +178,6 @@ opengl_load_texture(Sprite* sprite, u32 slot)
     return texture_id;
 }
 
-global_variable u32 texture_slot;
 
 #if 0
 internal void
@@ -448,7 +447,6 @@ opengl_end_frame(Renderer* ren)
 
 
     u32 header_size = sizeof(RenderEntryHeader);
-    u32 last_quads_offset = 0;
 
     for (u32 base_offset = 0; base_offset < ren->push_buffer_size;)
     {
@@ -480,8 +478,8 @@ opengl_end_frame(Renderer* ren)
                 }
 
                 i32 vp_loc = opengl_get_uniform_location(ren->shader_program, "u_viewproj");
-                mat4 viewproj = setup->projection * 
-                                camera_transform(&setup->camera);
+                mat4 cam_mat = camera_transform(&setup->camera);
+                mat4 viewproj = setup->projection * cam_mat;
                 u32 num_vertices = quads->num_quads * VERTICES_PER_QUAD;
                 u32 num_indices = quads->num_quads * INDICES_PER_QUAD;
 
@@ -609,8 +607,8 @@ opengl_end_frame(Renderer* ren)
     u32 indices_size = num_indices * sizeof(u32);
 
     i32 vp_loc = opengl_get_uniform_location(ren->shader_program, "u_viewproj");
-    mat4 viewproj = setup->projection * 
-                    camera_transform(&setup->camera);
+    mat4 cam_mat = camera_transform(&setup->camera);
+    mat4 viewproj = setup->projection * cam_mat;
     glUniformMatrix4fv(vp_loc, 1, true, (f32*)viewproj.data);
 
 
