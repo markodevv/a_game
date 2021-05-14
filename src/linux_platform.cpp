@@ -11,7 +11,7 @@
 #include <dlfcn.h> // dlopen..
 
 
-#define STB_IMAGE_IMPLEMENTATION
+// #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 
@@ -44,10 +44,51 @@
 // typedef XID GLXPbuffer;
 // typedef XID GLXWindow;
 // typedef XID GLXFBConfigID;
-// typedef struct __GLXcontextRec *GLXContext;
+// typedef struct __GLXcontextRec *GLXContext#define KEYCODE_W           25
 // typedef struct __GLXFBConfigRec *GLXFBConfig;
+#define KEYCODE_W           25
+#define KEYCODE_A           38
+#define KEYCODE_S           39
+#define KEYCODE_D           40
+#define KEYCODE_Q           24
+#define KEYCODE_E           26
+#define KEYCODE_UP          111
+#define KEYCODE_DOWN        116
+#define KEYCODE_LEFT        113
+#define KEYCODE_RIGHT       114
+#define KEYCODE_ESCAPE      9
+#define KEYCODE_ENTER       36
+#define KEYCODE_SPACE       65
+#define KEYCODE_P           33
+#define KEYCODE_L           46
 
-#define GLX_RGBA		4
+#define KEYCODE_SHIFT_L     50
+#define KEYCODE_SHIFT_R     62
+#define KEYCODE_CTRL_L      37
+#define KEYCODE_CTRL_R      105
+#define KEYCODE_ALT_L       64
+#define KEYCODE_ALT_R       108
+#define KEYCODE_SUPER       133
+
+#define KEYCODE_PLUS        21
+#define KEYCODE_MINUS       20
+
+#define KEYCODE_F1          67
+#define KEYCODE_F10         76
+#define KEYCODE_F11         95
+#define KEYCODE_F12         96
+
+#define KEYCODE_SHIFT_MASK  0x01
+#define KEYCODE_CTRL_MASK   0x04
+#define KEYCODE_ALT_MASK    0x08
+
+#define LINUX_LEFT_MOUSE   1
+#define LINUX_RIGHT_MOUSE  3
+#define LINUX_MIDDLE_MOUSE 2
+#define LINUX_EXT1_MOUSE   8
+#define LINUX_EXT2_MOUSE   9
+
+#define GLX_RGBA		    4
 #define GLX_DOUBLEBUFFER	5
 #define GLX_DEPTH_SIZE		12
 
@@ -123,8 +164,7 @@ write_entire_file(char* file_name, u32 size, void* memory)
     {
         if (write(fd, memory, size) != -1)
         {
-            // NOTE: file writen successfully
-            printf("written file successfuly \n");
+            printf("Written file [%s] successfuly", file_name);
             result = true;
         }
         else
@@ -257,17 +297,35 @@ linux_unload_game_code(LinuxGameCode game_code)
     }
 }
 
+internal inline vec2
+linux_get_mouse_position(Display *display, Window window)
+{
+    Window ret_root, ret_win;
+    i32 root_x, root_y;
+    i32 win_x, win_y;
+    u32 mask;
+    b8 query_success = XQueryPointer(display, window,
+                                      &ret_root, &ret_win,
+                                      &root_x, &root_y, &win_x, &win_y, &mask);
+    
+    vec2 result = {};
+    if (query_success)
+    {
+        result.x = (f32)win_x;
+        result.y = (f32)win_y;
+    }
+    return result;
+}
+
 
 i32 
 main()
 {
     Window window;
-    Window root;
     Display *display = 0;
 
     GLXContext glx_contex;
     XWindowAttributes x_win_attribs;
-    XEvent x_event;
 
     i32 visual_attribs[] =
     {
@@ -325,12 +383,8 @@ main()
           i32 samp_buf, samples;
           glXGetFBConfigAttrib(display, fbc[i], GLX_SAMPLE_BUFFERS, &samp_buf);
           glXGetFBConfigAttrib(display, fbc[i], GLX_SAMPLES       , &samples);
-          
-          PRINT( "  Matching fbconfig %d, visual ID 0x%2x: SAMPLE_BUFFERS = %d,"
-                  " SAMPLES = %d\n", 
-                  i, vi -> visualid, samp_buf, samples );
 
-          if ( best_fbc < 0 || samp_buf && samples > best_num_samp )
+          if ( best_fbc < 0 || (samp_buf && samples) > best_num_samp )
             best_fbc = i, best_num_samp = samples;
           if ( worst_fbc < 0 || !samp_buf || samples < worst_num_samp )
             worst_fbc = i, worst_num_samp = samples;
@@ -343,7 +397,6 @@ main()
     XFree(fbc);
 
     XVisualInfo *vi = glXGetVisualFromFBConfig(display, fbc_to_use);
-    PRINT("Chosen visual ID = 0x%x\n", vi->visualid);
 
     XSetWindowAttributes set_win_attrib;
     Colormap color_map;
@@ -352,7 +405,10 @@ main()
     
     set_win_attrib.background_pixmap = None;
     set_win_attrib.border_pixel      = 0;
-    set_win_attrib.event_mask        = StructureNotifyMask;
+    set_win_attrib.event_mask        = KeyPressMask      | KeyReleaseMask    | ButtonPressMask   | 
+                                       ButtonReleaseMask | PointerMotionMask | Button1MotionMask |
+                                       Button2MotionMask | Button3MotionMask | Button4MotionMask | 
+                                       Button5MotionMask | ButtonMotionMask;
 
     window = XCreateWindow(display, RootWindow(display, vi->screen), 
                               0, 0, 1280, 768, 0, vi->depth, InputOutput, 
@@ -423,13 +479,85 @@ main()
 
     while (1)
     {
-
-        XNextEvent(display, &x_event);
-
-        if (x_event.type == KeyPress)
+        for (sizet i = 0; i < ArrayCount(game_input.buttons); ++i)
         {
-            break;
+            game_input.buttons[i].pressed = 0;
+            game_input.buttons[i].released = 0;
         }
+
+
+        while(XPending(display))
+        {
+            XEvent x_event = {};
+            XNextEvent(display, &x_event);
+
+            if (x_event.type == KeyRelease && XEventsQueued(display, QueuedAfterReading))
+            {
+                XEvent next_event;
+                XPeekEvent(display, &next_event);
+                if ((next_event.type == KeyPress) &&
+                    (next_event.xkey.time == x_event.xkey.time) &&
+                    (next_event.xkey.keycode == x_event.xkey.keycode))
+                {
+                    XNextEvent(display, &x_event);
+                    continue;
+                }
+            }
+            switch (x_event.type)
+            {
+                case KeyRelease:
+                case KeyPress:
+                {
+
+                    if (x_event.xkey.keycode == KEYCODE_W)
+                    {
+                        b8 is_down = (x_event.xkey.type == KeyPress);
+                        game_input.move_up.is_down = is_down;
+                        game_input.move_up.released = (x_event.xkey.type == KeyRelease);
+                    }
+                    else if (x_event.xkey.keycode == KEYCODE_D)
+                    {
+                        game_input.move_right.is_down = (x_event.xkey.type == KeyPress);
+                        game_input.move_right.released = (x_event.xkey.type == KeyRelease);
+                    }
+                    else if (x_event.xkey.keycode == KEYCODE_A)
+                    {
+                        game_input.move_left.is_down = (x_event.xkey.type == KeyPress);
+                        game_input.move_left.released = (x_event.xkey.type == KeyRelease);
+                    }
+                    else if (x_event.xkey.keycode == KEYCODE_S)
+                    {
+                        game_input.move_down.is_down = (x_event.xkey.type == KeyPress);
+                        game_input.move_down.released = (x_event.xkey.type == KeyRelease);
+                    }
+                } break;
+                case ButtonPress:
+                case ButtonRelease:
+                {
+                    if (LINUX_LEFT_MOUSE)
+                    {
+                        b8 was_down = game_input.left_mouse_button.is_down;
+                        b8 is_down = (x_event.type == ButtonPress);
+
+                        game_input.left_mouse_button.pressed = (!was_down && is_down);
+                        // PRINT("was_down %d", (!was_down && is_down));
+                        game_input.left_mouse_button.is_down = is_down;
+                        game_input.left_mouse_button.released = (x_event.type == ButtonRelease);
+                    }
+                    else if (LINUX_RIGHT_MOUSE)
+                    {
+                        b8 was_down = game_input.right_mouse_button.is_down;
+                        b8 is_down = (x_event.type == ButtonPress);
+
+                        game_input.right_mouse_button.pressed = (!was_down && is_down);
+                        game_input.right_mouse_button.is_down = (x_event.type == ButtonPress);
+                        game_input.right_mouse_button.released = (x_event.type == ButtonRelease);
+                    }
+                };
+            }
+        }
+        game_input.mouse.position = linux_get_mouse_position(display, window);
+
 
         XGetWindowAttributes(display, window, &x_win_attribs);
         glViewport(0, 0, x_win_attribs.width, x_win_attribs.height);

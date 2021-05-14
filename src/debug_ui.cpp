@@ -103,6 +103,7 @@ process_debug_ui_interactions(DebugState* debug, GameInput* input)
             }
             else
             {
+                PRINT("Click");
                 start_interaction(debug, INTERACTION_TYPE_CLICK);
             }
         }
@@ -370,6 +371,7 @@ debug_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
             case INTERACTION_TYPE_CLICK:
             {
                 color = clicked_color;
+                PRINT("Active");
                 b8* active = &debug->menus[debug->current_menu_index].menu_is_active;
                 *active = !(*active);
             } break;

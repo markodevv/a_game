@@ -532,8 +532,8 @@ internal void
 set_button_state(ButtonState* button, b8 is_down, b8 was_down)
 {
     button->is_down = is_down;
-    button->pressed = (was_down == 0) && (is_down == 1);
-    button->released = (was_down == 1) && (is_down == 0);
+    button->pressed =  (!was_down) && (is_down);
+    button->released = (was_down) &&  (!is_down);
 }
 
 internal void
@@ -561,6 +561,7 @@ win32_process_input_messages(GameInput* game_input)
 
                 if (is_down == was_down)
                     break;
+
                 switch(vk_code)
                 {
                     case 'A':

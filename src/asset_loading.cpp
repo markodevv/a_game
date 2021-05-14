@@ -1,4 +1,3 @@
-
 internal SpriteHandle
 load_sprite(Platform* platform, Assets* assets, char* sprite_path)
 {

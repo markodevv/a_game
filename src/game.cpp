@@ -417,7 +417,6 @@ game_render(GameMemory* memory)
         }
     }
 
-#if 0
     ParticleSystem* particle_system = &game_state->particle_system;
     for (u32 particle_index = 0; 
          particle_index < particle_system->max_particles; 
@@ -431,7 +430,6 @@ game_render(GameMemory* memory)
                   COLOR(180, 20, 0, 255),
                   LAYER_MID);
     }
-#endif
 
 
     debug_ui_begin(memory->debug, &tran_state->assets, ren, ren->screen_width, ren->screen_height, "Debug UI");

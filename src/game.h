@@ -6,8 +6,6 @@
    $Notice: (C) Copyright 2021. All Rights Reserved. $
    ======================================================================== */
 
-
-
 struct ButtonState
 {
     b8 is_down;
@@ -57,7 +55,6 @@ button_down(ButtonState button)
 internal inline b8
 button_repeat(ButtonState button)
 {
-    PRINT("repeat count %i", button.repeat_count);
     return (button.repeat_count > 0);
 }
 
