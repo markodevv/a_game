@@ -8,6 +8,7 @@ struct MemoryArena
     sizet used;
     sizet size;
     u8* base;
+    u32 temp_arena_count;
 };
 
 struct TemporaryArena
@@ -48,6 +49,8 @@ begin_temporary_memory(MemoryArena* arena)
     out.arena = arena;
     out.used = arena->used;
 
+    ++arena->temp_arena_count;
+
     return out;
 }
 
@@ -59,6 +62,20 @@ end_temporary_memory(TemporaryArena* temp_arena)
     arena->used = temp_arena->used;
 
     *temp_arena = {};
+
+    --arena->temp_arena_count;
+}
+
+internal void
+memory_clear(void* memory, u32 size)
+{
+    u8* next_to_clear = (u8*)memory;
+
+    for (u32 i = 0; i < size; ++i)
+    {
+        *next_to_clear = 0;
+        next_to_clear++;
+    }
 }
 
 #endif

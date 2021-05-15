@@ -243,9 +243,6 @@ opengl_init(Renderer* ren)
 
     ren->shader_program = glCreateProgram();
 
-    ren->push_buffer_max_size = Megabytes(10);
-    ren->push_buffer_base = (u8*)calloc(ren->push_buffer_max_size, sizeof(u8));
-    ren->push_buffer_size = 0;
 
     opengl_compile_shaders(ren->shader_program, vertex_shader_2D, fragment_shader_2D);
 
@@ -448,180 +445,135 @@ opengl_end_frame(Renderer* ren)
 
     u32 header_size = sizeof(RenderEntryHeader);
 
-    for (u32 base_offset = 0; base_offset < ren->push_buffer_size;)
+    RenderGroup* render_group = ren->render_groups;
+
+    while(render_group)
     {
-        u8* base = (ren->push_buffer_base + base_offset);
-
-        switch (((RenderEntryHeader *)base)->entry_type)
+        for (u32 base_offset = 0; base_offset < render_group->push_buffer_size;)
         {
-            case RENDER_ENTRY_TexturedQuadsEntry:
+            u8* base = (render_group->push_buffer_base + base_offset);
+
+            switch (((RenderEntryHeader *)base)->entry_type)
             {
-                TexturedQuadsEntry* quads = (TexturedQuadsEntry*)(base + header_size);
-
-                glUseProgram(ren->shader_program);
-                RenderSetup* setup = quads->render_setup;
-
-                for (u32 sprite_index = 0; sprite_index < setup->num_sprites; ++sprite_index)
+                case RENDER_ENTRY_QuadEntry:
                 {
-                    Sprite* sprite = get_loaded_sprite(ren->assets, 
-                                                    setup->sprite_handles[sprite_index]);
+                    QuadEntry* quad = (QuadEntry*)(base + header_size);
+                    u32 sprite_slot = 0;
 
-                    if (!sprite->loaded_to_gpu)
+                    vec2 uvs[] = {
+                        V2(1.0f, 1.0f),
+                        V2(1.0f, 0.0f),
+                        V2(0.0f, 0.0f),
+                        V2(0.0f, 1.0f),
+                    };
+
+                    if (quad->subsprite)
                     {
-                        sprite->id = opengl_load_texture(sprite, ren->slot);
-                        sprite->slot = ren->slot;
-                        ++ren->slot;
-                        ASSERT(ren->slot < 32);
+                        uvs[0] = quad->subsprite->uvs[0];
+                        uvs[1] = quad->subsprite->uvs[1];
+                        uvs[2] = quad->subsprite->uvs[2];
+                        uvs[3] = quad->subsprite->uvs[3];
+                        sprite_slot = get_loaded_sprite(ren->assets, quad->subsprite->sprite_sheet)->slot;
                     }
-                    glActiveTexture(GL_TEXTURE0 + sprite->slot);
-                    glBindTexture(GL_TEXTURE_2D, sprite->id);
-                }
-
-                i32 vp_loc = opengl_get_uniform_location(ren->shader_program, "u_viewproj");
-                mat4 cam_mat = camera_transform(&setup->camera);
-                mat4 viewproj = setup->projection * cam_mat;
-                u32 num_vertices = quads->num_quads * VERTICES_PER_QUAD;
-                u32 num_indices = quads->num_quads * INDICES_PER_QUAD;
+                    else if (quad->sprite_handle)
+                    {
+                        sprite_slot = get_loaded_sprite(ren->assets, quad->sprite_handle)->slot;
+                    }
 
 
-                u32 vertex_offset = quads->vertex_offset;
-                u32 index_offset = quads->index_offset;
+                    vec2 positions[] =
+                    {
+                        V2(1.0f,  1.0f) * quad->size + quad->position, // top right
+                        V2(1.0f,  0.0f) * quad->size + quad->position, // bottom right
+                        V2(0.0f,  0.0f) * quad->size + quad->position, // bottom left
+                        V2(0.0f,  1.0f) * quad->size + quad->position, // top left
+                    };
 
-                u32 vertices_size = num_vertices * sizeof(VertexData);
-                u32 indices_size = num_indices * sizeof(u32);
 
-                glUniformMatrix4fv(vp_loc, 1, true, (f32*)viewproj.data);
+                    u32 indices[] = {
+                        0, 1, 3,
+                        1, 2, 3,
+                    };
 
+                    VertexData* vertex = ren->vertices + ren->vertex_count;
+                    u32* index = ren->indices + ren->indices_count;
 
-                glBindVertexArray(ren->VAO);
-                //glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
+                    for (u32 i = 0; i < VERTICES_PER_QUAD; ++i)
+                    {
+                        vertex->position = V3(positions[i], 0.0f);
+                        vertex->color = quad->color;
+                        vertex->uv = uvs[i];
+                        vertex->texture_slot = (f32)sprite_slot;
 
-                glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indices_size, (ren->indices + index_offset)); 
-                glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, (ren->vertices + vertex_offset)); 
+                        ++vertex;
 
-                glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, 0);
-                //glDrawArrays(GL_TRIANGLES, 0, num_vertices);
-                //glDeleteBuffers(1, &ren->EBO);
+                    }
 
-                base_offset += sizeof(TexturedQuadsEntry) + header_size;
-            } break;
-            case RENDER_ENTRY_QuadEntry:
-            {
-                QuadEntry* quad = (QuadEntry*)(base + header_size);
-                u32 sprite_slot = 0;
+                    for (u32 i = 0; i < INDICES_PER_QUAD; ++i)
+                    {
+                        *index = ren->vertex_count + indices[i];
+                        ++index;
+                    }
 
-                vec2 uvs[] = {
-                    V2(1.0f, 1.0f),
-                    V2(1.0f, 0.0f),
-                    V2(0.0f, 0.0f),
-                    V2(0.0f, 1.0f),
-                };
+                    ren->vertex_count += VERTICES_PER_QUAD;
+                    ren->indices_count += INDICES_PER_QUAD;
 
-                if (quad->subsprite)
+                    base_offset += sizeof(QuadEntry) + header_size;
+                } break;
+                default:
                 {
-                    uvs[0] = quad->subsprite->uvs[0];
-                    uvs[1] = quad->subsprite->uvs[1];
-                    uvs[2] = quad->subsprite->uvs[2];
-                    uvs[3] = quad->subsprite->uvs[3];
-                    sprite_slot = get_loaded_sprite(ren->assets, quad->subsprite->sprite_sheet)->slot;
-                }
-                else if (quad->sprite_handle)
-                {
-                    sprite_slot = get_loaded_sprite(ren->assets, quad->sprite_handle)->slot;
-                }
-
-
-                vec2 positions[] =
-                {
-                    V2(1.0f,  1.0f) * quad->size + quad->position, // top right
-                    V2(1.0f,  0.0f) * quad->size + quad->position, // bottom right
-                    V2(0.0f,  0.0f) * quad->size + quad->position, // bottom left
-                    V2(0.0f,  1.0f) * quad->size + quad->position, // top left
-                };
-
-
-                u32 indices[] = {
-                    0, 1, 3,
-                    1, 2, 3,
-                };
-
-                VertexData* vertex = ren->vertices + ren->vertex_count;
-                u32* index = ren->indices + ren->indices_count;
-
-                for (u32 i = 0; i < VERTICES_PER_QUAD; ++i)
-                {
-                    vertex->position = V3(positions[i], 0.0f);
-                    vertex->color = quad->color;
-                    vertex->uv = uvs[i];
-                    vertex->texture_slot = (f32)sprite_slot;
-
-                    ++vertex;
-
-                }
-
-                for (u32 i = 0; i < INDICES_PER_QUAD; ++i)
-                {
-                    *index = ren->vertex_count + indices[i];
-                    ++index;
-                }
-
-                ren->vertex_count += VERTICES_PER_QUAD;
-                ren->indices_count += INDICES_PER_QUAD;
-
-                base_offset += sizeof(QuadEntry) + header_size;
-            } break;
-
-
-            default:
-            {
-                ASSERT(false);
-            } break;
+                    ASSERT(false);
+                } break;
+            }
         }
-    }
 
+        glUseProgram(ren->shader_program);
+        RenderSetup* setup = &render_group->setup;
 
-    glUseProgram(ren->shader_program);
-    RenderSetup* setup = ren->render_setup;
-
-    for (u32 sprite_index = 0; sprite_index < setup->num_sprites; ++sprite_index)
-    {
-        Sprite* sprite = get_loaded_sprite(ren->assets, 
-                                        setup->sprite_handles[sprite_index]);
-
-        if (!sprite->loaded_to_gpu)
+        for (u32 sprite_index = 0; sprite_index < setup->num_sprites; ++sprite_index)
         {
-            sprite->id = opengl_load_texture(sprite, ren->slot);
-            sprite->slot = ren->slot;
-            ++ren->slot;
-            ASSERT(ren->slot < 32);
+            // PRINT("sprite handle %d", setup->sprite_handles[sprite_index]);
+            Sprite* sprite = get_loaded_sprite(ren->assets, 
+                                               setup->sprite_handles[sprite_index]);
+
+            if (!sprite->loaded_to_gpu)
+            {
+                sprite->id = opengl_load_texture(sprite, ren->slot);
+                sprite->slot = ren->slot;
+                ++ren->slot;
+                ASSERT(ren->slot < 32);
+            }
+            glActiveTexture(GL_TEXTURE0 + sprite->slot);
+            glBindTexture(GL_TEXTURE_2D, sprite->id);
         }
-        glActiveTexture(GL_TEXTURE0 + sprite->slot);
-        glBindTexture(GL_TEXTURE_2D, sprite->id);
+
+        u32 num_vertices = ren->vertex_count;
+        u32 num_indices = ren->indices_count;
+
+
+        u32 vertices_size = num_vertices * sizeof(VertexData);
+        u32 indices_size = num_indices * sizeof(u32);
+
+        i32 vp_loc = opengl_get_uniform_location(ren->shader_program, "u_viewproj");
+        mat4 cam_mat = camera_transform(&setup->camera);
+        mat4 viewproj = setup->projection * cam_mat;
+        glUniformMatrix4fv(vp_loc, 1, true, (f32*)viewproj.data);
+
+
+        glBindVertexArray(ren->VAO);
+
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indices_size, ren->indices);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, ren->vertices);
+
+        glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, 0);
+
+        render_group = render_group->next->next;
+
+        ren->vertex_count = 0;
+        ren->indices_count = 0;
     }
+    ren->render_groups = 0;
 
-    u32 num_vertices = ren->vertex_count;
-    u32 num_indices = ren->indices_count;
-
-
-    u32 vertices_size = num_vertices * sizeof(VertexData);
-    u32 indices_size = num_indices * sizeof(u32);
-
-    i32 vp_loc = opengl_get_uniform_location(ren->shader_program, "u_viewproj");
-    mat4 cam_mat = camera_transform(&setup->camera);
-    mat4 viewproj = setup->projection * cam_mat;
-    glUniformMatrix4fv(vp_loc, 1, true, (f32*)viewproj.data);
-
-
-    glBindVertexArray(ren->VAO);
-
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indices_size, ren->indices);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, ren->vertices);
-
-    glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, 0);
-
-    ren->push_buffer_size = 0;
-    ren->vertex_count = 0;
-    ren->indices_count = 0;
 }
 #if 0
 

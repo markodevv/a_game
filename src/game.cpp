@@ -169,23 +169,23 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
     if (!memory->is_initialized)
     {
         memory->is_initialized = true;
-        TranState* trans_state = &game_state->trans_state;
 
 
         init_arena(&game_state->arena, 
                    (memory->permanent_storage_size - sizeof(GameState)),
                    (u8*)memory->permanent_storage + sizeof(GameState));
 
-        init_arena(&trans_state->arena, 
+        init_arena(&game_state->transient_arena, 
                    (memory->temporary_storage_size),
                    (u8*)memory->temporary_storage);
+
+        sub_arena(&game_state->transient_arena, &game_state->assets.arena, Megabytes(64));
 
         game_state->renderer = PushMemory(&game_state->arena, Renderer);
 
 
         Renderer* ren = game_state->renderer;
 
-        sub_arena(&trans_state->arena, &trans_state->assets.arena, Megabytes(64));
 
         ren->light.ambient = V3(1.0f);
         ren->light.diffuse = V3(1.0f);
@@ -193,35 +193,40 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         ren->light_pos = V3(200, 100, 0.0f);
 
-        ren->assets = &trans_state->assets;
+        ren->assets = &game_state->assets;
 
         // NOTE: needs to be first image loaded
-        ASSERT(trans_state->assets.num_sprites == 0);
-        ren->white_sprite = load_sprite(platform, &trans_state->assets, "../assets/white.png");
+        ASSERT(game_state->assets.num_sprites == 0);
+        ren->white_sprite = load_sprite(platform, &game_state->assets, "../assets/white.png");
 
 
         memory->debug = PushMemory(&game_state->arena, DebugState);
         sub_arena(&game_state->arena, &memory->debug->arena, Megabytes(12));
 
 
+#ifdef PLATFORM_WIN32
         memory->debug->font = debug_load_font(&memory->debug->arena,
                                               platform,
                                               &trans_state->assets,
                                               "../consola.ttf",
                                               12);
-        // NOTE: Advance X is the same for all characters
-        // thats why we set this
-        // debug->x_advance = (debug->char_metrics + 32)->xadvance;
+#elif PLATFORM_LINUX
+        memory->debug->font = debug_load_font(&memory->debug->arena,
+                                              platform,
+                                              &game_state->assets,
+                                              "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+                                              13);
+#endif
 
 
-        game_state->minotaur_sprite = load_sprite(platform, &trans_state->assets, "../assets/minotaur.png");
-        game_state->hero_sprite_sheet = load_sprite(platform, &trans_state->assets, 
+        game_state->minotaur_sprite = load_sprite(platform, &game_state->assets, "../assets/minotaur.png");
+        game_state->hero_sprite_sheet = load_sprite(platform, &game_state->assets, 
         "../assets/platform_metroidvania asset pack v1.01/herochar sprites(new)/herochar_spritesheet(new).png");
-        game_state->hero_sprite = subsprite_from_spritesheet(&trans_state->assets,
+        game_state->hero_sprite = subsprite_from_spritesheet(&game_state->assets,
                                                                     game_state->hero_sprite_sheet,
                                                                     0, 11,
                                                                     16, 16);
-        game_state->backgroud_sprite = load_sprite(platform, &trans_state->assets,
+        game_state->backgroud_sprite = load_sprite(platform, &game_state->assets,
                                                    "../assets/platform_metroidvania asset pack v1.01/tiles and background_foreground/background.png");
 
         platform->init_renderer(game_state->renderer);
@@ -232,8 +237,8 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
                              &game_state->arena,
                              V2(800, 400),
                              0.1f, 0.3f,
-                             V2(-5, 25),
-                             V2(5, 28),
+                             V2(-50, 50),
+                             V2(80, 120),
                              0.1f,
                              256);
 
@@ -367,25 +372,24 @@ game_render(GameMemory* memory)
     GameState* game_state = (GameState*)memory->permanent_storage;
     Renderer* ren = game_state->renderer;
     Platform *platform = &memory->platform;
-    TranState* tran_state = &game_state->trans_state;
 
 
+    TemporaryArena main_temp_arena = begin_temporary_memory(&game_state->transient_arena);
 
     Camera main_cam = {};
     main_cam.up = V3(0, 1, 0);
     main_cam.direction = V3(0, 0, 1);
     main_cam.position.z = 1.0f;
 
-    RenderGroup render_group = setup_render_group(mat4_orthographic((f32)ren->screen_width,
+    RenderGroup* render_group = setup_render_group(&game_state->transient_arena,
+                                                   mat4_orthographic((f32)ren->screen_width,
                                                                     (f32)ren->screen_height),
-                                                                   main_cam,
-                                                                   ren, 
-                                                                   &tran_state->assets);
-    ren->render_setup = &render_group.setup;
-
+                                                   main_cam,
+                                                   ren, 
+                                                   &game_state->assets);
     Entity* entity = get_entity(game_state, game_state->player_entity_index);
 
-    push_quad(&render_group,
+    push_quad(render_group,
               V2(0),
               V2((f32)ren->screen_width,
                  (f32)ren->screen_height),
@@ -393,7 +397,7 @@ game_render(GameMemory* memory)
               LAYER_BACK,
               game_state->backgroud_sprite);
 
-    push_quad(&render_group, 
+    push_quad(render_group, 
               &game_state->hero_sprite,
               entity->position, 
               entity->render.scale, 
@@ -408,7 +412,7 @@ game_render(GameMemory* memory)
         {
             if (game_state->tile_map[y][x])
             {
-                push_quad(&render_group, 
+                push_quad(render_group, 
                           V2((f32)x * game_state->tile_size, (f32)y * game_state->tile_size),
                           V2(game_state->tile_size - 4.0f, game_state->tile_size - 4.0f),
                           COLOR(75, 75, 0, 255),
@@ -424,7 +428,7 @@ game_render(GameMemory* memory)
     {
         Particle* particle = particle_system->particles + particle_index;
 
-        push_quad(&render_group, 
+        push_quad(render_group, 
                   particle->position,
                   V2(5, 5),
                   COLOR(180, 20, 0, 255),
@@ -432,7 +436,7 @@ game_render(GameMemory* memory)
     }
 
 
-    debug_ui_begin(memory->debug, &tran_state->assets, ren, ren->screen_width, ren->screen_height, "Debug UI");
+    debug_ui_begin(memory->debug, &game_state->assets, ren, "Debug UI");
 
     debug_fps(memory->debug);
 
@@ -472,5 +476,6 @@ game_render(GameMemory* memory)
 
     platform->end_frame(ren);
 
+    end_temporary_memory(&main_temp_arena);
 }
 

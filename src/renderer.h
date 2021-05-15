@@ -199,6 +199,12 @@ struct RenderGroup
     RenderSetup setup;
     Renderer* renderer;
     struct Assets* assets;
+
+    u8* push_buffer_base;
+    u32 push_buffer_size;
+    u32 push_buffer_max_size;
+
+    RenderGroup* next;
 };
 
 struct RenderSortEntry
@@ -210,10 +216,6 @@ struct RenderSortEntry
 
 struct Renderer
 {
-    u8* push_buffer_base;
-    u32 push_buffer_size;
-    u32 push_buffer_max_size;
-
     VertexData vertices[MAX_VERTICES];
     u32 vertex_count;
     u32 indices[MAX_INDICES];
@@ -233,6 +235,8 @@ struct Renderer
     i32 screen_height;
 
     struct Assets* assets;
+
+    RenderGroup* render_groups;
 
     RenderSetup* render_setup;
     SpriteHandle white_sprite;

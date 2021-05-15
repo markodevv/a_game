@@ -137,7 +137,6 @@ enum ModelId
 struct Assets
 {
     MemoryArena arena;
-
     Model models[3];
 
     Sprite sprites[64];
@@ -199,13 +198,6 @@ struct ParticleSystem
     u32 max_particles;
 };
 
-struct TranState
-{
-    MemoryArena arena;
-
-    Assets assets;
-};
-
 enum ComponentType
 {
     COMPONENT_Transform = 0,
@@ -214,8 +206,11 @@ enum ComponentType
 
 struct GameState
 {
-    TranState trans_state;
     MemoryArena arena;
+    MemoryArena transient_arena;
+
+    Assets assets;
+
     f32 t_sine;
     i32 tone_hz;
     i32 tone_volume;

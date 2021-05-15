@@ -39,8 +39,7 @@ struct DebugState
     MemoryArena arena;
     TemporaryArena temp_arena;
 
-    RenderGroup render_group;
-    RenderSetup render_setup;
+    RenderGroup* render_group;
 
     HotItem hot_item;
     HotItem next_hot_item;

@@ -2,17 +2,37 @@
 (type *)push_render_entry(group, sizeof(type), RENDER_ENTRY_##type) \
 
 
-internal RenderGroup 
-setup_render_group(mat4 projection, Camera camera, Renderer* ren, Assets* assets)
+internal RenderGroup*
+setup_render_group(MemoryArena* arena, mat4 projection, Camera camera, Renderer* ren, Assets* assets)
 {
-    RenderGroup render_group = {};
+    RenderGroup* render_group;
 
-    render_group.setup.projection = projection;
-    render_group.setup.camera = camera;
-    render_group.renderer = ren;
-    render_group.assets = assets;
+    if (!ren->render_groups)
+    {
+        ren->render_groups = PushMemory(arena, RenderGroup);
+        *ren->render_groups = {};
+        ren->render_groups->next = 0;
+        render_group = ren->render_groups;
+    }
+    else
+    {
+        RenderGroup* old_head = ren->render_groups;
+        render_group = PushMemory(arena, RenderGroup);
+        *render_group = {};
+        render_group->next = old_head;
+        ren->render_groups = render_group;
+    }
 
+    render_group->setup.projection = projection;
+    render_group->setup.camera = camera;
+    render_group->renderer = ren;
+    render_group->assets = assets;
 
+    render_group->push_buffer_max_size = Megabytes(10);
+    render_group->push_buffer_base = PushMemory(arena, u8, render_group->push_buffer_max_size);
+    render_group->push_buffer_size = 0;
+
+    ASSERT(arena->temp_arena_count);
 
     return render_group;
 }
@@ -34,13 +54,16 @@ internal void*
 push_render_entry(RenderGroup* group, u32 size, RenderEntryType type)
 {
     RenderEntryHeader* header = 0;
+    void* result = 0;
 
-    if ((group->renderer->push_buffer_size + size) < group->renderer->push_buffer_max_size)
+    if ((group->push_buffer_size + size) < group->push_buffer_max_size)
     {
-        header = (RenderEntryHeader*)(group->renderer->push_buffer_base +  
-                                      group->renderer->push_buffer_size);
+        header = (RenderEntryHeader*)(group->push_buffer_base +  
+                                      group->push_buffer_size);
         header->entry_type = type;
-        group->renderer->push_buffer_size += (size + sizeof(*header));
+        group->push_buffer_size += (size + sizeof(*header));
+        result = ((u8*)header) + sizeof(*header); 
+        memory_clear(result, size);
     }
     else
     {
@@ -48,7 +71,7 @@ push_render_entry(RenderGroup* group, u32 size, RenderEntryType type)
     }
 
 
-    return ((u8*)header) + sizeof(*header);
+    return result;
 }
 
 
@@ -153,6 +176,7 @@ push_quad(RenderGroup* group,
           Color color, 
           u32 layer)
 {
+    ASSERT(subsprite);
     add_sprite_to_setup(&group->setup, subsprite->sprite_sheet);
     //TexturedQuadsEntry* quads = get_current_quads(group, 1);
     QuadEntry* entry = PushRenderEntry(group, QuadEntry);
