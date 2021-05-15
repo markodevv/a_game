@@ -163,6 +163,12 @@ struct QuadEntry
     u32 layer;
 };
 
+struct SortElement
+{
+    u32 entry_offset;
+    u32 key;
+};
+
 struct RenderSetup
 {
     mat4 projection;
@@ -181,18 +187,11 @@ struct TexturedQuadsEntry
 };
 
 
- u32 LAYER_BACK;
- u32 LAYER_BACKMID;
- u32 LAYER_MID;
- u32 LAYER_MIDFRONT;
-
- u32 UI_LAYER_BACK;
- u32 UI_LAYER_BACKMID;
- u32 UI_LAYER_MID;
- u32 UI_LAYER_MIDFRONT;
- u32 UI_LAYER_FRONT;
-
- u32 LAYER_FRONT;
+ const u32 LAYER_BACK = 0;
+ const u32 LAYER_BACKMID = 1;
+ const u32 LAYER_MID = 2;
+ const u32 LAYER_MIDFRONT = 3;
+ const u32 LAYER_FRONT = 4;
 
 struct RenderGroup
 {
@@ -202,16 +201,13 @@ struct RenderGroup
 
     u8* push_buffer_base;
     u32 push_buffer_size;
-    u32 push_buffer_max_size;
+    u32 push_buffer_capacity;
+
+    u32 sort_element_count;
 
     RenderGroup* next;
 };
 
-struct RenderSortEntry
-{
-    f32 sort_key;
-    u32 push_buffer_offset;
-};
 
 
 struct Renderer
@@ -238,7 +234,6 @@ struct Renderer
 
     RenderGroup* render_groups;
 
-    RenderSetup* render_setup;
     SpriteHandle white_sprite;
 };
 

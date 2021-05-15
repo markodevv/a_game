@@ -209,13 +209,13 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
                                               platform,
                                               &trans_state->assets,
                                               "../consola.ttf",
-                                              12);
+                                              16);
 #elif PLATFORM_LINUX
         memory->debug->font = debug_load_font(&memory->debug->arena,
                                               platform,
                                               &game_state->assets,
                                               "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
-                                              13);
+                                              16);
 #endif
 
 

@@ -415,6 +415,24 @@ opengl_draw_model(Renderer* ren, Model* model, vec3 position, vec3 size)
    
 }
 #endif
+internal void
+sort_render_group(RenderGroup* render_group)
+{
+    SortElement* sort_entries = sort_element_start(render_group);
+
+    for(i32 i = 1; i < (i32)render_group->sort_element_count; ++i)
+    {
+        SortElement sort_element = sort_entries[i];
+
+        i32 j = i - 1;
+        while(j >= 0 && sort_entries[j].key > sort_element.key)
+        {
+            sort_entries[j+1] = sort_entries[j];
+            --j;
+        }
+        sort_entries[j+1] = sort_element;
+    }
+}
 
 internal void
 opengl_end_frame(Renderer* ren)
@@ -447,11 +465,18 @@ opengl_end_frame(Renderer* ren)
 
     RenderGroup* render_group = ren->render_groups;
 
+
+    // NOTE: Dumb sort
+    sort_render_group(render_group);
+
     while(render_group)
     {
-        for (u32 base_offset = 0; base_offset < render_group->push_buffer_size;)
+        SortElement* sort_element = sort_element_start(render_group);
+        for (u32 element_index = 0; 
+            element_index < render_group->sort_element_count;
+            ++element_index, ++sort_element)
         {
-            u8* base = (render_group->push_buffer_base + base_offset);
+            u8* base = (render_group->push_buffer_base + sort_element->entry_offset);
 
             switch (((RenderEntryHeader *)base)->entry_type)
             {
@@ -517,8 +542,6 @@ opengl_end_frame(Renderer* ren)
 
                     ren->vertex_count += VERTICES_PER_QUAD;
                     ren->indices_count += INDICES_PER_QUAD;
-
-                    base_offset += sizeof(QuadEntry) + header_size;
                 } break;
                 default:
                 {

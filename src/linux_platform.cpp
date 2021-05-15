@@ -33,6 +33,7 @@
 #include "renderer.cpp"
 #include "game.h"
 #include "asset_loading.cpp"
+#include "render_group.cpp"
 #include "opengl_renderer.h"
 #include "opengl_renderer.cpp"
 

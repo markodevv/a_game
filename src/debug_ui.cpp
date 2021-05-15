@@ -321,6 +321,7 @@ debug_text(RenderGroup* render_group,
            Font* font,
            char* text,
            vec2 position,
+           u32 layer,
            TextAlign align = TEXT_ALIGN_LEFT,
            Color color = {255, 255, 255, 255})
 {
@@ -342,18 +343,11 @@ debug_text(RenderGroup* render_group,
             i32 round_x = IFLOOR((position.x + cm->xoff) + 0.5f);
             i32 round_y = IFLOOR((position.y - cm->yoff) + 0.5f);
 
-            f32 x0 = round_x;
-            f32 y1 = round_y;
-            f32 x1 = round_x + cm->x1 - cm->x0;
-            f32 y0 = round_y - cm->y1 + cm->y0;
+            vec2 pos = V2(round_x, round_y);
+            vec2 size = V2(cm->x1 - cm->x0,
+                           -cm->y1 + cm->y0);
 
-
-            vec2 size = V2(x1 - x0,
-                           y0 - y1);
-
-
-
-            push_quad(render_group, font->char_subsprites + index, V2(x0, y1), size, color, LAYER_BACK);
+            push_quad(render_group, font->char_subsprites + index, pos, size, color, layer);
 
             position.x += cm->xadvance;
         }
@@ -391,12 +385,13 @@ debug_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
         debug->next_hot_item.id = title;
     }
 
-    push_quad(debug->render_group, position, size, color, UI_LAYER_BACKMID);
+    push_quad(debug->render_group, position, size, color, LAYER_MID);
     debug_text(debug->render_group, 
                &debug->font, 
                title, 
                V2(position.x + (size.x / 2),
                   position.y + 2),
+               LAYER_FRONT,
                TEXT_ALIGN_MIDDLE);
 
 }
@@ -433,12 +428,13 @@ debug_menu_titlebar(DebugState* debug, char* title)
         debug->next_hot_item.id = title;
     }
 
-    push_quad(debug->render_group, position, size, color, UI_LAYER_BACKMID);
+    push_quad(debug->render_group, position, size, color, LAYER_MID);
     debug_text(debug->render_group, 
                &debug->font,
                title, 
                V2(position.x + (size.x / 2),
                   position.y + 2),
+               LAYER_FRONT,
                TEXT_ALIGN_MIDDLE);
 
 }
@@ -464,7 +460,7 @@ debug_ui_begin(DebugState* debug, Assets* assets, Renderer* ren, char* title)
 
     debug_menu_titlebar(debug, title);
 
-    //push_quad(debug->render_group, debug->menu_pos, debug->menu_size, COLOR(122, 122, 122, 255), UI_LAYER_BACKMID);
+    //push_quad(debug->render_group, debug->menu_pos, debug->menu_size, COLOR(122, 122, 122, 255), LAYER_BACKMID);
 
     debug->draw_cursor.x = debug->menu_pos.x + PADDING;
     debug->draw_cursor.y = debug->menu_pos.y + debug->menu_size.y - (2 * debug->font.font_size) - PADDING;
@@ -488,7 +484,7 @@ debug_fps(DebugState* debug)
     sprintf(out, fps_text, debug->game_fps);
     vec2 position = V2(0.0f, (f32)group->renderer->screen_height - debug->font.font_size);
 
-    debug_text(debug->render_group, &debug->font, out, position);
+    debug_text(debug->render_group, &debug->font, out, position, LAYER_FRONT);
 }
 
 
@@ -509,10 +505,14 @@ debug_checkbox(DebugState* debug, b8* toggle_var, char* var_name)
         u32 max_len = MAX_NAME_WIDTH / 12;
         truncate_var_name(var_name, max_len);
     }
-    debug_text(debug->render_group, &debug->font, var_name, V2(pos.x, pos.y + (size.y - debug->font.font_size)));
+    debug_text(debug->render_group, 
+               &debug->font, 
+               var_name, 
+               V2(pos.x, pos.y + (size.y - debug->font.font_size)),
+               LAYER_FRONT);
     pos.x += MAX_NAME_WIDTH;
 
-    push_quad(group, pos, size, ui_color, UI_LAYER_BACKMID);
+    push_quad(group, pos, size, ui_color, LAYER_BACKMID);
 
     Color check_color = {100, 100, 100, 255};
 
@@ -535,10 +535,10 @@ debug_checkbox(DebugState* debug, b8* toggle_var, char* var_name)
         check_color.b *= 2;
     }
 
-    push_quad(group, pos, size, ui_color, UI_LAYER_BACKMID);
+    push_quad(group, pos, size, ui_color, LAYER_BACKMID);
     size -= 8;
     pos += 4;
-    push_quad(group, pos, size, check_color, UI_LAYER_BACKMID);
+    push_quad(group, pos, size, check_color, LAYER_BACKMID);
 
     if (point_rect_intersect(debug->mouse_pos,
                         pos,
@@ -573,12 +573,12 @@ debug_button(DebugState* debug,
     }
 
 
-    push_quad(group, button_pos, button_size, button_color, UI_LAYER_BACKMID);
+    push_quad(group, button_pos, button_size, button_color, LAYER_MID);
     vec2 text_pos = V2(
         button_pos.x + (button_size.x / 2.0f),
         button_pos.y + (button_size.y / 4.0f)
     );
-    debug_text(debug->render_group, &debug->font, name, text_pos, TEXT_ALIGN_MIDDLE);
+    debug_text(group, &debug->font, name, text_pos, LAYER_FRONT, TEXT_ALIGN_MIDDLE);
 
     if (point_rect_intersect(debug->mouse_pos,
                         button_pos,
@@ -624,7 +624,7 @@ draw_variabe(DebugState* debug, void* value, vec2 pos, vec2 size, DebugVariableT
 
     if (is_editing_box)
     {
-        debug_text(debug->render_group, &debug->font, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font.font_size)));
+        debug_text(debug->render_group, &debug->font, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font.font_size)), LAYER_FRONT);
 
         debug->text_input_buffer[debug->text_insert_index] = '\0';
 
@@ -634,7 +634,7 @@ draw_variabe(DebugState* debug, void* value, vec2 pos, vec2 size, DebugVariableT
             *((i32*)value) = (i32)atoi(debug->text_input_buffer);
 
         f32 cursor_x = pos.x + 12 * string_length(debug->text_input_buffer);
-        push_quad(debug->render_group, V2(cursor_x, pos.y), V2(1, size.y), {255, 0, 0, 255}, UI_LAYER_BACKMID);
+        push_quad(debug->render_group, V2(cursor_x, pos.y), V2(1, size.y), {255, 0, 0, 255}, LAYER_BACKMID);
     }
     else
     {
@@ -643,6 +643,7 @@ draw_variabe(DebugState* debug, void* value, vec2 pos, vec2 size, DebugVariableT
                    text, 
                    V2(pos.x + (size.x / 2), 
                       pos.y + (size.y - debug->font.font_size)),
+                   LAYER_FRONT,
                    TEXT_ALIGN_MIDDLE);
     }
 }
@@ -683,11 +684,14 @@ debug_editbox(DebugState* debug, void* value, char* var_name, DebugVariableType 
             u32 max_len = MAX_NAME_WIDTH / 12;
             truncate_var_name(var_name, max_len);
         }
-        debug_text(debug->render_group, &debug->font, var_name, V2(pos.x, pos.y + (size.y - debug->font.font_size)));
+        debug_text(debug->render_group, 
+                   &debug->font, var_name, 
+                   V2(pos.x, pos.y + (size.y - debug->font.font_size)), 
+                   LAYER_FRONT);
     }
 
     pos.x += MAX_NAME_WIDTH;
-    push_quad(group, pos, size, color, UI_LAYER_BACKMID);
+    push_quad(group, pos, size, color, LAYER_MID);
 
     draw_variabe(debug, value, pos, size, type);
 
@@ -734,7 +738,7 @@ debug_slider(DebugState* debug,
         u32 max_len = MAX_NAME_WIDTH / 12;
         truncate_var_name(var_name, max_len);
     }
-    debug_text(debug->render_group, &debug->font, var_name, V2(pos.x, pos.y + (bar_size.y - debug->font.font_size)));
+    debug_text(debug->render_group, &debug->font, var_name, V2(pos.x, pos.y + (bar_size.y - debug->font.font_size)), LAYER_FRONT);
 
     pos.x += MAX_NAME_WIDTH;
 
@@ -768,16 +772,16 @@ debug_slider(DebugState* debug,
         button_color.a /= 2;
     }
 
-    push_quad(group, pos, bar_size, ui_color, UI_LAYER_BACKMID);
+    push_quad(group, pos, bar_size, ui_color, LAYER_BACKMID);
 
 
     vec2 text_pos = V2(pos.x+(bar_size.x/2), pos.y + (bar_size.y - debug->font.font_size));
     char text[32];
     snprintf(text, 32, "%.2f", *value);
-    debug_text(debug->render_group, &debug->font, text, text_pos, TEXT_ALIGN_MIDDLE);
+    debug_text(debug->render_group, &debug->font, text, text_pos, LAYER_FRONT, TEXT_ALIGN_MIDDLE);
 
     button_position.x += (((*value)-min)/range) * (bar_size.x - button_size.x);
-    push_quad(group, button_position, button_size, button_color, UI_LAYER_BACKMID);
+    push_quad(group, button_position, button_size, button_color, LAYER_MID);
 
     if (point_rect_intersect(debug->mouse_pos, button_position, button_size))
     {
@@ -790,7 +794,7 @@ debug_slider(DebugState* debug,
 internal void
 debug_vec3_slider(DebugState* debug, vec3* v, char* name)
 {
-    debug_text(debug->render_group, &debug->font,  name, debug->draw_cursor);
+    debug_text(debug->render_group, &debug->font,  name, debug->draw_cursor, LAYER_FRONT);
     debug_slider(debug, 0.0f, 1.0f, &v->x, "x");
     debug_slider(debug, 0.0f, 1.0f, &v->y, "y");
     debug_slider(debug, 0.0f, 1.0f, &v->z, "z");

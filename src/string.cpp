@@ -40,7 +40,7 @@ string_equals(char* s1, char* s2)
 internal inline i32
 last_backslash_index(char* str)
 {
-    u32 len = (i32)string_length(str);
+    u32 len = string_length(str);
     for(u32 i = len-1; i >= 0; --i)
     {
         if (str[i] == '/')
