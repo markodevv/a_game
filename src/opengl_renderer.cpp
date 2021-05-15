@@ -467,10 +467,11 @@ opengl_end_frame(Renderer* ren)
 
 
     // NOTE: Dumb sort
-    sort_render_group(render_group);
 
     while(render_group)
     {
+        sort_render_group(render_group);
+
         SortElement* sort_element = sort_element_start(render_group);
         for (u32 element_index = 0; 
             element_index < render_group->sort_element_count;
@@ -590,7 +591,7 @@ opengl_end_frame(Renderer* ren)
 
         glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, 0);
 
-        render_group = render_group->next->next;
+        render_group = render_group->next;
 
         ren->vertex_count = 0;
         ren->indices_count = 0;

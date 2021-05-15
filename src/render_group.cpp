@@ -11,16 +11,18 @@ setup_render_group(MemoryArena* arena, mat4 projection, Camera camera, Renderer*
     {
         ren->render_groups = PushMemory(arena, RenderGroup);
         *ren->render_groups = {};
-        ren->render_groups->next = 0;
         render_group = ren->render_groups;
     }
     else
     {
-        RenderGroup* old_head = ren->render_groups;
-        render_group = PushMemory(arena, RenderGroup);
+        render_group = ren->render_groups;
+        while(render_group->next)
+        {
+            render_group = render_group->next;
+        }
+        render_group->next = PushMemory(arena, RenderGroup);
+        render_group = render_group->next;
         *render_group = {};
-        render_group->next = old_head;
-        ren->render_groups = render_group;
     }
 
     render_group->setup.projection = projection;
