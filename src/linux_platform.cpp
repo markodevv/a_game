@@ -58,6 +58,7 @@
 #define KEYCODE_LEFT        113
 #define KEYCODE_RIGHT       114
 #define KEYCODE_ESCAPE      9
+#define KEYCODE_BACKSPACE   22
 #define KEYCODE_ENTER       36
 #define KEYCODE_SPACE       65
 #define KEYCODE_P           33
@@ -318,6 +319,15 @@ linux_get_mouse_position(Display *display, Window window)
     return result;
 }
 
+internal void
+linux_set_button_state(ButtonState* button_state, b8 is_down, b8 is_released)
+{
+
+    button_state->pressed = is_down && !(button_state->is_down);
+    button_state->is_down = is_down;
+    button_state->released = is_released;
+}
+
 
 i32 
 main()
@@ -484,7 +494,10 @@ main()
         {
             game_input.buttons[i].pressed = 0;
             game_input.buttons[i].released = 0;
+            game_input.character = '\0';
         }
+
+
 
 
         while(XPending(display))
@@ -492,6 +505,18 @@ main()
             XEvent x_event = {};
             XNextEvent(display, &x_event);
 
+            if (x_event.type == KeyPress)
+            {
+                char text_buffer[10];
+                KeySym key;
+
+                (XLookupString(&x_event.xkey, 
+                              text_buffer,
+                              10,
+                              &key,
+                              0));
+                game_input.character = text_buffer[0];
+            }
             if (x_event.type == KeyRelease && XEventsQueued(display, QueuedAfterReading))
             {
                 XEvent next_event;
@@ -504,11 +529,13 @@ main()
                     continue;
                 }
             }
+
             switch (x_event.type)
             {
                 case KeyRelease:
                 case KeyPress:
                 {
+                    PRINT("%d", x_event.xkey.keycode);
 
                     if (x_event.xkey.keycode == KEYCODE_W)
                     {
@@ -516,20 +543,32 @@ main()
                         game_input.move_up.is_down = is_down;
                         game_input.move_up.released = (x_event.xkey.type == KeyRelease);
                     }
-                    else if (x_event.xkey.keycode == KEYCODE_D)
+                    if (x_event.xkey.keycode == KEYCODE_D)
                     {
                         game_input.move_right.is_down = (x_event.xkey.type == KeyPress);
                         game_input.move_right.released = (x_event.xkey.type == KeyRelease);
                     }
-                    else if (x_event.xkey.keycode == KEYCODE_A)
+                    if (x_event.xkey.keycode == KEYCODE_A)
                     {
                         game_input.move_left.is_down = (x_event.xkey.type == KeyPress);
                         game_input.move_left.released = (x_event.xkey.type == KeyRelease);
                     }
-                    else if (x_event.xkey.keycode == KEYCODE_S)
+                    if (x_event.xkey.keycode == KEYCODE_S)
                     {
                         game_input.move_down.is_down = (x_event.xkey.type == KeyPress);
                         game_input.move_down.released = (x_event.xkey.type == KeyRelease);
+                    }
+                    if (x_event.xkey.keycode == KEYCODE_ESCAPE)
+                    {
+                        linux_set_button_state(&game_input.escape,
+                                               x_event.xkey.type == KeyPress,
+                                               x_event.xkey.type == KeyRelease);
+                    }
+                    if (x_event.xkey.keycode == KEYCODE_BACKSPACE)
+                    {
+                        linux_set_button_state(&game_input.backspace,
+                                               x_event.xkey.type == KeyPress,
+                                               x_event.xkey.type == KeyRelease);
                     }
                 } break;
                 case ButtonPress:

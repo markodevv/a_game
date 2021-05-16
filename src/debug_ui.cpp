@@ -66,11 +66,13 @@ process_debug_ui_interactions(DebugState* debug, GameInput* input)
             } break;
             case INTERACTION_TYPE_EDIT:
             {
-                if (input->character != -1)
+                if (input->character != '\0')
                 {
                     char c = input->character;
-                    if (c >= 48 &&
-                        c < 58)
+                    if ((c >= 48 && c < 58) ||
+                        c == 46 ||
+                        c == 43 ||
+                        c == 45)
                     {
                         debug->text_input_buffer[debug->text_insert_index] = input->character;
                         debug->text_input_buffer[debug->text_insert_index + 1] = '\0';
@@ -85,6 +87,7 @@ process_debug_ui_interactions(DebugState* debug, GameInput* input)
                 }
                 if (button_pressed(input->escape))
                 {
+                    PRINT("Ending edit");
                     end_interaction(debug);
                 }
             } break;
@@ -633,8 +636,8 @@ draw_variabe(DebugState* debug, void* value, vec2 pos, vec2 size, DebugVariableT
         else if (type == DEBUG_VAR_INT)
             *((i32*)value) = (i32)atoi(debug->text_input_buffer);
 
-        f32 cursor_x = pos.x + 12 * string_length(debug->text_input_buffer);
-        push_quad(debug->render_group, V2(cursor_x, pos.y), V2(1, size.y), {255, 0, 0, 255}, LAYER_BACKMID);
+        f32 cursor_x = pos.x + get_text_width(&debug->font, debug->text_input_buffer);
+        push_quad(debug->render_group, V2(cursor_x, pos.y), V2(1, size.y), COLOR(255), LAYER_FRONT);
     }
     else
     {
