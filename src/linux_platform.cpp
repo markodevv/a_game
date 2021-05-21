@@ -9,6 +9,8 @@
 #include <math.h>
 #include <string.h>
 #include <dlfcn.h> // dlopen..
+#include <time.h>
+#include <limits.h>
 
 
 // #define STB_IMAGE_IMPLEMENTATION
@@ -95,6 +97,7 @@
 #define GLX_DEPTH_SIZE		12
 
 OpenGLFunction(GLXContext, glXCreateContextAttribsARB, Display* d, GLXFBConfig config, GLXContext shareContext, Bool direct, const int *attribList);
+OpenGLFunction(void, glXSwapIntervalEXT, Display* d, GLXDrawable drawable, const int inverval);
 
 // #include "opengl_renderer.h"
 // #include "opengl_renderer.cpp"
@@ -183,10 +186,16 @@ write_entire_file(char* file_name, u32 size, void* memory)
     return result;
 }
 
+struct LinuxWindowInfo
+{
+    XSetWindowAttributes win_attrib;
+    XVisualInfo* visual_info;
+    GLXContext context;
+};
+
 internal void
 linux_init_opengl()
 {
-
     void* lib_GL = dlopen("libGL.so", RTLD_NOW);
     if (!lib_GL) {
         PRINT("libGL.so couldn't be loaded");
@@ -242,6 +251,7 @@ linux_init_opengl()
     LinuxLoadOpenGLFunction(glGetProgramInfoLog);
     LinuxLoadOpenGLFunction(glGetProgramiv);
     LinuxLoadOpenGLFunction(glXCreateContextAttribsARB);
+    LinuxLoadOpenGLFunction(glXSwapIntervalEXT);
     // LinuxLoadOpenGLFunction(glActiveTexture);
     // LinuxLoadOpenGLFunction(glGenTextures);
     // LinuxLoadOpenGLFunction(glBindTexture);
@@ -258,12 +268,122 @@ linux_init_opengl()
     // LinuxLoadOpenGLFunction(glDrawElements);
 }
 
+internal LinuxWindowInfo
+linux_opengl_prep(Display* display)
+{
+    LinuxWindowInfo result = {};
+
+    i32 glx_major, glx_minor;
+    i32 visual_attribs[] =
+    {
+      GLX_X_RENDERABLE    , True,
+      GLX_DRAWABLE_TYPE   , GLX_WINDOW_BIT,
+      GLX_RENDER_TYPE     , GLX_RGBA_BIT,
+      GLX_X_VISUAL_TYPE   , GLX_TRUE_COLOR,
+      GLX_RED_SIZE        , 8,
+      GLX_GREEN_SIZE      , 8,
+      GLX_BLUE_SIZE       , 8,
+      GLX_ALPHA_SIZE      , 8,
+      GLX_DEPTH_SIZE      , 24,
+      GLX_STENCIL_SIZE    , 8,
+      GLX_DOUBLEBUFFER    , True,
+      //GLX_SAMPLE_BUFFERS  , 1,
+      //GLX_SAMPLES         , 4,
+      None
+    };
+
+    // FBConfigs were added in GLX version 1.3.
+    if (!glXQueryVersion(display, &glx_major, &glx_minor) || 
+         ((glx_major == 1) && (glx_minor < 3)) || (glx_major < 1 ))
+    {
+        PRINT("Invalid GLX version");
+    }
+    i32 fbcount;
+    GLXFBConfig* fbc = 
+                glXChooseFBConfig(display, DefaultScreen(display), visual_attribs, &fbcount);
+
+    if (!fbc)
+    {
+        PRINT("Failed to retrive a framebuffer config");
+    }
+    i32 best_fbc = -1, worst_fbc = -1, best_num_samp = -1, worst_num_samp = 999;
+
+    i32 i;
+    for (i=0; i<fbcount; ++i)
+    {
+        XVisualInfo *vi = glXGetVisualFromFBConfig(display, fbc[i]);
+        if (vi)
+        {
+          i32 samp_buf, samples;
+          glXGetFBConfigAttrib(display, fbc[i], GLX_SAMPLE_BUFFERS, &samp_buf);
+          glXGetFBConfigAttrib(display, fbc[i], GLX_SAMPLES       , &samples);
+
+          if ( best_fbc < 0 || (samp_buf && samples) > best_num_samp )
+            best_fbc = i, best_num_samp = samples;
+          if ( worst_fbc < 0 || !samp_buf || samples < worst_num_samp )
+            worst_fbc = i, worst_num_samp = samples;
+        }
+        XFree(vi);
+    }
+
+    GLXFBConfig fbc_to_use = fbc[ best_fbc ];
+
+    result.visual_info = glXGetVisualFromFBConfig(display, fbc_to_use);
+
+    XFree(fbc);
+
+    if (glXCreateContextAttribsARB)
+    {
+        i32 opengl_attribs[] =
+        {
+            GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
+            GLX_CONTEXT_MINOR_VERSION_ARB, 3,
+            GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
+#if GAME_DEBUG
+            | GLX_CONTEXT_DEBUG_BIT_ARB
+#endif
+            ,
+#if 0
+            GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+#else
+            GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
+#endif
+            0,
+        };
+
+        result.context = glXCreateContextAttribsARB(display, fbc_to_use, 0, true, opengl_attribs);
+    }
+    else
+    {
+        result.context = glXCreateContext(display, result.visual_info, NULL, GL_TRUE);
+    }
+
+    GLXDrawable drawable = glXGetCurrentDrawable();
+    if (drawable) {
+        glXSwapIntervalEXT(display, drawable, 1);
+    }
+
+    Colormap color_map;
+    color_map = XCreateColormap(display, 
+                                RootWindow(display, result.visual_info->screen), 
+                                result.visual_info->visual, 
+                                AllocNone);
+    result.win_attrib.colormap = color_map;
+    
+    result.win_attrib.background_pixmap = None;
+    result.win_attrib.border_pixel      = 0;
+    result.win_attrib.event_mask        = KeyPressMask      | KeyReleaseMask    | ButtonPressMask   | 
+                                       ButtonReleaseMask | PointerMotionMask | Button1MotionMask |
+                                       Button2MotionMask | Button3MotionMask | Button4MotionMask | 
+                                       Button5MotionMask | ButtonMotionMask;
+
+    return result;
+}
+
 struct LinuxGameCode
 {
     void* lib_game_handle;
-
-    GameUpdate game_update;
-    GameRender game_render;
+    GameMainLoop main_loop;
 };
 
 internal LinuxGameCode
@@ -274,10 +394,9 @@ linux_load_game_code()
 
     if (result.lib_game_handle) 
     {
-        result.game_update = (GameUpdate)dlsym(result.lib_game_handle, "game_update");
-        result.game_render = (GameRender)dlsym(result.lib_game_handle, "game_render");
+        result.main_loop = (GameMainLoop)dlsym(result.lib_game_handle, "game_main_loop");
 
-        ASSERT(result.game_update && result.game_render);
+        ASSERT(result.main_loop);
     }
     else
     {
@@ -322,7 +441,6 @@ linux_get_mouse_position(Display *display, Window window)
 internal void
 linux_set_button_state(ButtonState* button_state, b8 is_down, b8 is_released)
 {
-
     button_state->pressed = is_down && !(button_state->is_down);
     button_state->is_down = is_down;
     button_state->released = is_released;
@@ -335,28 +453,6 @@ main()
     Window window;
     Display *display = 0;
 
-    GLXContext glx_contex;
-    XWindowAttributes x_win_attribs;
-
-    i32 visual_attribs[] =
-    {
-      GLX_X_RENDERABLE    , True,
-      GLX_DRAWABLE_TYPE   , GLX_WINDOW_BIT,
-      GLX_RENDER_TYPE     , GLX_RGBA_BIT,
-      GLX_X_VISUAL_TYPE   , GLX_TRUE_COLOR,
-      GLX_RED_SIZE        , 8,
-      GLX_GREEN_SIZE      , 8,
-      GLX_BLUE_SIZE       , 8,
-      GLX_ALPHA_SIZE      , 8,
-      GLX_DEPTH_SIZE      , 24,
-      GLX_STENCIL_SIZE    , 8,
-      GLX_DOUBLEBUFFER    , True,
-      //GLX_SAMPLE_BUFFERS  , 1,
-      //GLX_SAMPLES         , 4,
-      None
-    };
-
-    i32 glx_major, glx_minor;
 
     char* default_display = getenv("DISPLAY");
 
@@ -367,104 +463,31 @@ main()
     else
     {
         PRINT("Couldn't open X11 window.");
+        return 1;
     }
     
-    // FBConfigs were added in GLX version 1.3.
-    if (!glXQueryVersion(display, &glx_major, &glx_minor) || 
-         ((glx_major == 1) && (glx_minor < 3)) || (glx_major < 1 ))
-    {
-        PRINT("Invalid GLX version");
-    }
-    i32 fbcount;
-    GLXFBConfig* fbc = 
-                glXChooseFBConfig(display, DefaultScreen(display), visual_attribs, &fbcount);
+    linux_init_opengl();
+    LinuxWindowInfo window_info = linux_opengl_prep(display);
 
-    if (!fbc)
-    {
-        PRINT("Failed to retrive a framebuffer config");
-    }
-    i32 best_fbc = -1, worst_fbc = -1, best_num_samp = -1, worst_num_samp = 999;
 
-    i32 i;
-    for (i=0; i<fbcount; ++i)
-    {
-        XVisualInfo *vi = glXGetVisualFromFBConfig(display, fbc[i]);
-        if (vi)
-        {
-          i32 samp_buf, samples;
-          glXGetFBConfigAttrib(display, fbc[i], GLX_SAMPLE_BUFFERS, &samp_buf);
-          glXGetFBConfigAttrib(display, fbc[i], GLX_SAMPLES       , &samples);
+    window = XCreateWindow(display, RootWindow(display, window_info.visual_info->screen), 
+                              0, 0, 1280, 768, 0, window_info.visual_info->depth, 
+                              InputOutput, 
+                              window_info.visual_info->visual, 
+                              CWBorderPixel|CWColormap|CWEventMask, &window_info.win_attrib);
+    glXMakeCurrent(display, window, window_info.context);
 
-          if ( best_fbc < 0 || (samp_buf && samples) > best_num_samp )
-            best_fbc = i, best_num_samp = samples;
-          if ( worst_fbc < 0 || !samp_buf || samples < worst_num_samp )
-            worst_fbc = i, worst_num_samp = samples;
-        }
-        XFree(vi);
-    }
-
-    GLXFBConfig fbc_to_use = fbc[ best_fbc ];
-
-    XFree(fbc);
-
-    XVisualInfo *vi = glXGetVisualFromFBConfig(display, fbc_to_use);
-
-    XSetWindowAttributes set_win_attrib;
-    Colormap color_map;
-    color_map = XCreateColormap(display, RootWindow(display, vi->screen), vi->visual, AllocNone);
-    set_win_attrib.colormap = color_map;
-    
-    set_win_attrib.background_pixmap = None;
-    set_win_attrib.border_pixel      = 0;
-    set_win_attrib.event_mask        = KeyPressMask      | KeyReleaseMask    | ButtonPressMask   | 
-                                       ButtonReleaseMask | PointerMotionMask | Button1MotionMask |
-                                       Button2MotionMask | Button3MotionMask | Button4MotionMask | 
-                                       Button5MotionMask | ButtonMotionMask;
-
-    window = XCreateWindow(display, RootWindow(display, vi->screen), 
-                              0, 0, 1280, 768, 0, vi->depth, InputOutput, 
-                              vi->visual, 
-                              CWBorderPixel|CWColormap|CWEventMask, &set_win_attrib);
     if (!window)
     {
         PRINT("Failed to create window");
     }
 
-    XFree(vi);
+    XFree(window_info.visual_info);
 
     XStoreName(display, window, "A Game");
     XMapWindow(display, window);
 
 
-    linux_init_opengl();
-
-    if (glXCreateContextAttribsARB)
-    {
-        i32 opengl_attribs[] =
-        {
-            GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
-            GLX_CONTEXT_MINOR_VERSION_ARB, 3,
-            GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
-#if GAME_DEBUG
-            | GLX_CONTEXT_DEBUG_BIT_ARB
-#endif
-            ,
-#if 0
-            GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
-#else
-            GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
-#endif
-            0,
-        };
-
-        glx_contex = glXCreateContextAttribsARB(display, fbc_to_use, 0, true, opengl_attribs);
-    }
-    else
-    {
-        glx_contex = glXCreateContext(display, vi, NULL, GL_TRUE);
-    }
-    glXMakeCurrent(display, window, glx_contex);
-    
     GameMemory game_memory = {};
     game_memory.permanent_storage_size = Megabytes(64);
     game_memory.temporary_storage_size = Megabytes(128);
@@ -496,8 +519,6 @@ main()
             game_input.buttons[i].released = 0;
             game_input.character = '\0';
         }
-
-
 
 
         while(XPending(display))
@@ -543,30 +564,36 @@ main()
                         game_input.move_up.is_down = is_down;
                         game_input.move_up.released = (x_event.xkey.type == KeyRelease);
                     }
-                    if (x_event.xkey.keycode == KEYCODE_D)
+                    else if (x_event.xkey.keycode == KEYCODE_D)
                     {
                         game_input.move_right.is_down = (x_event.xkey.type == KeyPress);
                         game_input.move_right.released = (x_event.xkey.type == KeyRelease);
                     }
-                    if (x_event.xkey.keycode == KEYCODE_A)
+                    else if (x_event.xkey.keycode == KEYCODE_A)
                     {
                         game_input.move_left.is_down = (x_event.xkey.type == KeyPress);
                         game_input.move_left.released = (x_event.xkey.type == KeyRelease);
                     }
-                    if (x_event.xkey.keycode == KEYCODE_S)
+                    else if (x_event.xkey.keycode == KEYCODE_S)
                     {
                         game_input.move_down.is_down = (x_event.xkey.type == KeyPress);
                         game_input.move_down.released = (x_event.xkey.type == KeyRelease);
                     }
-                    if (x_event.xkey.keycode == KEYCODE_ESCAPE)
+                    else if (x_event.xkey.keycode == KEYCODE_ESCAPE)
                     {
                         linux_set_button_state(&game_input.escape,
                                                x_event.xkey.type == KeyPress,
                                                x_event.xkey.type == KeyRelease);
                     }
-                    if (x_event.xkey.keycode == KEYCODE_BACKSPACE)
+                    else if (x_event.xkey.keycode == KEYCODE_BACKSPACE)
                     {
                         linux_set_button_state(&game_input.backspace,
+                                               x_event.xkey.type == KeyPress,
+                                               x_event.xkey.type == KeyRelease);
+                    }
+                    else if (x_event.xkey.keycode == KEYCODE_ENTER)
+                    {
+                        linux_set_button_state(&game_input.enter,
                                                x_event.xkey.type == KeyPress,
                                                x_event.xkey.type == KeyRelease);
                     }
@@ -599,6 +626,7 @@ main()
         game_input.mouse.position = linux_get_mouse_position(display, window);
 
 
+        XWindowAttributes x_win_attribs;
         XGetWindowAttributes(display, window, &x_win_attribs);
         glViewport(0, 0, x_win_attribs.width, x_win_attribs.height);
         game_memory.screen_width = x_win_attribs.width;
@@ -606,8 +634,7 @@ main()
 
         if (linux_game_code.lib_game_handle)
         {
-            linux_game_code.game_update(1.0f/60.0f, &game_memory, NULL, &game_input);
-            linux_game_code.game_render(&game_memory);
+            linux_game_code.main_loop(1.0f/60.0f, &game_memory, NULL, &game_input);
         }
 
         glXSwapBuffers(display, window);

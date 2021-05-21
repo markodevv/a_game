@@ -7,6 +7,7 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include <stb_truetype.h>
 
+
 #include <stb_image_write.h>
 
 #include "common.h"
@@ -22,14 +23,12 @@
 #include "asset_loading.cpp"
 #include "debug_ui.cpp"
 
-/* TODO:
 
-- find how best to sort render entries
-
-*/
 
 
 // NOTE: Debug data
+
+global_variable b8 global_is_edit_mode = 1;
 
 internal void
 game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
@@ -109,38 +108,29 @@ integrate(Particle* particle, f32 dt)
         return;
 
     particle->position += particle->rigidbody.velocity * dt;
-
-    // particle->rigidbody.velocity += entity->rigidbody.acceleration * dt;
-
-    // Drag
-    // entity->rigidbody.velocity *= powf(0.5f, dt);
-
-    // entity->rigidbody.acceleration = V2(0.0f);
 }
 
-internal void
-init_particle_system(ParticleSystem* particle_system,
-                     MemoryArena* arena,
-                     vec2 position,
-                     f32 age_min,
-                     f32 age_max,
-                     vec2 min_vel,
-                     vec2 max_vel,
-                     f32 drag,
-                     u32 max_particles)
+internal ParticleEmiter
+create_particle_emiter(MemoryArena* arena,
+                       vec2 min_vel,
+                       vec2 max_vel,
+                       Color color,
+                       vec2 size,
+                       u32 num_particles)
 {
-    particle_system->age_min = age_min;
-    particle_system->age_max = age_max;
+    ParticleEmiter result = {};
 
-    particle_system->min_vel = min_vel;
-    particle_system->max_vel = max_vel;
+    result.min_vel = min_vel;
+    result.max_vel = max_vel;
+
+    result.render.size = size;
+    result.render.color = color;
     
-    particle_system->position = position;
+    result.max_particles = num_particles;
 
-    particle_system->drag = drag;
-    particle_system->max_particles = max_particles;
+    result.particles = PushMemory(arena, Particle, num_particles);
 
-    particle_system->particles = PushMemory(arena, Particle, max_particles);
+    return result;
 }
 
 internal f32
@@ -161,9 +151,10 @@ random_between_two_vectors(vec2 min, vec2 max)
 
 
 extern "C" PLATFORM_API void
-game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
+game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
 {
     GameState* game_state = (GameState*)memory->permanent_storage;
+    Renderer* ren = &game_state->renderer;
     Platform *platform = &memory->platform;
 
     if (!memory->is_initialized)
@@ -181,10 +172,9 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
 
         sub_arena(&game_state->transient_arena, &game_state->assets.arena, Megabytes(64));
 
-        game_state->renderer = PushMemory(&game_state->arena, Renderer);
 
 
-        Renderer* ren = game_state->renderer;
+        Renderer* ren = &game_state->renderer;
 
 
         ren->light.ambient = V3(1.0f);
@@ -229,25 +219,23 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         game_state->backgroud_sprite = load_sprite(platform, &game_state->assets,
                                                    "../assets/platform_metroidvania asset pack v1.01/tiles and background_foreground/background.png");
 
-        platform->init_renderer(game_state->renderer);
+        platform->init_renderer(&game_state->renderer);
 
 
 
-        init_particle_system(&game_state->particle_system, 
-                             &game_state->arena,
-                             V2(800, 400),
-                             0.1f, 0.3f,
-                             V2(-50, 50),
-                             V2(80, 120),
-                             0.1f,
-                             256);
+        game_state->particle_emiter = create_particle_emiter(&game_state->arena,
+                                                             V2(-50, 50),
+                                                             V2(80, 120),
+                                                             COLOR(50, 100, 22, 255),
+                                                             V2(10, 10),
+                                                             128);
 
         u32 player_entity_id = add_entity(game_state);
         Entity* player_ent = get_entity(game_state, player_entity_id);
 
         player_ent->position = V2(100, 300);
         player_ent->render.color = COLOR(255);
-        player_ent->render.scale = V2(60, 60);
+        player_ent->render.size = V2(60, 60);
 
         u32 tile_map[10][19] = {
             {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -274,6 +262,25 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         }
     }
 
+    TemporaryArena main_temp_arena = begin_temporary_memory(&game_state->transient_arena);
+
+    Camera main_cam = {};
+    main_cam.up = V3(0, 1, 0);
+    main_cam.direction = V3(0, 0, 1);
+    main_cam.position.z = 1.0f;
+
+    RenderGroup* render_group = setup_render_group(&game_state->transient_arena,
+                                                   mat4_orthographic((f32)ren->screen_width,
+                                                                    (f32)ren->screen_height),
+                                                   main_cam,
+                                                   ren, 
+                                                   &game_state->assets);
+
+    if (button_pressed(input->enter))
+    {
+        global_is_edit_mode = !global_is_edit_mode;
+    }
+
 
     Entity* player_ent = get_entity(game_state, game_state->player_entity_index);
 
@@ -295,6 +302,13 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         {
             player_ent->position.y += 5.0f;
         }
+
+        push_quad(render_group, 
+                  &game_state->hero_sprite,
+                  player_ent->position, 
+                  player_ent->render.size, 
+                  player_ent->render.color,
+                  LAYER_MID);
 
     }
 
@@ -329,65 +343,47 @@ game_update(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Gam
         }
     }
 
-    
-    ParticleSystem* particle_system = &game_state->particle_system;
 
+    
+    ParticleEmiter* particle_emiter = &game_state->particle_emiter;
+    particle_emiter->position = player_ent->position;
     for (u32 particle_index = 0; 
-         particle_index < particle_system->max_particles;
+         particle_index < particle_emiter->max_particles;
          ++particle_index)
     {
-        Particle* particle = particle_system->particles + particle_index;
+        Particle* particle = particle_emiter->particles + particle_index;
         integrate(particle, delta_time);
+
+        push_quad(render_group, 
+                  particle->position,
+                  particle_emiter->render.size,
+                  particle_emiter->render.color,
+                  LAYER_MID);
     }
 
     for (u32 i = 0; i < 3; ++i)
     {
-        if (particle_system->particle_index >= particle_system->max_particles)
+        if (particle_emiter->particle_index >= particle_emiter->max_particles)
         {
-            particle_system->particle_index = 0;
+            particle_emiter->particle_index = 0;
         }
 
-        Particle* particle = particle_system->particles + particle_system->particle_index;
-        particle->position = particle_system->position;
-        particle->rigidbody.velocity = random_between_two_vectors(particle_system->min_vel,
-                                                                  particle_system->max_vel);
+        Particle* particle = particle_emiter->particles + particle_emiter->particle_index;
+        particle->position = particle_emiter->position;
+        particle->rigidbody.velocity = random_between_two_vectors(particle_emiter->min_vel,
+                                                                  particle_emiter->max_vel);
         particle->rigidbody.inverse_mass = 1;
 
-        ++particle_system->particle_index;
+
+        ++particle_emiter->particle_index;
     }
 
-    Renderer* ren = game_state->renderer;
     input->mouse.position.y = ren->screen_height - input->mouse.position.y;
     ren->screen_width = memory->screen_width;
     ren->screen_height = memory->screen_height;
 
-    process_debug_ui_interactions(memory->debug, input);
-}
 
 
-
-extern "C" PLATFORM_API void
-game_render(GameMemory* memory)
-{
-    GameState* game_state = (GameState*)memory->permanent_storage;
-    Renderer* ren = game_state->renderer;
-    Platform *platform = &memory->platform;
-
-
-    TemporaryArena main_temp_arena = begin_temporary_memory(&game_state->transient_arena);
-
-    Camera main_cam = {};
-    main_cam.up = V3(0, 1, 0);
-    main_cam.direction = V3(0, 0, 1);
-    main_cam.position.z = 1.0f;
-
-    RenderGroup* render_group = setup_render_group(&game_state->transient_arena,
-                                                   mat4_orthographic((f32)ren->screen_width,
-                                                                    (f32)ren->screen_height),
-                                                   main_cam,
-                                                   ren, 
-                                                   &game_state->assets);
-    Entity* entity = get_entity(game_state, game_state->player_entity_index);
 
     push_quad(render_group,
               V2(0),
@@ -397,12 +393,6 @@ game_render(GameMemory* memory)
               LAYER_BACK,
               game_state->backgroud_sprite);
 
-    push_quad(render_group, 
-              &game_state->hero_sprite,
-              entity->position, 
-              entity->render.scale, 
-              entity->render.color,
-              LAYER_MID);
 
 
 
@@ -421,47 +411,52 @@ game_render(GameMemory* memory)
         }
     }
 
-    ParticleSystem* particle_system = &game_state->particle_system;
-    for (u32 particle_index = 0; 
-         particle_index < particle_system->max_particles; 
-         ++particle_index)
+
+
+    if (global_is_edit_mode)
     {
-        Particle* particle = particle_system->particles + particle_index;
+        debug_ui(memory->debug, &game_state->assets, ren);
 
-        push_quad(render_group, 
-                  particle->position,
-                  V2(5, 5),
-                  COLOR(180, 20, 0, 255),
-                  LAYER_MID);
-    }
+        debug_fps(memory->debug);
 
+        debug_window_begin(memory->debug, "Debug Window");
 
-    debug_ui_begin(memory->debug, &game_state->assets, ren, "Debug UI");
-
-    debug_fps(memory->debug);
-
-    if (debug_menu_begin(memory->debug, ("Main Menu")))
-    {
-        DebugFloatEditbox(memory->debug, &game_state->particle_system.min_vel, ("min particle vel"));
-        DebugFloatEditbox(memory->debug, &game_state->particle_system.max_vel, ("max particle vel"));
-    }
-    debug_menu_end(memory->debug);
-
-    if (debug_menu_begin(memory->debug, ("Other Menu")))
-    {
-        debug_slider(memory->debug, -1000.0f, 1000.0f, &ren->light_pos.z, ("light z")); 
-        if (debug_button(memory->debug, ("button 3")))
+        if (debug_submenu_begin(memory->debug, ("Main Menu")))
         {
-            PRINT("button 2 clicked");
-        }
-        debug_cursor_sameline(memory->debug);
-        if (debug_button(memory->debug, "button 4"))
-        {
-            PRINT("button 2 clicked");
+            DebugFloatEditbox(memory->debug, &game_state->particle_emiter.min_vel, ("min particle vel"));
+            DebugFloatEditbox(memory->debug, &game_state->particle_emiter.max_vel, ("max particle vel"));
         }
 
-        debug_slider(memory->debug, -1000.0f, 1000.0f, &memory->debug->menu_pos.x, ("menu x")); 
-        debug_slider(memory->debug, -1000.0f, 1000.0f, &memory->debug->menu_pos.y, ("menu y")); 
+        if (debug_submenu_begin(memory->debug, ("Other Menu")))
+        {
+            debug_slider(memory->debug, -1000.0f, 1000.0f, &ren->light_pos.z, ("light z")); 
+            if (debug_button(memory->debug, ("button 3")))
+            {
+                PRINT("button 2 clicked");
+            }
+            debug_cursor_sameline(memory->debug);
+            if (debug_button(memory->debug, "button 4"))
+            {
+                PRINT("button 2 clicked");
+            }
+
+            local_persist f32 x;
+            local_persist f32 y;
+            debug_slider(memory->debug, -1000.0f, 1000.0f, &x, ("menu x")); 
+            debug_slider(memory->debug, -1000.0f, 1000.0f, &y, ("menu y")); 
+            local_persist vec3 tmp = V3(1.0f, 0.3f, 1.0f);
+            local_persist vec4 tmp1 = V4(10.0f, 2.3f, 1.0f, 20.0f);
+            local_persist vec2 tmp2 = V2(10.0f, 2.3f);
+            DebugFloatEditbox(memory->debug, &tmp, ("test vec0"));
+            DebugFloatEditbox(memory->debug, &tmp1, ("test vec1"));
+            DebugFloatEditbox(memory->debug, &tmp2, ("test vec2"));
+
+        }
+
+        debug_window_end(memory->debug);
+
+        debug_window_begin(memory->debug, "Another window");
+
         local_persist vec3 tmp = V3(1.0f, 0.3f, 1.0f);
         local_persist vec4 tmp1 = V4(10.0f, 2.3f, 1.0f, 20.0f);
         local_persist vec2 tmp2 = V2(10.0f, 2.3f);
@@ -469,13 +464,18 @@ game_render(GameMemory* memory)
         DebugFloatEditbox(memory->debug, &tmp1, ("test vec1"));
         DebugFloatEditbox(memory->debug, &tmp2, ("test vec2"));
 
-    }
-    debug_menu_end(memory->debug);
+        debug_window_end(memory->debug);
 
-    debug_ui_end(memory->debug);
+        process_debug_ui_interactions(memory->debug, input);
+
+        end_temporary_memory(&memory->debug->temp_arena);
+    }
+
 
     platform->end_frame(ren);
 
     end_temporary_memory(&main_temp_arena);
 }
+
+
 

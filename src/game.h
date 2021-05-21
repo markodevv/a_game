@@ -39,8 +39,9 @@ struct GameInput
             ButtonState right_mouse_button;
             ButtonState backspace;
             ButtonState escape;
+            ButtonState enter;
         };
-        ButtonState buttons[11];
+        ButtonState buttons[12];
     };
     MouseInput mouse;
     char character;
@@ -147,7 +148,7 @@ struct Assets
 struct Render
 {
     SpriteHandle sprite;
-    vec2 scale;
+    vec2 size;
     Color color;
 };
 
@@ -181,17 +182,16 @@ struct Particle
     Rigidbody rigidbody;
 };
 
-struct ParticleSystem
+struct ParticleEmiter
 {
-    f32 age_min;
-    f32 age_max;
-
     vec2 min_vel;
     vec2 max_vel;
 
     vec2 position;
 
     f32 drag;
+
+    Render render;
 
     Particle* particles;
     u32 particle_index;
@@ -209,14 +209,15 @@ struct GameState
     MemoryArena arena;
     MemoryArena transient_arena;
 
+
     Assets assets;
 
     f32 t_sine;
     i32 tone_hz;
     i32 tone_volume;
 
-    SpriteHandle minotaur_sprite;
     SubSprite hero_sprite;
+    SpriteHandle minotaur_sprite;
     SpriteHandle hero_sprite_sheet;
     SpriteHandle backgroud_sprite;
 
@@ -225,20 +226,22 @@ struct GameState
 
     b8 is_free_camera;
 
+    ParticleEmiter particle_emiter;
 
     u32 player_entity_index;
     Entity entities[1024];
     u32 num_entities;
 
-    ParticleSystem particle_system;
-
     RenderSetup render_setup;
-    Renderer* renderer;
+    Renderer renderer;
 };
 
-typedef void (*GameUpdate)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
-typedef void (*GameRender)(GameMemory* memory);
+typedef void (*GameMainLoop)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
 
 #define MAIN_H
 #endif
 
+/*
+Game ideas:
+     -
+*/

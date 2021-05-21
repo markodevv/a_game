@@ -28,10 +28,17 @@ struct HotItem
     UiItemType ui_item_type;
 };
 
-struct DebugMenu
+struct DebugMenuItem
 {
     b8 menu_is_active;
 };
+
+struct DebugMenu
+{
+    vec2 position;
+    vec2 size;
+};
+
 
 
 struct DebugState
@@ -51,7 +58,6 @@ struct DebugState
     vec2 draw_cursor;
     f32 cursor_start_x;
 
-    char text_fill_buffer[256];
     char text_input_buffer[256];
     u32 text_insert_index;
 
@@ -59,12 +65,14 @@ struct DebugState
     vec2 mouse_pos;
     vec2 prev_mouse_pos;
 
-    vec2 menu_pos;
-    vec2 menu_size;
+    DebugMenu menu_table[512];
+    DebugMenu* menu;
+    u32 menu_index;
+
     b8 is_newline;
 
     u32 current_menu_index;
-    DebugMenu menus[32];
+    DebugMenuItem menus[32];
 };
 
 
@@ -75,5 +83,23 @@ print_vec3(vec3 v, char* name)
     PRINT("v.y: %.2f", v.y);
     PRINT("v.z: %.2f", v.z);
 }
+internal DebugMenu*
+get_menu(DebugState* debug, char* key)
+{
+    u64 hash = 5381;
+    i32 c;
+    
+    while((c = *key++))
+    {
+        hash = ((hash << 5) + hash) + c;
+    }
+
+    u16 hash_index = hash % ArrayCount(debug->menu_table);
+
+    DebugMenu* debug_menu = debug->menu_table + hash_index;
+
+    return debug_menu;
+}
+
 
 #endif
