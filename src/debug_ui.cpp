@@ -1,4 +1,5 @@
 global_variable Color bg_main_color = {43, 46, 74, 255};
+global_variable Color faint_bg_color = {25, 25, 45, 255};
 global_variable Color faint_red_color = {144, 55, 33, 255};
 global_variable Color faint_redblue_color = {83, 53, 74, 255};
 global_variable Color red_color = {232, 69, 69, 255};
@@ -13,6 +14,30 @@ global_variable Color red_color = {232, 69, 69, 255};
 #define DebugIntEditbox(debug, var, name) \
     debug_generic_editbox(debug, var, DEBUG_VAR_INT, (sizeof(*var)/sizeof(i32)), name);
 
+internal b8 
+window_is_focused(DebugState* debug, DebugWindow* window)
+{
+    return debug->focused_window == window;
+}
+
+internal DebugWindow*
+get_window(DebugState* debug, char* key)
+{
+    u64 hash = 5381;
+    i32 c;
+    
+    while((c = *key++))
+    {
+        hash = ((hash << 5) + hash) + c;
+    }
+
+    u16 hash_index = hash % ArrayCount(debug->window_table);
+
+    DebugWindow* debug_window = debug->window_table + hash_index;
+
+    return debug_window;
+}
+
 internal b8
 is_hot(DebugState* debug, void* id)
 {
@@ -22,7 +47,8 @@ is_hot(DebugState* debug, void* id)
 internal b8
 is_first_interaction(DebugState* debug, void* id)
 {
-    return debug->first_interaction_check.id == id;
+    return (debug->interacting_item.id == id) &&
+           (debug->is_first_interaction);
 }
 
 internal b8
@@ -36,7 +62,7 @@ start_interaction(DebugState* debug, InterationType type)
 {
     debug->interacting_item.id = debug->hot_item.id;
     debug->interacting_item.type = type;
-    debug->first_interaction_check = debug->interacting_item;
+    debug->is_first_interaction = true;
 }
 
 internal inline void
@@ -48,7 +74,7 @@ end_interaction(DebugState* debug)
 internal void 
 process_debug_ui_interactions(DebugState* debug, GameInput* input)
 {
-    debug->first_interaction_check = {};
+    debug->is_first_interaction = false;
 
     if (debug->interacting_item.id)
     {
@@ -86,9 +112,8 @@ process_debug_ui_interactions(DebugState* debug, GameInput* input)
                         --debug->text_insert_index;
                         debug->text_input_buffer[debug->text_insert_index] = '\0';
                 }
-                if (button_pressed(input->escape))
+                if (button_pressed(input->enter))
                 {
-                    PRINT("Ending edit");
                     end_interaction(debug);
                 }
             } break;
@@ -107,7 +132,6 @@ process_debug_ui_interactions(DebugState* debug, GameInput* input)
             }
             else
             {
-                PRINT("Click");
                 start_interaction(debug, INTERACTION_TYPE_CLICK);
             }
         }
@@ -137,25 +161,6 @@ enum TextAlign
 };
 
 
-// internal vec2
-// text_box_size(DebugState* debug, char* text)
-// {
-    // vec2 out = {};
-    // while(*text)
-    // {
-        // if (*text >= 32 && *text <= 128)
-        // {
-            // i32 index = *text-32;
-            // stbtt_bakedchar* b = debug->char_metrics + index;
-            // out.x += b->xadvance;
-        // }
-        // text++;
-    // }
-    // out.y = debug->font.font_size;
-// 
-    // return out;
-// }
-
 internal inline void
 debug_cursor_sameline(DebugState* debug)
 {
@@ -167,7 +172,7 @@ debug_cursor_newline(DebugState* debug, f32 w, f32 h)
 {
     if (debug->is_newline)
     {
-        debug->draw_cursor.x = debug->menu->position.x + PADDING;
+        debug->draw_cursor.x = debug->window->position.x + PADDING;
         debug->draw_cursor.y -= h + PADDING;
     }
     else
@@ -178,7 +183,7 @@ debug_cursor_newline(DebugState* debug, f32 w, f32 h)
 }
 
 internal b8
-is_name_too_long(Font* font, char* name)
+name_is_too_long(Font* font, char* name)
 {
     f32 xadvance = 0.0f;
     while(*name)
@@ -192,11 +197,12 @@ is_name_too_long(Font* font, char* name)
 }
 
 internal void
-truncate_var_name(char* name, u32 max_len)
+truncate_var_name(char* name)
 {
-    name[max_len-1] = '\0';
-    name[max_len-2] = '.';
-    name[max_len-3] = '.';
+    u32 len = string_length(name);
+    name[len-1] = '\0';
+    name[len-2] = '.';
+    name[len-3] = '.';
 }
 
 
@@ -340,7 +346,6 @@ debug_text(RenderGroup* render_group,
         position.x -= (text_width / 2.0f);
     }
 
-
     while(*text)
     {
         if (*text >= 32 && *text <= 128)
@@ -376,8 +381,7 @@ debug_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
             case INTERACTION_TYPE_CLICK:
             {
                 color = faint_redblue_color;
-                PRINT("Active");
-                b8* active = &debug->menus[debug->current_menu_index].menu_is_active;
+                b8* active = &debug->window_items[debug->current_item_index].menu_is_active;
                 *active = !(*active);
             } break;
         }
@@ -387,63 +391,23 @@ debug_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
         color = faint_red_color;
     }
 
-    if (point_rect_intersect(debug->mouse_pos,
-                        position,
-                        size))
+    if (window_is_focused(debug, debug->window))
     {
-        debug->next_hot_item.id = title;
+        if (point_inside_rect(debug->mouse_pos,
+                            position,
+                            size))
+        {
+            debug->next_hot_item.id = title;
+        }
     }
 
-    push_quad(debug->render_group, position, size, color, LAYER_MID);
+    push_quad(debug->render_group, position, size, color, debug->window->layer + LAYER_MID);
     debug_text(debug->render_group, 
                &debug->font, 
                title, 
                V2(position.x + (size.x / 2),
                   position.y + 2),
-               LAYER_FRONT,
-               TEXT_ALIGN_MIDDLE);
-
-}
-
-internal void
-debug_menu_titlebar(DebugState* debug, char* title)
-{
-    Color color = bg_main_color;
-
-    if (is_interacting(debug, title))
-    {
-        switch(debug->interacting_item.type)
-        {
-            case INTERACTION_TYPE_DRAG:
-            {
-                color = faint_red_color;
-                vec2 mouse_delta = (debug->mouse_pos - debug->prev_mouse_pos);
-                debug->menu->position = debug->menu->position + mouse_delta;
-            } break;
-        }
-    }
-    else if (is_hot(debug, title))
-    {
-        color = faint_red_color;
-    }
-
-    vec2 position = debug->menu->position;
-    vec2 size = V2((f32)400, (f32)debug->font.font_size);
-
-    if (point_rect_intersect(debug->mouse_pos,
-                        position,
-                        size))
-    {
-        debug->next_hot_item.id = title;
-    }
-
-    push_quad(debug->render_group, position, size, color, LAYER_MID);
-    debug_text(debug->render_group, 
-               &debug->font,
-               title, 
-               V2(position.x + (size.x / 2),
-                  position.y + 2),
-               LAYER_FRONT,
+               debug->window->layer + LAYER_FRONT,
                TEXT_ALIGN_MIDDLE);
 }
 
@@ -459,48 +423,110 @@ debug_ui(DebugState* debug, Assets* assets, Renderer* ren)
 
     mat4 projection = mat4_orthographic((f32)ren->screen_width,
                                         (f32)ren->screen_height);
-    Camera cam = {{0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
+    Camera cam = {V3(0.0f, 0.0f, 1.0f), V3(0.0f, 0.0f, 1.0f), V3(0.0f, 1.0f, 0.0f)};
     debug->render_group = setup_render_group(&debug->arena,
                                              projection,
                                              cam,
                                              ren, 
                                              assets);
-    debug->menu = 0;
+    debug->window = 0;
 }
 
 internal void
 debug_window_begin(DebugState* debug, char* title)
 {
-    DebugMenu* menu = get_menu(debug, title);
-    ASSERT(menu);
-    debug->menu = menu;
+    DebugWindow* window = get_window(debug, title);
+
+    ASSERT(window);
+
+    debug->window = window;
 
 
-    if (menu->position.x <= 0 || menu->position.y <= 0)
+    if (window->position.x <= 0 || window->position.y <= 0)
     {
-        menu->size = V2(400);
-        menu->position = V2(100);
+        window->size = V2(400);
+        u32 x = (rand() % 1000) + 20;
+        window->position = V2(x, 500);
     }
 
-    debug_menu_titlebar(debug, title);
+
+    Color color = faint_red_color;
+
+    if (is_interacting(debug, title))
+    {
+        switch(debug->interacting_item.type)
+        {
+            case INTERACTION_TYPE_DRAG:
+            {
+                color = faint_red_color;
+                vec2 mouse_delta = (debug->mouse_pos - debug->prev_mouse_pos);
+                window->position = window->position + mouse_delta;
+            } break;
+            case INTERACTION_TYPE_CLICK:
+            {
+                debug->focused_window = window;
+                debug->current_top_layer += 10;
+                window->layer = debug->current_top_layer;
+            } break;
+        }
+    }
+    else if (is_hot(debug, title))
+    {
+        color = red_color;
+    }
+    debug->draw_cursor = window->position;
+    debug->current_item_index = 0;
 
 
-    debug->draw_cursor.x = menu->position.x;
-    debug->draw_cursor.y = menu->position.y;
-    debug->current_menu_index = 0;
+    vec2 titlebar_size = V2((f32)window->size.x, (f32)debug->font.font_size);
+
+    if (point_inside_rect(debug->mouse_pos,
+                          window->position,
+                          titlebar_size))
+    {
+        if (window_is_focused(debug, debug->window) ||
+            !(debug->focused_window))
+        {
+            debug->next_hot_item.id = title;
+        }
+        else
+        {
+            vec2 focused_window_pos = V2(debug->focused_window->position.x,
+                                         debug->focused_window->position.y - debug->focused_window->size.y);
+            vec2 window_pos = V2(window->position.x,
+                                 window->position.y - window->size.y);
+            vec2 window_size = V2(window->size.x,
+                                  window->size.y + titlebar_size.y);
+
+            if (point_inside_rect(debug->mouse_pos, window_pos, window_size) &&
+               !point_inside_rect(debug->mouse_pos, focused_window_pos, debug->focused_window->size))
+            {
+                debug->next_hot_item.id = title;
+            }
+        }
+    }
+
+    push_quad(debug->render_group, window->position, titlebar_size, color, debug->window->layer + LAYER_MID);
+    debug_text(debug->render_group, 
+               &debug->font,
+               title, 
+               V2(window->position.x + (titlebar_size.x / 2),
+                  window->position.y + 2),
+               debug->window->layer + LAYER_FRONT,
+               TEXT_ALIGN_MIDDLE);
 }
 
 internal void
 debug_window_end(DebugState* debug)
 {
-    debug->menu->size.y = debug->menu->position.y - debug->draw_cursor.y;
-    vec2 pos = V2(debug->menu->position.x,
-                  debug->menu->position.y - debug->menu->size.y);
+    debug->window->size.y = debug->window->position.y - debug->draw_cursor.y;
+    vec2 pos = V2(debug->window->position.x,
+                  debug->window->position.y - debug->window->size.y);
     push_quad(debug->render_group, 
               pos,
-              debug->menu->size,
-              COLOR(faint_redblue_color.r, faint_redblue_color.g, faint_redblue_color.b, 155), 
-              LAYER_BACKMID);
+              debug->window->size,
+              faint_bg_color,
+              debug->window->layer + LAYER_BACKMID);
 }
 
 
@@ -513,7 +539,7 @@ debug_fps(DebugState* debug)
     sprintf(out, fps_text, debug->game_fps);
     vec2 position = V2(0.0f, (f32)group->renderer->screen_height - debug->font.font_size);
 
-    debug_text(debug->render_group, &debug->font, out, position, LAYER_FRONT);
+    debug_text(debug->render_group, &debug->font, out, position, 100);
 }
 
 
@@ -527,21 +553,19 @@ debug_checkbox(DebugState* debug, b8* toggle_var, char* var_name)
     debug_cursor_newline(debug, size.x, size.y);
     vec2 pos = debug->draw_cursor;
 
-    if (is_name_too_long(&debug->font, var_name))
+    if (name_is_too_long(&debug->font, var_name))
     {
         var_name = string_copy(&debug->arena, var_name);
-
-        u32 max_len = MAX_NAME_WIDTH / 12;
-        truncate_var_name(var_name, max_len);
+        truncate_var_name(var_name);
     }
     debug_text(debug->render_group, 
                &debug->font, 
                var_name, 
                V2(pos.x, pos.y + (size.y - debug->font.font_size)),
-               LAYER_FRONT);
+               debug->window->layer + LAYER_FRONT);
     pos.x += MAX_NAME_WIDTH;
 
-    push_quad(group, pos, size, bg_main_color, LAYER_BACKMID);
+    push_quad(group, pos, size, bg_main_color, debug->window->layer + LAYER_BACKMID);
 
     Color check_color = {100, 100, 100, 255};
 
@@ -564,16 +588,19 @@ debug_checkbox(DebugState* debug, b8* toggle_var, char* var_name)
         check_color.b *= 2;
     }
 
-    push_quad(group, pos, size, bg_main_color, LAYER_BACKMID);
+    push_quad(group, pos, size, bg_main_color, debug->window->layer + LAYER_BACKMID);
     size -= 8;
     pos += 4;
-    push_quad(group, pos, size, check_color, LAYER_BACKMID);
+    push_quad(group, pos, size, check_color, debug->window->layer + LAYER_BACKMID);
 
-    if (point_rect_intersect(debug->mouse_pos,
-                        pos,
-                        size))
+    if (window_is_focused(debug, debug->window))
     {
-        debug->next_hot_item.id = {toggle_var};
+        if (point_inside_rect(debug->mouse_pos,
+                            pos,
+                            size))
+        {
+            debug->next_hot_item.id = {toggle_var};
+        }
     }
 }
 
@@ -602,18 +629,21 @@ debug_button(DebugState* debug,
     }
 
 
-    push_quad(group, button_pos, button_size, button_color, LAYER_MID);
+    push_quad(group, button_pos, button_size, button_color, debug->window->layer + LAYER_MID);
     vec2 text_pos = V2(
         button_pos.x + (button_size.x / 2.0f),
         button_pos.y + (button_size.y / 4.0f)
     );
-    debug_text(group, &debug->font, name, text_pos, LAYER_FRONT, TEXT_ALIGN_MIDDLE);
+    debug_text(group, &debug->font, name, text_pos, debug->window->layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
 
-    if (point_rect_intersect(debug->mouse_pos,
-                        button_pos,
-                        button_size))
+    if (window_is_focused(debug, debug->window))
     {
-        debug->next_hot_item.id = {name};
+        if (point_inside_rect(debug->mouse_pos,
+                            button_pos,
+                            button_size))
+        {
+            debug->next_hot_item.id = {name};
+        }
     }
 
 
@@ -653,7 +683,7 @@ draw_variabe(DebugState* debug, void* value, vec2 pos, vec2 size, DebugVariableT
 
     if (is_editing_box)
     {
-        debug_text(debug->render_group, &debug->font, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font.font_size)), LAYER_FRONT);
+        debug_text(debug->render_group, &debug->font, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font.font_size)), debug->window->layer + LAYER_FRONT);
 
         debug->text_input_buffer[debug->text_insert_index] = '\0';
 
@@ -663,7 +693,7 @@ draw_variabe(DebugState* debug, void* value, vec2 pos, vec2 size, DebugVariableT
             *((i32*)value) = (i32)atoi(debug->text_input_buffer);
 
         f32 cursor_x = pos.x + get_text_width(&debug->font, debug->text_input_buffer);
-        push_quad(debug->render_group, V2(cursor_x, pos.y), V2(3, size.y), faint_red_color, LAYER_FRONT);
+        push_quad(debug->render_group, V2(cursor_x, pos.y), V2(3, size.y), faint_red_color, debug->window->layer + LAYER_FRONT);
     }
     else
     {
@@ -672,14 +702,15 @@ draw_variabe(DebugState* debug, void* value, vec2 pos, vec2 size, DebugVariableT
                    text, 
                    V2(pos.x + (size.x / 2), 
                       pos.y + (size.y - debug->font.font_size)),
-                   LAYER_FRONT,
+                   debug->window->layer + LAYER_FRONT,
                    TEXT_ALIGN_MIDDLE);
     }
 }
 
 
+
 internal void
-debug_editbox(DebugState* debug, void* value, char* var_name, DebugVariableType type, vec2 size = V2(240.0f, 20.0f))
+debug_editbox(DebugState* debug, void* value, char* var_name, DebugVariableType type, vec2 size)
 {
     RenderGroup* group = debug->render_group;
 
@@ -706,28 +737,29 @@ debug_editbox(DebugState* debug, void* value, char* var_name, DebugVariableType 
 
     if (var_name)
     {
-        if (is_name_too_long(&debug->font, var_name))
+        if (name_is_too_long(&debug->font, var_name))
         {
             var_name = string_copy(&debug->arena, var_name);
-
-            u32 max_len = MAX_NAME_WIDTH / 12;
-            truncate_var_name(var_name, max_len);
+            truncate_var_name(var_name);
         }
         debug_text(debug->render_group, 
                    &debug->font, var_name, 
                    V2(pos.x, pos.y + (size.y - debug->font.font_size)), 
-                   LAYER_FRONT);
+                   debug->window->layer + LAYER_FRONT);
     }
 
     pos.x += MAX_NAME_WIDTH;
-    push_quad(group, pos, size, color, LAYER_MID);
+    push_quad(group, pos, size, color, debug->window->layer + LAYER_MID);
 
     draw_variabe(debug, value, pos, size, type);
 
-    if (point_rect_intersect(debug->mouse_pos, pos, size))
+    if (window_is_focused(debug, debug->window))
     {
-        debug->next_hot_item.id = value;
-        debug->next_hot_item.ui_item_type = UI_ITEM_EDITBOX;
+        if (point_inside_rect(debug->mouse_pos, pos, size))
+        {
+            debug->next_hot_item.id = value;
+            debug->next_hot_item.ui_item_type = UI_ITEM_EDITBOX;
+        }
     }
 }
 
@@ -735,7 +767,7 @@ debug_editbox(DebugState* debug, void* value, char* var_name, DebugVariableType 
 internal void
 debug_generic_editbox(DebugState* debug, void* v, DebugVariableType type, u32 num_components, char* var_name)
 {
-    f32 total_width = 240.0f - ((num_components-1) * PADDING);
+    f32 total_width = (debug->window->size.x - MAX_NAME_WIDTH - 2*PADDING) - ((num_components-1) * PADDING);
     debug_editbox(debug, v, var_name, type, V2(total_width/num_components, 20));
 
     for (u32 i = 1; i < num_components; ++i)
@@ -754,24 +786,22 @@ debug_slider(DebugState* debug,
 {
     RenderGroup* group = debug->render_group;
 
-    vec2 bar_size = V2(240.0f, 20.0f);
+    vec2 bar_size = V2(debug->window->size.x - MAX_NAME_WIDTH - 2*PADDING, 20.0f);
     debug_cursor_newline(debug, bar_size.x + MAX_NAME_WIDTH, bar_size.y);
 
     vec2 pos = debug->draw_cursor;
 
 
-    if (is_name_too_long(&debug->font, var_name))
+    if (name_is_too_long(&debug->font, var_name))
     {
         var_name = string_copy(&debug->arena, var_name);
-
-        u32 max_len = MAX_NAME_WIDTH / 12;
-        truncate_var_name(var_name, max_len);
+        truncate_var_name(var_name);
     }
     debug_text(debug->render_group, 
                &debug->font, 
                var_name, 
                V2(pos.x, pos.y + (bar_size.y - debug->font.font_size)), 
-               LAYER_FRONT);
+               debug->window->layer + LAYER_FRONT);
 
     pos.x += MAX_NAME_WIDTH;
 
@@ -803,20 +833,23 @@ debug_slider(DebugState* debug,
         button_color = faint_red_color;
     }
 
-    push_quad(group, pos, bar_size, bg_main_color, LAYER_BACKMID);
+    push_quad(group, pos, bar_size, bg_main_color, debug->window->layer + LAYER_BACKMID);
 
 
     vec2 text_pos = V2(pos.x+(bar_size.x/2), pos.y + (bar_size.y - debug->font.font_size));
     char text[32];
     snprintf(text, 32, "%.2f", *value);
-    debug_text(debug->render_group, &debug->font, text, text_pos, LAYER_FRONT, TEXT_ALIGN_MIDDLE);
+    debug_text(debug->render_group, &debug->font, text, text_pos, debug->window->layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
 
     button_position.x += (((*value)-min)/range) * (bar_size.x - button_size.x);
-    push_quad(group, button_position, button_size, button_color, LAYER_MID);
+    push_quad(group, button_position, button_size, button_color, debug->window->layer + LAYER_MID);
 
-    if (point_rect_intersect(debug->mouse_pos, button_position, button_size))
+    if (window_is_focused(debug, debug->window))
     {
-        debug->next_hot_item.id = {value};
+        if (point_inside_rect(debug->mouse_pos, button_position, button_size))
+        {
+            debug->next_hot_item.id = {value};
+        }
     }
 
 }
@@ -825,7 +858,7 @@ debug_slider(DebugState* debug,
 internal void
 debug_vec3_slider(DebugState* debug, vec3* v, char* name)
 {
-    debug_text(debug->render_group, &debug->font,  name, debug->draw_cursor, LAYER_FRONT);
+    debug_text(debug->render_group, &debug->font,  name, debug->draw_cursor, debug->window->layer + LAYER_FRONT);
     debug_slider(debug, 0.0f, 1.0f, &v->x, "x");
     debug_slider(debug, 0.0f, 1.0f, &v->y, "y");
     debug_slider(debug, 0.0f, 1.0f, &v->z, "z");
@@ -847,21 +880,21 @@ debug_color_slider(DebugState* debug, vec4* color)
 
 
 internal b8
-debug_submenu_begin(DebugState* debug, char* title)
+debug_submenu(DebugState* debug, char* title)
 {
     debug->draw_cursor.y -=  debug->font.font_size + PADDING;
-    debug->draw_cursor.x = debug->menu->position.x + PADDING;
+    debug->draw_cursor.x = debug->window->position.x + PADDING;
 
 
     debug_submenu_titlebar(debug, 
                            debug->draw_cursor, 
-                           V2(debug->menu->size.x - 2*PADDING,
+                           V2(debug->window->size.x - 2*PADDING,
                               (f32)debug->font.font_size),
                            title);
 
-    b8 active = debug->menus[debug->current_menu_index].menu_is_active;
+    b8 active = debug->window_items[debug->current_item_index].menu_is_active;
 
-    ++debug->current_menu_index;
+    ++debug->current_item_index;
 
     return active;
 }

@@ -33,6 +33,7 @@
 #include "debug.h"
 #include "renderer.h"
 #include "renderer.cpp"
+#include "input.h"
 #include "game.h"
 #include "asset_loading.cpp"
 #include "render_group.cpp"
@@ -484,7 +485,7 @@ main()
 
     XFree(window_info.visual_info);
 
-    XStoreName(display, window, "A Game");
+    XStoreName(display, window, "Game");
     XMapWindow(display, window);
 
 
@@ -517,8 +518,8 @@ main()
         {
             game_input.buttons[i].pressed = 0;
             game_input.buttons[i].released = 0;
-            game_input.character = '\0';
         }
+        game_input.character = '\0';
 
 
         while(XPending(display))
@@ -556,8 +557,6 @@ main()
                 case KeyRelease:
                 case KeyPress:
                 {
-                    PRINT("%d", x_event.xkey.keycode);
-
                     if (x_event.xkey.keycode == KEYCODE_W)
                     {
                         b8 is_down = (x_event.xkey.type == KeyPress);

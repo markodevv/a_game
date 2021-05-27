@@ -20,6 +20,7 @@ struct vec2
     vec2 operator*(vec2 other);
     vec2 operator*(f32 a);
     void operator*=(f32 a);
+    void operator/=(f32 a);
     vec2 operator/(f32 a);
 };
 
@@ -213,6 +214,13 @@ vec2::operator*=(f32 a)
     y *= a;
 }
 
+inline void
+vec2::operator/=(f32 a)
+{
+    x /= a;
+    y /= a;
+}
+
 inline void 
 vec2::operator+=(f32 n)
 {
@@ -224,6 +232,31 @@ inline vec2
 vec2::operator*(f32 a)
 {
     return {x*a, y*a};
+}
+
+inline f32
+square_root(f32 of)
+{
+    return sqrtf(of);
+}
+
+inline f32
+vec2_length(vec2 v)
+{
+    return square_root(v.x*v.x + v.y*v.y);
+}
+
+inline vec2
+vec2_normalized(vec2 v)
+{
+    f32 len = vec2_length(v);
+    return {v.x/len, v.y/len};
+}
+
+inline f32
+vec2_distance(vec2 a, vec2 b)
+{
+    return vec2_length(b - a);
 }
 
 inline vec3
@@ -279,7 +312,6 @@ vec3_normalized(vec3 v)
 
     return v;
 }
-
 
 
 inline vec3
@@ -536,7 +568,7 @@ mat4_perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
 }
 
 inline b8
-point_rect_intersect(vec2 p, vec2 pos, vec2 scale)
+point_inside_rect(vec2 p, vec2 pos, vec2 scale)
 {
     return (p.x >= pos.x && 
             p.x <= (pos.x + scale.x) &&

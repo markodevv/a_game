@@ -28,17 +28,18 @@ struct HotItem
     UiItemType ui_item_type;
 };
 
-struct DebugMenuItem
+struct DebugColapsableItem
 {
     b8 menu_is_active;
 };
 
-struct DebugMenu
+struct DebugWindow
 {
     vec2 position;
     vec2 size;
-};
 
+    u32 layer;
+};
 
 
 struct DebugState
@@ -51,7 +52,7 @@ struct DebugState
     HotItem hot_item;
     HotItem next_hot_item;
     InteractingItem interacting_item;
-    InteractingItem first_interaction_check;
+    b8 is_first_interaction;
 
     Font font;
 
@@ -65,41 +66,18 @@ struct DebugState
     vec2 mouse_pos;
     vec2 prev_mouse_pos;
 
-    DebugMenu menu_table[512];
-    DebugMenu* menu;
-    u32 menu_index;
+    DebugWindow window_table[512];
+    DebugWindow* window;
+    DebugWindow* focused_window;
+    u32 current_top_layer;
+
 
     b8 is_newline;
 
-    u32 current_menu_index;
-    DebugMenuItem menus[32];
+    DebugColapsableItem window_items[512];
+    u32 current_item_index;
 };
 
-
-internal inline void
-print_vec3(vec3 v, char* name)
-{
-    PRINT("v.x: %.2f", v.x);
-    PRINT("v.y: %.2f", v.y);
-    PRINT("v.z: %.2f", v.z);
-}
-internal DebugMenu*
-get_menu(DebugState* debug, char* key)
-{
-    u64 hash = 5381;
-    i32 c;
-    
-    while((c = *key++))
-    {
-        hash = ((hash << 5) + hash) + c;
-    }
-
-    u16 hash_index = hash % ArrayCount(debug->menu_table);
-
-    DebugMenu* debug_menu = debug->menu_table + hash_index;
-
-    return debug_menu;
-}
 
 
 #endif

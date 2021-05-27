@@ -1,3 +1,4 @@
+// 090035212100108
 #include <math.h>
 #include <stdio.h>
 
@@ -8,8 +9,6 @@
 #include <stb_truetype.h>
 
 
-#include <stb_image_write.h>
-
 #include "common.h"
 #include "memory.h"
 #include "string.cpp"
@@ -18,11 +17,11 @@
 #include "debug.h"
 #include "renderer.h"
 #include "renderer.cpp"
+#include "input.h"
 #include "game.h"
 #include "render_group.cpp"
 #include "asset_loading.cpp"
 #include "debug_ui.cpp"
-
 
 
 
@@ -53,6 +52,32 @@ game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
         }
     }
 }
+
+/*
+
+struct Mesh
+{
+    VertexData* vertices;
+    u32 num_vertices;
+
+    u32* indices;
+    u32 num_indices;
+
+    i32 texture_index;
+
+    Material material;
+};
+
+struct Model
+{
+    Mesh* meshes;
+    u32 num_meshes;
+
+    SpriteHandle loaded_sprites[8];
+    u32 num_textures;
+};
+*/
+
 
 internal u32
 add_entity(GameState* game_state)
@@ -86,25 +111,38 @@ is_colliding(vec2 p1, vec2 s1, vec2 p2, vec2 s2)
 }
 
 internal void
+add_force(Entity* entity, vec2 force)
+{
+    entity->rigidbody.acceleration += force;
+}
+
+internal void
 integrate(Entity* entity, f32 dt)
 {
-    if (entity->rigidbody.inverse_mass <= 0.0f)
+    if (entity->rigidbody.mass <= 0.0f)
         return;
 
+    vec2 attraction_point = V2(400, 0);
+    vec2 attraction_direction = vec2_normalized(attraction_point - entity->position) * 300;
+    add_force(entity, attraction_direction * entity->rigidbody.mass);
+
     entity->position += entity->rigidbody.velocity * dt;
+
+    entity->rigidbody.acceleration /= entity->rigidbody.mass;
 
     entity->rigidbody.velocity += entity->rigidbody.acceleration * dt;
 
     // Drag
-    entity->rigidbody.velocity *= powf(0.5f, dt);
+    entity->rigidbody.velocity *= powf(0.4, dt);
 
     entity->rigidbody.acceleration = V2(0.0f);
 }
 
+
 internal void
 integrate(Particle* particle, f32 dt)
 {
-    if (particle->rigidbody.inverse_mass <= 0.0f)
+    if (particle->rigidbody.mass <= 0.0f)
         return;
 
     particle->position += particle->rigidbody.velocity * dt;
@@ -192,8 +230,6 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
         memory->debug = PushMemory(&game_state->arena, DebugState);
         sub_arena(&game_state->arena, &memory->debug->arena, Megabytes(12));
-
-
 #ifdef PLATFORM_WIN32
         memory->debug->font = debug_load_font(&memory->debug->arena,
                                               platform,
@@ -207,6 +243,10 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
                                               "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
                                               16);
 #endif
+        for (u32 i = 0; i < ArrayCount(memory->debug->window_items); ++i)
+        {
+            memory->debug->window_items[i].menu_is_active = true;
+        }
 
 
         game_state->minotaur_sprite = load_sprite(platform, &game_state->assets, "../assets/minotaur.png");
@@ -220,6 +260,7 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
                                                    "../assets/platform_metroidvania asset pack v1.01/tiles and background_foreground/background.png");
 
         platform->init_renderer(&game_state->renderer);
+
 
 
 
@@ -276,11 +317,6 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
                                                    ren, 
                                                    &game_state->assets);
 
-    if (button_pressed(input->enter))
-    {
-        global_is_edit_mode = !global_is_edit_mode;
-    }
-
 
     Entity* player_ent = get_entity(game_state, game_state->player_entity_index);
 
@@ -300,7 +336,7 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         }
         if (button_down(input->move_up))
         {
-            player_ent->position.y += 5.0f;
+            add_force(player_ent, V2(0.0f, 1000.0f));
         }
 
         push_quad(render_group, 
@@ -310,6 +346,15 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
                   player_ent->render.color,
                   LAYER_MID);
 
+
+        // f32 distance = vec2_distance(player_ent->position, V2(300, 0));
+        // PRINT("Distance %.2f", distance);
+        // if (distance <= 300.0f)
+        // {
+            // add_force(player_ent, V2(0.0f, 10000.0f));
+        // }
+// 
+        integrate(player_ent, delta_time);
     }
 
 
@@ -344,6 +389,7 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
     }
 
 
+
     
     ParticleEmiter* particle_emiter = &game_state->particle_emiter;
     particle_emiter->position = player_ent->position;
@@ -372,7 +418,7 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         particle->position = particle_emiter->position;
         particle->rigidbody.velocity = random_between_two_vectors(particle_emiter->min_vel,
                                                                   particle_emiter->max_vel);
-        particle->rigidbody.inverse_mass = 1;
+        particle->rigidbody.mass = 1;
 
 
         ++particle_emiter->particle_index;
@@ -419,50 +465,18 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
         debug_fps(memory->debug);
 
-        debug_window_begin(memory->debug, "Debug Window");
+        debug_window_begin(memory->debug, "Window");
 
-        if (debug_submenu_begin(memory->debug, ("Main Menu")))
+        if (debug_submenu(memory->debug, ("Player")))
         {
-            DebugFloatEditbox(memory->debug, &game_state->particle_emiter.min_vel, ("min particle vel"));
-            DebugFloatEditbox(memory->debug, &game_state->particle_emiter.max_vel, ("max particle vel"));
-        }
+            Entity* player = game_state->entities;
 
-        if (debug_submenu_begin(memory->debug, ("Other Menu")))
-        {
-            debug_slider(memory->debug, -1000.0f, 1000.0f, &ren->light_pos.z, ("light z")); 
-            if (debug_button(memory->debug, ("button 3")))
-            {
-                PRINT("button 2 clicked");
-            }
-            debug_cursor_sameline(memory->debug);
-            if (debug_button(memory->debug, "button 4"))
-            {
-                PRINT("button 2 clicked");
-            }
-
-            local_persist f32 x;
-            local_persist f32 y;
-            debug_slider(memory->debug, -1000.0f, 1000.0f, &x, ("menu x")); 
-            debug_slider(memory->debug, -1000.0f, 1000.0f, &y, ("menu y")); 
-            local_persist vec3 tmp = V3(1.0f, 0.3f, 1.0f);
-            local_persist vec4 tmp1 = V4(10.0f, 2.3f, 1.0f, 20.0f);
-            local_persist vec2 tmp2 = V2(10.0f, 2.3f);
-            DebugFloatEditbox(memory->debug, &tmp, ("test vec0"));
-            DebugFloatEditbox(memory->debug, &tmp1, ("test vec1"));
-            DebugFloatEditbox(memory->debug, &tmp2, ("test vec2"));
+            DebugFloatEditbox(memory->debug, &player->position, "player position");
+            DebugFloatEditbox(memory->debug, &player->rigidbody.acceleration, "player acceleration");
+            DebugFloatEditbox(memory->debug, &player->rigidbody.velocity, "player velocity");
+            DebugFloatEditbox(memory->debug, &player->rigidbody.mass, "player mass");
 
         }
-
-        debug_window_end(memory->debug);
-
-        debug_window_begin(memory->debug, "Another window");
-
-        local_persist vec3 tmp = V3(1.0f, 0.3f, 1.0f);
-        local_persist vec4 tmp1 = V4(10.0f, 2.3f, 1.0f, 20.0f);
-        local_persist vec2 tmp2 = V2(10.0f, 2.3f);
-        DebugFloatEditbox(memory->debug, &tmp, ("test vec0"));
-        DebugFloatEditbox(memory->debug, &tmp1, ("test vec1"));
-        DebugFloatEditbox(memory->debug, &tmp2, ("test vec2"));
 
         debug_window_end(memory->debug);
 
@@ -476,6 +490,7 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
     end_temporary_memory(&main_temp_arena);
 }
+
 
 
 
