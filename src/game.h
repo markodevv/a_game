@@ -112,7 +112,7 @@ struct Particle
     Rigidbody rigidbody;
 };
 
-struct ParticleEmiter
+struct ParticleEmitter
 {
     vec2 min_vel;
     vec2 max_vel;
@@ -121,6 +121,7 @@ struct ParticleEmiter
 
     f32 drag;
 
+    u32 particle_spawn_rate;
     Render render;
 
     Particle* particles;
@@ -156,7 +157,7 @@ struct GameState
 
     b8 is_free_camera;
 
-    ParticleEmiter particle_emiter;
+    ParticleEmitter particle_emitter;
 
     u32 player_entity_index;
     Entity entities[1024];

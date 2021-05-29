@@ -246,6 +246,12 @@ vec2_length(vec2 v)
     return square_root(v.x*v.x + v.y*v.y);
 }
 
+inline f32
+vec2_length_squared(vec2 v)
+{
+    return (v.x*v.x + v.y*v.y);
+}
+
 inline vec2
 vec2_normalized(vec2 v)
 {
@@ -257,6 +263,12 @@ inline f32
 vec2_distance(vec2 a, vec2 b)
 {
     return vec2_length(b - a);
+}
+
+inline f32
+vec2_distance_squared(vec2 a, vec2 b)
+{
+    return vec2_length_squared(b - a);
 }
 
 inline vec3

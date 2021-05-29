@@ -53,31 +53,6 @@ game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
     }
 }
 
-/*
-
-struct Mesh
-{
-    VertexData* vertices;
-    u32 num_vertices;
-
-    u32* indices;
-    u32 num_indices;
-
-    i32 texture_index;
-
-    Material material;
-};
-
-struct Model
-{
-    Mesh* meshes;
-    u32 num_meshes;
-
-    SpriteHandle loaded_sprites[8];
-    u32 num_textures;
-};
-*/
-
 
 internal u32
 add_entity(GameState* game_state)
@@ -116,15 +91,16 @@ add_force(Entity* entity, vec2 force)
     entity->rigidbody.acceleration += force;
 }
 
+// F = m*a
+
 internal void
 integrate(Entity* entity, f32 dt)
 {
     if (entity->rigidbody.mass <= 0.0f)
         return;
 
-    vec2 attraction_point = V2(400, 0);
-    vec2 attraction_direction = vec2_normalized(attraction_point - entity->position) * 300;
-    add_force(entity, attraction_direction * entity->rigidbody.mass);
+
+    add_force(entity, V2(0, -1) * 300);
 
     entity->position += entity->rigidbody.velocity * dt;
 
@@ -132,8 +108,8 @@ integrate(Entity* entity, f32 dt)
 
     entity->rigidbody.velocity += entity->rigidbody.acceleration * dt;
 
-    // Drag
-    entity->rigidbody.velocity *= powf(0.4, dt);
+    f32 drag = powf(0.5f, dt);
+    entity->rigidbody.velocity *= drag;
 
     entity->rigidbody.acceleration = V2(0.0f);
 }
@@ -148,18 +124,21 @@ integrate(Particle* particle, f32 dt)
     particle->position += particle->rigidbody.velocity * dt;
 }
 
-internal ParticleEmiter
-create_particle_emiter(MemoryArena* arena,
+internal ParticleEmitter
+create_particle_emitter(MemoryArena* arena,
                        vec2 min_vel,
                        vec2 max_vel,
+                       u32 particle_spawn_rate,
                        Color color,
                        vec2 size,
                        u32 num_particles)
 {
-    ParticleEmiter result = {};
+    ParticleEmitter result = {};
 
     result.min_vel = min_vel;
     result.max_vel = max_vel;
+
+    result.particle_spawn_rate = particle_spawn_rate;
 
     result.render.size = size;
     result.render.color = color;
@@ -264,9 +243,10 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
 
 
-        game_state->particle_emiter = create_particle_emiter(&game_state->arena,
+        game_state->particle_emitter = create_particle_emitter(&game_state->arena,
                                                              V2(-50, 50),
                                                              V2(80, 120),
+                                                             4,
                                                              COLOR(50, 100, 22, 255),
                                                              V2(10, 10),
                                                              128);
@@ -277,6 +257,8 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         player_ent->position = V2(100, 300);
         player_ent->render.color = COLOR(255);
         player_ent->render.size = V2(60, 60);
+
+        player_ent->rigidbody.mass = 1.0f;
 
         u32 tile_map[10][19] = {
             {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -324,19 +306,20 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
     {
         if (button_down(input->move_left))
         {
-            player_ent->position.x -= 5.0f;
+            add_force(player_ent, V2(-1000.0f, 0.0f));
         }
         if (button_down(input->move_right))
         {
-            player_ent->position.x += 5.0f;
-        }
-        if (button_down(input->move_down))
-        {
-            player_ent->position.y -= 5.0f;
+            add_force(player_ent, V2(1000.0f, 0.0f));
         }
         if (button_down(input->move_up))
         {
             add_force(player_ent, V2(0.0f, 1000.0f));
+        }
+
+        if (player_ent->position.y <= 100.0f)
+        {
+            add_force(player_ent, V2(0.0f, 3000.0f));
         }
 
         push_quad(render_group, 
@@ -391,37 +374,37 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
 
     
-    ParticleEmiter* particle_emiter = &game_state->particle_emiter;
-    particle_emiter->position = player_ent->position;
+    ParticleEmitter* particle_emitter = &game_state->particle_emitter;
+    particle_emitter->position = player_ent->position;
     for (u32 particle_index = 0; 
-         particle_index < particle_emiter->max_particles;
+         particle_index < particle_emitter->max_particles;
          ++particle_index)
     {
-        Particle* particle = particle_emiter->particles + particle_index;
+        Particle* particle = particle_emitter->particles + particle_index;
         integrate(particle, delta_time);
 
         push_quad(render_group, 
                   particle->position,
-                  particle_emiter->render.size,
-                  particle_emiter->render.color,
+                  particle_emitter->render.size,
+                  particle_emitter->render.color,
                   LAYER_MID);
     }
 
-    for (u32 i = 0; i < 3; ++i)
+    for (u32 i = 0; i < particle_emitter->particle_spawn_rate; ++i)
     {
-        if (particle_emiter->particle_index >= particle_emiter->max_particles)
+        if (particle_emitter->particle_index >= particle_emitter->max_particles)
         {
-            particle_emiter->particle_index = 0;
+            particle_emitter->particle_index = 0;
         }
 
-        Particle* particle = particle_emiter->particles + particle_emiter->particle_index;
-        particle->position = particle_emiter->position;
-        particle->rigidbody.velocity = random_between_two_vectors(particle_emiter->min_vel,
-                                                                  particle_emiter->max_vel);
+        Particle* particle = particle_emitter->particles + particle_emitter->particle_index;
+        particle->position = particle_emitter->position;
+        particle->rigidbody.velocity = random_between_two_vectors(particle_emitter->min_vel,
+                                                                  particle_emitter->max_vel);
         particle->rigidbody.mass = 1;
 
 
-        ++particle_emiter->particle_index;
+        ++particle_emitter->particle_index;
     }
 
     input->mouse.position.y = ren->screen_height - input->mouse.position.y;
@@ -471,13 +454,26 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         {
             Entity* player = game_state->entities;
 
-            DebugFloatEditbox(memory->debug, &player->position, "player position");
-            DebugFloatEditbox(memory->debug, &player->rigidbody.acceleration, "player acceleration");
-            DebugFloatEditbox(memory->debug, &player->rigidbody.velocity, "player velocity");
-            DebugFloatEditbox(memory->debug, &player->rigidbody.mass, "player mass");
+            DebugFloat32Editbox(memory->debug, &player->position, "player position");
+            DebugFloat32Editbox(memory->debug, &player->rigidbody.acceleration, "player acceleration");
+            DebugFloat32Editbox(memory->debug, &player->rigidbody.velocity, "player velocity");
+            DebugFloat32Editbox(memory->debug, &player->rigidbody.mass, "player mass");
 
         }
+        debug_window_end(memory->debug);
 
+        if (debug_submenu(memory->debug, ("Particle Emitter")))
+        {
+            ParticleEmitter* emitter = &game_state->particle_emitter;
+
+            DebugFloat32Editbox(memory->debug, &emitter->min_vel, "min velocity");
+            DebugFloat32Editbox(memory->debug, &emitter->max_vel, "max velocity");
+            local_persist vec2i test = V2I(-100, 20);
+            DebugInt32Editbox(memory->debug, &emitter->particle_spawn_rate, "spawn rate");
+            DebugInt32Editbox(memory->debug, &test, "test ");
+            DebugFloat32Editbox(memory->debug, &emitter->render.size, "size");
+            DebugUInt8Editbox(memory->debug, &emitter->render.color, "color");
+        }
         debug_window_end(memory->debug);
 
         process_debug_ui_interactions(memory->debug, input);

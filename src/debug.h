@@ -62,6 +62,10 @@ struct DebugState
     char text_input_buffer[256];
     u32 text_insert_index;
 
+    u8 editbox_value_to_set_size;
+    b8 editbox_value_is_int;
+    void* editbox_value_to_set;
+
     f32 game_fps;
     vec2 mouse_pos;
     vec2 prev_mouse_pos;

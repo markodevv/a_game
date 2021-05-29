@@ -511,9 +511,33 @@ main()
     LinuxGameCode linux_game_code = linux_load_game_code();
 
     GameInput game_input = {};
+    f32 sec_per_frame = 1.0f/60.0f;
+
+#define ONE_BILLION 1000000000
 
     while (1)
     {
+        timespec ts;
+        local_persist i64 last_ns;
+        clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+        i64 now_ns = ts.tv_nsec;
+        i64 elapsed_ns = now_ns - last_ns;
+
+        // NOTE(marko): for some reason clock_gettime() loops at one billion
+        if (last_ns > now_ns)
+        {
+            elapsed_ns = (ONE_BILLION - last_ns) + now_ns;
+        }
+
+        f32 elapsed_sec = (f32)elapsed_ns/ONE_BILLION;
+        if(game_memory.debug)
+        {
+            game_memory.debug->game_fps = 1.0f/elapsed_sec;
+        }
+
+
+        last_ns = ts.tv_nsec;
+
         for (sizet i = 0; i < ArrayCount(game_input.buttons); ++i)
         {
             game_input.buttons[i].pressed = 0;

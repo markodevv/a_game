@@ -7,12 +7,122 @@ global_variable Color red_color = {232, 69, 69, 255};
 #define PADDING 4.0f
 #define MAX_NAME_WIDTH 120
 
-// NOTE: macros below only work with 4byte per component types
-#define DebugFloatEditbox(debug, var, name) \
-    debug_generic_editbox(debug, var, DEBUG_VAR_FLOAT, (sizeof(*var)/sizeof(f32)), name);
+// WARNING: Macro madness bellow, don't look at it for too long!!
 
-#define DebugIntEditbox(debug, var, name) \
-    debug_generic_editbox(debug, var, DEBUG_VAR_INT, (sizeof(*var)/sizeof(i32)), name);
+#define DebugFloat32Editbox(debug, var, name) \
+    AnyTypeMultibox(debug, var, (sizeof(*var)/sizeof(f32)), sizeof(f32), name, f32, false)
+
+#define DebugFloat64Editbox(debug, var, name) \
+    AnyTypeMultibox(debug, var, (sizeof(*var)/sizeof(f64)), sizeof(f64), name, f64, false)
+
+#define DebugInt32Editbox(debug, var, name) \
+    AnyTypeMultibox(debug, var, (sizeof(*var)/sizeof(i32)), sizeof(i32), name, i32, true)
+
+#define DebugInt8Editbox(debug, var, name) \
+    AnyTypeMultibox(debug, var, (sizeof(*var)/sizeof(i8)), sizeof(i8), name, i8, true)
+
+#define DebugUInt8Editbox(debug, var, name) \
+    AnyTypeMultibox(debug, var, (sizeof(*var)/sizeof(u8)), sizeof(u8), name, u8, true)
+
+
+#define AnyTypeMultibox(debug, v, num_components, component_size, var_name, type, is_int) \
+{ \
+    f32 total_width = (debug->window->size.x - MAX_NAME_WIDTH - 2*PADDING) - ((num_components-1) * PADDING); \
+    type* iterator = (type*)v; \
+    DrawEditbox(debug, iterator, (*iterator), var_name, V2(total_width/num_components, 20), type, is_int) \
+ \
+    for (u32 i = 1; i < num_components; ++i) \
+    { \
+        debug_cursor_sameline(debug); \
+        iterator++; \
+        DrawEditbox(debug, iterator, (*iterator), 0, V2(total_width/num_components, 20), type, is_int) \
+    } \
+} \
+
+#define DrawEditbox(debug, pointer, value, var_name, size, type, is_int) \
+{ \
+    RenderGroup* group = debug->render_group; \
+    if (var_name) \
+    { \
+        debug_cursor_newline(debug, size.x + MAX_NAME_WIDTH, size.y); \
+    } \
+    else \
+    { \
+        debug_cursor_newline(debug, size.x, size.y); \
+    } \
+    vec2 pos = debug->draw_cursor; \
+    Color color = bg_main_color; \
+    b8 is_editing_box = false; \
+    if (var_name) \
+    { \
+        if (name_is_too_long(&debug->font, var_name)) \
+        { \
+            char* temp_name = string_copy(&debug->arena, var_name); \
+            truncate_var_name(temp_name); \
+            debug_text(debug->render_group,  \
+                       &debug->font, temp_name,  \
+                       V2(pos.x, pos.y + (size.y - debug->font.font_size)),  \
+                       debug->window->layer + LAYER_FRONT); \
+        } \
+        else \
+        { \
+            debug_text(debug->render_group,  \
+                       &debug->font, var_name,  \
+                       V2(pos.x, pos.y + (size.y - debug->font.font_size)),  \
+                       debug->window->layer + LAYER_FRONT); \
+        } \
+    } \
+    pos.x += MAX_NAME_WIDTH; \
+ \
+ \
+    char* text = get_text_to_draw(&debug->arena, value); \
+ \
+    if (is_interacting(debug, pointer)) \
+    { \
+        if (is_first_interaction(debug, pointer)) \
+        { \
+            fill_text_buffer(debug, value); \
+        } \
+ \
+        debug->editbox_value_to_set = iterator; \
+        debug->editbox_value_to_set_size = sizeof(type); \
+        debug->editbox_value_is_int = is_int; \
+ \
+        is_editing_box = true; \
+        debug_text(debug->render_group, &debug->font, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font.font_size)), debug->window->layer + LAYER_FRONT); \
+        debug->text_input_buffer[debug->text_insert_index] = '\0'; \
+ \
+        f32 cursor_x = pos.x + get_text_width(&debug->font, debug->text_input_buffer); \
+        push_quad(debug->render_group, V2(cursor_x, pos.y), V2(3, size.y), faint_red_color, debug->window->layer + LAYER_FRONT); \
+    } \
+    else \
+    { \
+        if (is_hot(debug, pointer)) \
+        { \
+            color.r *= 2; \
+            color.g *= 2; \
+            color.b *= 2; \
+        } \
+        debug_text(debug->render_group,  \
+                   &debug->font, \
+                   text,  \
+                   V2(pos.x + (size.x / 2),  \
+                      pos.y + (size.y - debug->font.font_size)), \
+                   debug->window->layer + LAYER_FRONT, \
+                   TEXT_ALIGN_MIDDLE); \
+    } \
+ \
+    push_quad(group, pos, size, color, debug->window->layer + LAYER_MID); \
+ \
+    if (window_is_focused(debug, debug->window)) \
+    { \
+        if (point_inside_rect(debug->mouse_pos, pos, size)) \
+        { \
+            debug->next_hot_item.id = pointer; \
+            debug->next_hot_item.ui_item_type = UI_ITEM_EDITBOX; \
+        } \
+    } \
+} \
 
 internal b8 
 window_is_focused(DebugState* debug, DebugWindow* window)
@@ -20,6 +130,7 @@ window_is_focused(DebugState* debug, DebugWindow* window)
     return debug->focused_window == window;
 }
 
+// TODO: handle collisions
 internal DebugWindow*
 get_window(DebugState* debug, char* key)
 {
@@ -114,6 +225,64 @@ process_debug_ui_interactions(DebugState* debug, GameInput* input)
                 }
                 if (button_pressed(input->enter))
                 {
+                    if (debug->editbox_value_is_int)
+                    {
+                        i8 sign = 1;
+                        // Delete minus sign
+                        if (debug->text_input_buffer[0] == '-')
+                        {
+                            for (u32 i = 0; i < debug->text_insert_index; ++i)
+                            {
+                                debug->text_input_buffer[i] = debug->text_input_buffer[i+1];
+                            }
+                            sign = -1;
+                        }
+
+                        i64 number = (i64)atoi(debug->text_input_buffer);
+
+                        if (debug->editbox_value_to_set_size == 1)
+                        {
+                            i8* int_to_set = (i8*)debug->editbox_value_to_set;
+                            *int_to_set = ((i8)number) * sign;
+                        }
+                        else if (debug->editbox_value_to_set_size == 2)
+                        {
+                            i16* int_to_set = (i16*)debug->editbox_value_to_set;
+                            *int_to_set = ((i16)number) * sign;
+                        }
+                        else if (debug->editbox_value_to_set_size == 4)
+                        {
+                            i32* int_to_set = (i32*)debug->editbox_value_to_set;
+                            *int_to_set = ((i32)number) * sign;
+                        }
+                        else if (debug->editbox_value_to_set_size == 8)
+                        {
+                            i64* int_to_set = (i64*)debug->editbox_value_to_set;
+                            *int_to_set = ((i64)number) * sign;
+                        }
+                    }
+                    else
+                    {
+                        f64 number = (f64)atof(debug->text_input_buffer);
+                        if (debug->editbox_value_to_set_size == 4)
+                        {
+                            f32* float_to_set = (f32*)debug->editbox_value_to_set;
+                            *float_to_set = (f32)number;
+                        }
+                        else if (debug->editbox_value_to_set_size == 8)
+                        {
+                            f64* float_to_set = (f64*)debug->editbox_value_to_set;
+                            *float_to_set = number;
+                        }
+                        else
+                        {
+                            ASSERT(false);
+                        }
+                    }
+                    debug->editbox_value_to_set = 0;
+                    debug->editbox_value_to_set_size = 0;
+                    debug->editbox_value_is_int = 0;
+
                     end_interaction(debug);
                 }
             } break;
@@ -205,14 +374,63 @@ truncate_var_name(char* name)
     name[len-3] = '.';
 }
 
+internal char*
+get_text_to_draw(MemoryArena* arena, u64 value)
+{
+    char* result = PushMemory(arena, char, 128);
+    snprintf(result, 128, "%lu", value);
+
+    return result;
+}
+
+internal char*
+get_text_to_draw(MemoryArena* arena, f64 value)
+{
+    char* result = PushMemory(arena, char, 128);
+    snprintf(result, 128, "%.2f", value);
+
+    return result;
+}
+
+internal char*
+get_text_to_draw(MemoryArena* arena, i64 value)
+{
+    char* result = PushMemory(arena, char, 128);
+    snprintf(result, 128, "%li", value);
+
+    return result;
+}
+
+internal char*
+get_text_to_draw(MemoryArena* arena, u32 value)
+{
+    char* result = PushMemory(arena, char, 128);
+    snprintf(result, 128, "%d", value);
+
+    return result;
+}
+
+internal char*
+get_text_to_draw(MemoryArena* arena, i32 value)
+{
+    char* result = PushMemory(arena, char, 128);
+    snprintf(result, 128, "%d", value);
+
+    return result;
+}
+
+internal char*
+get_text_to_draw(MemoryArena* arena, f32 value)
+{
+    char* result = PushMemory(arena, char, 128);
+    snprintf(result, 128, "%.2f", value);
+
+    return result;
+}
 
 internal void
-fill_text_buffer(DebugState* debug, f32 value)
+fill_text(DebugState* debug)
 {
-    snprintf(debug->text_input_buffer, 
-             ArrayCount(debug->text_input_buffer), 
-             "%f",
-             value);
     debug->text_insert_index = string_length(debug->text_input_buffer);
 
     for (u32 i = debug->text_insert_index-1;;--i)
@@ -229,13 +447,65 @@ fill_text_buffer(DebugState* debug, f32 value)
 
     debug->text_input_buffer[debug->text_insert_index] = '\0';
 }
+internal void
+fill_text_buffer(DebugState* debug, f64 value)
+{
+    snprintf(debug->text_input_buffer, 
+             ArrayCount(debug->text_input_buffer), 
+             "%f",
+             value);
+    fill_text(debug);
+}
+
+internal void
+fill_text_buffer(DebugState* debug, f32 value)
+{
+    snprintf(debug->text_input_buffer, 
+             ArrayCount(debug->text_input_buffer), 
+             "%f",
+             value);
+    fill_text(debug);
+}
+
+internal void
+fill_text_buffer(DebugState* debug, i64 value)
+{
+    snprintf(debug->text_input_buffer, 
+             ArrayCount(debug->text_input_buffer), 
+             "%li",
+             value);
+    debug->text_insert_index = string_length(debug->text_input_buffer);
+    debug->text_input_buffer[debug->text_insert_index] = '\0';
+}
+
+internal void
+fill_text_buffer(DebugState* debug, u64 value)
+{
+    snprintf(debug->text_input_buffer, 
+             ArrayCount(debug->text_input_buffer), 
+             "%lu",
+             value);
+    debug->text_insert_index = string_length(debug->text_input_buffer);
+    debug->text_input_buffer[debug->text_insert_index] = '\0';
+}
+
+internal void
+fill_text_buffer(DebugState* debug, u32 value)
+{
+    snprintf(debug->text_input_buffer, 
+             ArrayCount(debug->text_input_buffer), 
+             "%u",
+             value);
+    debug->text_insert_index = string_length(debug->text_input_buffer);
+    debug->text_input_buffer[debug->text_insert_index] = '\0';
+}
 
 internal void
 fill_text_buffer(DebugState* debug, i32 value)
 {
     snprintf(debug->text_input_buffer, 
              ArrayCount(debug->text_input_buffer), 
-             "%d",
+             "%i",
              value);
     debug->text_insert_index = string_length(debug->text_input_buffer);
     debug->text_input_buffer[debug->text_insert_index] = '\0';
@@ -480,12 +750,16 @@ debug_window_begin(DebugState* debug, char* title)
 
     vec2 titlebar_size = V2((f32)window->size.x, (f32)debug->font.font_size);
 
+    if (!debug->focused_window)
+    {
+        debug->focused_window = debug->window;
+    }
+
     if (point_inside_rect(debug->mouse_pos,
                           window->position,
                           titlebar_size))
     {
-        if (window_is_focused(debug, debug->window) ||
-            !(debug->focused_window))
+        if (window_is_focused(debug, debug->window))
         {
             debug->next_hot_item.id = title;
         }
@@ -650,132 +924,8 @@ debug_button(DebugState* debug,
     return result;
 }
 
-enum DebugVariableType
-{
-    DEBUG_VAR_FLOAT,
-    DEBUG_VAR_INT,
-};
-
-internal void
-draw_variabe(DebugState* debug, void* value, vec2 pos, vec2 size, DebugVariableType type)
-{
-    if (is_first_interaction(debug, value))
-    {
-        if (type == DEBUG_VAR_FLOAT)
-            fill_text_buffer(debug,  *((f32*)value));
-        else if (type == DEBUG_VAR_INT)
-            fill_text_buffer(debug,  *((i32*)value));
-    }
-
-    char text[32];
-
-    if (type == DEBUG_VAR_FLOAT)
-    {
-        snprintf(text, 32, "%.2f", *((f32*)(value)));
-    }
-    else if (type == DEBUG_VAR_INT)
-    {
-        snprintf(text, 32, "%d", *((i32*)(value)));
-    }
-
-    b8 is_editing_box = is_interacting(debug, value) && 
-                        (debug->interacting_item.type == INTERACTION_TYPE_EDIT);
-
-    if (is_editing_box)
-    {
-        debug_text(debug->render_group, &debug->font, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font.font_size)), debug->window->layer + LAYER_FRONT);
-
-        debug->text_input_buffer[debug->text_insert_index] = '\0';
-
-        if (type == DEBUG_VAR_FLOAT)
-            *((f32*)value) = (f32)atof(debug->text_input_buffer);
-        else if (type == DEBUG_VAR_INT)
-            *((i32*)value) = (i32)atoi(debug->text_input_buffer);
-
-        f32 cursor_x = pos.x + get_text_width(&debug->font, debug->text_input_buffer);
-        push_quad(debug->render_group, V2(cursor_x, pos.y), V2(3, size.y), faint_red_color, debug->window->layer + LAYER_FRONT);
-    }
-    else
-    {
-        debug_text(debug->render_group, 
-                   &debug->font,
-                   text, 
-                   V2(pos.x + (size.x / 2), 
-                      pos.y + (size.y - debug->font.font_size)),
-                   debug->window->layer + LAYER_FRONT,
-                   TEXT_ALIGN_MIDDLE);
-    }
-}
 
 
-
-internal void
-debug_editbox(DebugState* debug, void* value, char* var_name, DebugVariableType type, vec2 size)
-{
-    RenderGroup* group = debug->render_group;
-
-    if (var_name)
-    {
-        debug_cursor_newline(debug, size.x + MAX_NAME_WIDTH, size.y);
-    }
-    else
-    {
-        debug_cursor_newline(debug, size.x, size.y);
-    }
-    vec2 pos = debug->draw_cursor;
-    Color color = bg_main_color;
-
-    if (is_interacting(debug, value))
-    {
-    }
-    else if (is_hot(debug, value))
-    {
-        color.r *= 2;
-        color.g *= 2;
-        color.b *= 2;
-    }
-
-    if (var_name)
-    {
-        if (name_is_too_long(&debug->font, var_name))
-        {
-            var_name = string_copy(&debug->arena, var_name);
-            truncate_var_name(var_name);
-        }
-        debug_text(debug->render_group, 
-                   &debug->font, var_name, 
-                   V2(pos.x, pos.y + (size.y - debug->font.font_size)), 
-                   debug->window->layer + LAYER_FRONT);
-    }
-
-    pos.x += MAX_NAME_WIDTH;
-    push_quad(group, pos, size, color, debug->window->layer + LAYER_MID);
-
-    draw_variabe(debug, value, pos, size, type);
-
-    if (window_is_focused(debug, debug->window))
-    {
-        if (point_inside_rect(debug->mouse_pos, pos, size))
-        {
-            debug->next_hot_item.id = value;
-            debug->next_hot_item.ui_item_type = UI_ITEM_EDITBOX;
-        }
-    }
-}
-
-
-internal void
-debug_generic_editbox(DebugState* debug, void* v, DebugVariableType type, u32 num_components, char* var_name)
-{
-    f32 total_width = (debug->window->size.x - MAX_NAME_WIDTH - 2*PADDING) - ((num_components-1) * PADDING);
-    debug_editbox(debug, v, var_name, type, V2(total_width/num_components, 20));
-
-    for (u32 i = 1; i < num_components; ++i)
-    {
-        debug_cursor_sameline(debug);
-        debug_editbox(debug, (((u8*)v)+(i*4)), 0, type, V2(total_width/num_components, 20));
-    }
-}
 
 internal void
 debug_slider(DebugState* debug, 
