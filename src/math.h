@@ -580,7 +580,7 @@ mat4_perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
 }
 
 inline b8
-point_inside_rect(vec2 p, vec2 pos, vec2 scale)
+point_is_inside_rect(vec2 p, vec2 pos, vec2 scale)
 {
     return (p.x >= pos.x && 
             p.x <= (pos.x + scale.x) &&

@@ -14,10 +14,10 @@
 #include "string.cpp"
 #include "log.h"
 #include "math.h"
+#include "input.h"
 #include "debug.h"
 #include "renderer.h"
 #include "renderer.cpp"
-#include "input.h"
 #include "game.h"
 #include "render_group.cpp"
 #include "asset_loading.cpp"
@@ -210,13 +210,13 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         memory->debug = PushMemory(&game_state->arena, DebugState);
         sub_arena(&game_state->arena, &memory->debug->arena, Megabytes(12));
 #ifdef PLATFORM_WIN32
-        memory->debug->font = debug_load_font(&memory->debug->arena,
+        memory->debug->font = ui_load_font(&memory->debug->arena,
                                               platform,
                                               &trans_state->assets,
                                               "../consola.ttf",
                                               16);
 #elif PLATFORM_LINUX
-        memory->debug->font = debug_load_font(&memory->debug->arena,
+        memory->debug->font = ui_load_font(&memory->debug->arena,
                                               platform,
                                               &game_state->assets,
                                               "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
@@ -444,39 +444,52 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
     if (global_is_edit_mode)
     {
-        debug_ui(memory->debug, &game_state->assets, ren);
+        imediate_ui(memory->debug, input, &game_state->assets, ren);
 
-        debug_fps(memory->debug);
+        ui_fps(memory->debug);
 
-        debug_window_begin(memory->debug, "Window");
+        ui_window_begin(memory->debug, "Window");
 
-        if (debug_submenu(memory->debug, ("Player")))
+        if (ui_submenu(memory->debug, ("Player")))
         {
             Entity* player = game_state->entities;
 
-            DebugFloat32Editbox(memory->debug, &player->position, "player position");
-            DebugFloat32Editbox(memory->debug, &player->rigidbody.acceleration, "player acceleration");
-            DebugFloat32Editbox(memory->debug, &player->rigidbody.velocity, "player velocity");
-            DebugFloat32Editbox(memory->debug, &player->rigidbody.mass, "player mass");
+            UI_Float32Editbox(memory->debug, &player->position, "player position");
+            UI_Float32Editbox(memory->debug, &player->rigidbody.acceleration, "player acceleration");
+            UI_Float32Editbox(memory->debug, &player->rigidbody.velocity, "player velocity");
+            UI_Float32Editbox(memory->debug, &player->rigidbody.mass, "player mass");
 
         }
-        debug_window_end(memory->debug);
-
-        if (debug_submenu(memory->debug, ("Particle Emitter")))
+        if (ui_submenu(memory->debug, ("Particle Emitter")))
         {
             ParticleEmitter* emitter = &game_state->particle_emitter;
 
-            DebugFloat32Editbox(memory->debug, &emitter->min_vel, "min velocity");
-            DebugFloat32Editbox(memory->debug, &emitter->max_vel, "max velocity");
-            local_persist vec2i test = V2I(-100, 20);
-            DebugInt32Editbox(memory->debug, &emitter->particle_spawn_rate, "spawn rate");
-            DebugInt32Editbox(memory->debug, &test, "test ");
-            DebugFloat32Editbox(memory->debug, &emitter->render.size, "size");
-            DebugUInt8Editbox(memory->debug, &emitter->render.color, "color");
+            UI_Float32Editbox(memory->debug, &emitter->min_vel, "min velocity");
+            UI_Float32Editbox(memory->debug, &emitter->max_vel, "max velocity");
+            UI_Int32Editbox(memory->debug, &emitter->particle_spawn_rate, "spawn rate");
+            UI_Float32Editbox(memory->debug, &emitter->render.size, "size");
+            UI_UInt8Editbox(memory->debug, &emitter->render.color, "color");
+            ui_color_picker(memory->debug, &emitter->render.color, "color");
         }
-        debug_window_end(memory->debug);
 
-        process_debug_ui_interactions(memory->debug, input);
+        ui_window_end(memory->debug);
+
+        ui_window_begin(memory->debug, "Other Window 01", V2(400, 200));
+
+        ui_button(memory->debug, "Beten", V2(0, 500), V2(150, 50));
+        ui_cursor_sameline(memory->debug);
+        ui_button(memory->debug, "Beten", V2(0, 500), V2(150, 50));
+
+        ui_window_end(memory->debug);
+
+        ui_window_begin(memory->debug, "Other Window 02", V2(300, 400));
+
+        local_persist f32 test = 100.0f;
+        ui_slider(memory->debug, 0, 1000, &test, "test var");
+        ui_slider(memory->debug, 0, 1000, &test, "test var");
+        ui_slider(memory->debug, 0, 1000, &test, "test var");
+
+        ui_window_end(memory->debug);
 
         end_temporary_memory(&memory->debug->temp_arena);
     }

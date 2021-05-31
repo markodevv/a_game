@@ -30,10 +30,10 @@
 #include "string.cpp"
 #include "log.h"
 #include "math.h"
+#include "input.h"
 #include "debug.h"
 #include "renderer.h"
 #include "renderer.cpp"
-#include "input.h"
 #include "game.h"
 #include "asset_loading.cpp"
 #include "render_group.cpp"
@@ -374,9 +374,10 @@ linux_opengl_prep(Display* display)
     result.win_attrib.background_pixmap = None;
     result.win_attrib.border_pixel      = 0;
     result.win_attrib.event_mask        = KeyPressMask      | KeyReleaseMask    | ButtonPressMask   | 
-                                       ButtonReleaseMask | PointerMotionMask | Button1MotionMask |
-                                       Button2MotionMask | Button3MotionMask | Button4MotionMask | 
-                                       Button5MotionMask | ButtonMotionMask;
+                                          ButtonReleaseMask | PointerMotionMask | Button1MotionMask |
+                                          Button2MotionMask | Button3MotionMask | Button4MotionMask | 
+                                          Button5MotionMask | ButtonMotionMask  |
+                                          ShiftMask         | ControlMask;
 
     return result;
 }
@@ -544,6 +545,7 @@ main()
             game_input.buttons[i].released = 0;
         }
         game_input.character = '\0';
+        game_input.modifiers = 0;
 
 
         while(XPending(display))
@@ -581,8 +583,18 @@ main()
                 case KeyRelease:
                 case KeyPress:
                 {
+                    if ((x_event.xkey.state & ShiftMask) == ShiftMask)
+                    {
+                        game_input.modifiers |= SHIFT_MODIF;
+                    }
+                    if ((x_event.xkey.state & ControlMask) == ControlMask)
+                    {
+                        game_input.modifiers |= CONTROL_MODIF;
+                    }
+
                     if (x_event.xkey.keycode == KEYCODE_W)
                     {
+                        PRINT("W pressed");
                         b8 is_down = (x_event.xkey.type == KeyPress);
                         game_input.move_up.is_down = is_down;
                         game_input.move_up.released = (x_event.xkey.type == KeyRelease);

@@ -17,6 +17,9 @@ struct MouseInput
     b8 moved;
 };
 
+#define SHIFT_MODIF 0x1
+#define CONTROL_MODIF 0x2
+
 struct GameInput
 {
     union 
@@ -36,8 +39,9 @@ struct GameInput
             ButtonState escape;
             ButtonState enter;
         };
-        ButtonState buttons[12];
+        ButtonState buttons[13];
     };
+    u32 modifiers;
     MouseInput mouse;
     char character;
 };
@@ -64,6 +68,12 @@ internal inline b8
 button_released(ButtonState button)
 {
     return button.released;
+}
+
+internal inline b8
+modifier_pressed(GameInput* input, u32 modifier)
+{
+    return (input->modifiers & modifier) == modifier;
 }
 
 #endif
