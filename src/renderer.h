@@ -18,23 +18,6 @@ COLOR(u8 n)
     return {n, n, n, n};
 }
 
-struct Material
-{
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
-    f32 shininess;
-
-    b8 has_texture;
-};
-
-struct Light
-{
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
-};
-
 
 struct VertexData
 {
@@ -89,27 +72,6 @@ struct Font
 
 
 
-struct Mesh
-{
-    VertexData* vertices;
-    u32 num_vertices;
-
-    u32* indices;
-    u32 num_indices;
-
-    i32 texture_index;
-
-    Material material;
-};
-
-struct Model
-{
-    Mesh* meshes;
-    u32 num_meshes;
-
-    SpriteHandle loaded_sprites[8];
-    u32 num_textures;
-};
 
 internal mat4
 camera_transform(Camera* cam)
@@ -225,7 +187,6 @@ struct Renderer
     u32 slot;
 
     vec3 light_pos;
-    Light light;
 
     i32 screen_width;
     i32 screen_height;

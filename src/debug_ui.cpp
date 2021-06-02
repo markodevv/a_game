@@ -7,6 +7,7 @@ global_variable Color red_color = {232, 69, 69, 255};
 #define PADDING 5.0f
 #define MAX_NAME_WIDTH 120
 
+#define WINDOW_NO_TITLEBAR 0x1
 // WARNING: Macro madness bellow, don't look at it for too long!!
 
 #define UI_Float32Editbox(debug, var, name) \
@@ -193,6 +194,14 @@ window_is_focused(DebugState* debug, UiWindow* window)
     return debug->focused_window == window;
 }
 
+internal void
+ui_change_focus(DebugState* debug, UiWindow* window)
+{
+    debug->top_layer += 20;
+    window->layer = debug->top_layer;
+    debug->focused_window = window;
+}
+
 // TODO: handle collisions
 internal UiWindow*
 get_window(DebugState* debug, char* key)
@@ -210,6 +219,18 @@ get_window(DebugState* debug, char* key)
     UiWindow* ui_window = debug->window_table + hash_index;
 
     return ui_window;
+}
+
+internal void
+set_window_position(DebugState* debug, vec2 position, char* window_name)
+{
+    get_window(debug, window_name)->position = position;
+}
+
+internal void
+set_window_size(DebugState* debug, vec2 size, char* window_name)
+{
+    get_window(debug, window_name)->size = size;
 }
 
 internal b8
@@ -583,14 +604,14 @@ ui_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
     if (window_is_focused(debug, debug->current_window))
     {
         if (point_is_inside_rect(debug->input.mouse.position,
-                            position,
-                            size))
+                                 position,
+                                 size))
         {
             debug->hot_item = title;
         }
     }
 
-    push_quad(debug->render_group, position, size, color, LAYER_MID);
+    push_quad(debug->render_group, position, size, color, layer + LAYER_MID);
     ui_text(debug->render_group, 
                &debug->font, 
                title, 
@@ -625,6 +646,7 @@ imediate_ui(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
 
     if (button_pressed(input->left_mouse_button))
     {
+        PRINT("PRessed LMB");
         UiWindow** windows =  PushMemory(&debug->arena, 
                                              UiWindow*, 
                                              ArrayCount(debug->window_table));
@@ -639,7 +661,7 @@ imediate_ui(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
                 len++;
             }
         }
-        // TODO: please learn better sort..
+        // TODO: learn better sort..
 
         // Sort by layer
         for (i32 i = 0; i < (i32)len; ++i)
@@ -656,11 +678,13 @@ imediate_ui(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
         }
 
 
+        // Top window should always be focused
         UiWindow* focused_window = windows[0];
         if (point_is_inside_rect(input->mouse.position,
                               focused_window->position,
                               focused_window->size))
         {
+            PRINT("Clicked on focused window");
             return;
         }
 
@@ -671,9 +695,8 @@ imediate_ui(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
                                   window->position,
                                   window->size))
             {
-                debug->top_layer += 20;
-                window->layer = debug->top_layer;
-                debug->focused_window = window;
+                PRINT("Change focus to %p", window);
+                ui_change_focus(debug, window);
                 break;
             }
         }
@@ -681,7 +704,7 @@ imediate_ui(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
 }
 
 internal void
-ui_window_begin(DebugState* debug, char* title, vec2 size = V2(400, 600))
+ui_window_begin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(400, 500), u32 style_flags = 0)
 {
     UiWindow* window = get_window(debug, title);
 
@@ -694,8 +717,7 @@ ui_window_begin(DebugState* debug, char* title, vec2 size = V2(400, 600))
     if (window->position.x <= 0 && window->position.y <= 0)
     {
         window->size = size;
-        u32 x = (rand() % 1000) + 20;
-        window->position = V2(x, 0);
+        window->position = pos;
     }
 
 
@@ -728,43 +750,46 @@ ui_window_begin(DebugState* debug, char* title, vec2 size = V2(400, 600))
     debug->draw_cursor = V2(window->position.x,
                             window->position.y + window->size.y);
 
-    vec2 titlebar_size = V2((f32)window->size.x, (f32)debug->font.font_size);
-    debug->draw_cursor.y -= titlebar_size.y;
-    vec2 titlebar_pos = debug->draw_cursor;
-
     push_quad(debug->render_group, 
               debug->current_window->position,
               debug->current_window->size,
               faint_bg_color,
               debug->current_window->layer + LAYER_BACKMID);
 
-    // TODO window focus
-    if (!debug->focused_window)
+    if ((style_flags & WINDOW_NO_TITLEBAR) != WINDOW_NO_TITLEBAR)
     {
-        debug->focused_window = debug->current_window;
-        debug->top_layer += 20;
-        debug->focused_window->layer = debug->top_layer;
-    }
+        vec2 titlebar_size = V2((f32)window->size.x, (f32)debug->font.font_size);
+        debug->draw_cursor.y -= titlebar_size.y;
+        vec2 titlebar_pos = debug->draw_cursor;
 
 
-    if (window_is_focused(debug, debug->current_window))
-    {
-        if (point_is_inside_rect(debug->input.mouse.position,
-                              titlebar_pos,
-                              titlebar_size))
+        // TODO window focus
+        if (!debug->focused_window)
         {
-            set_hot(debug, window);
+            ui_change_focus(debug, window);
         }
+
+
+        if (window_is_focused(debug, debug->current_window))
+        {
+            if (point_is_inside_rect(debug->input.mouse.position,
+                                     titlebar_pos,
+                                     titlebar_size))
+            {
+                set_hot(debug, window);
+            }
+        }
+
+        push_quad(debug->render_group, titlebar_pos, titlebar_size, color, layer + LAYER_MID);
+        ui_text(debug->render_group, 
+                &debug->font,
+                title, 
+                V2(titlebar_pos.x + (titlebar_size.x / 2),
+                   titlebar_pos.y + 4.0f),
+                layer + LAYER_FRONT,
+                TEXT_ALIGN_MIDDLE);
     }
 
-    push_quad(debug->render_group, titlebar_pos, titlebar_size, color, layer + LAYER_MID);
-    ui_text(debug->render_group, 
-            &debug->font,
-            title, 
-            V2(titlebar_pos.x + (titlebar_size.x / 2),
-               titlebar_pos.y + 4.0f),
-            layer + LAYER_FRONT,
-            TEXT_ALIGN_MIDDLE);
 
     debug->current_item_index = 0;
 }
@@ -993,14 +1018,17 @@ ui_slider(DebugState* debug,
 
 
 
+
 internal void
-ui_color_picker(DebugState* debug, Color* id, char* var_name)
+ui_color_picker(DebugState* debug, Color* var, char* var_name)
 {
-    vec2 size = V2(200, 300);
-    Color color = *id;
+    local_persist b8 colorpicker_is_active = false;
+    vec2 size = V2(200, debug->font.font_size);
+    Color color = *var;
 
     u32 layer = debug->current_window ? debug->current_window->layer : 0;
     vec2 pos = ui_cursor_newline(debug, size.x, size.y);
+
 
     if (name_is_too_long(&debug->font, var_name))
     {
@@ -1013,36 +1041,50 @@ ui_color_picker(DebugState* debug, Color* id, char* var_name)
             var_name, 
             V2(pos.x, pos.y + (size.y - debug->font.font_size)), 
             layer + LAYER_FRONT);
-
-    if (is_active(debug, id))
-    {
-        // TODO:
-        vec2 colorpicker_size = V2(300, 400);
-        push_quad(debug->render_group, pos, colorpicker_size, color, layer + LAYER_FRONT);
-        if (!point_is_inside_rect(debug->input.mouse.position, pos, colorpicker_size) &&
-            button_pressed(debug->input.left_mouse_button))
-        {
-            debug->active_item = 0;
-        }
-    }
-    else if (is_hot(debug, id))
-    {
-        color.r *= 2;
-        color.g *= 2;
-        color.b *= 2;
-    }
-
     pos.x += MAX_NAME_WIDTH;
 
     push_quad(debug->render_group, pos, size, color, layer + LAYER_MID);
 
-    if (window_is_focused(debug, debug->current_window))
+
+    UiWindow* colorpicker_window = get_window(debug, "Color Picker");
+
+    if (button_pressed(debug->input.left_mouse_button))
     {
-        if (point_is_inside_rect(debug->input.mouse.position, pos, size))
+        if (!colorpicker_is_active)
         {
-            debug->hot_item = id;
+            if (point_is_inside_rect(debug->input.mouse.position, pos, size))
+            {
+                ui_change_focus(debug, get_window(debug, "Color Picker"));
+                set_window_position(debug, debug->input.mouse.position, "Color Picker");
+                set_window_size(debug, V2(300, 400), "Color Picker");
+                colorpicker_is_active = true;
+            }
+        }
+        else
+        {
+            if (!point_is_inside_rect(debug->input.mouse.position, 
+                                      colorpicker_window->position, colorpicker_window->size))
+            {
+                colorpicker_is_active = false;
+            }
         }
     }
+
+    if (colorpicker_is_active)
+    {
+
+        ui_window_begin(debug, "Color Picker", 
+                        colorpicker_window->position, colorpicker_window->size);
+                        
+
+        UI_UInt8Editbox(debug, var, "Color");
+
+
+        debug->current_window = debug->focused_window;
+        ui_window_end(debug);
+
+    }
+
 }
 
 
@@ -1057,11 +1099,12 @@ ui_submenu(DebugState* debug, char* title)
     ui_submenu_titlebar(debug, 
                            debug->draw_cursor, 
                            V2(debug->current_window->size.x - 2*PADDING,
-                              (f32)debug->font.font_size),
+                             (f32)debug->font.font_size),
                            title);
 
     b8 active = debug->window_items[debug->current_item_index].menu_is_active;
 
+    ASSERT(debug->current_item_index < ArrayCount(debug->window_items));
     ++debug->current_item_index;
 
     return active;

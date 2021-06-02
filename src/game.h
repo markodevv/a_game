@@ -18,7 +18,6 @@ struct FileResult
 typedef FileResult ReadEntireFileProc(char* path);
 typedef void FreeEntireFileProc(void* memory);
 typedef b8 WriteEntireFileProc(char* file_name, u32 size, void* memory);
-typedef Model Load3DModelProc(struct Assets* assets, char* name);
 typedef SpriteHandle LoadSpriteProc(Assets* assets, char* sprite_path);
 
 typedef void RenderProc(Renderer* ren);
@@ -68,7 +67,6 @@ struct GameSoundBuffer
 struct Assets
 {
     MemoryArena arena;
-    Model models[3];
 
     Sprite sprites[64];
     u32 num_sprites;

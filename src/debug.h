@@ -34,7 +34,6 @@ struct DebugState
 
     Font font;
 
-    vec2 draw_cursor;
 
     char text_input_buffer[256];
     u32 text_insert_index;
@@ -50,6 +49,10 @@ struct DebugState
     UiWindow window_table[64];
     UiWindow* current_window;
     UiWindow* focused_window;
+
+    vec2 draw_cursor;
+
+    vec2 last_draw_cursor;
 
     u32 top_layer;
 

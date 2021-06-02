@@ -194,11 +194,6 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         Renderer* ren = &game_state->renderer;
 
 
-        ren->light.ambient = V3(1.0f);
-        ren->light.diffuse = V3(1.0f);
-        ren->light.specular = V3(1.0f);
-
-        ren->light_pos = V3(200, 100, 0.0f);
 
         ren->assets = &game_state->assets;
 
@@ -468,13 +463,12 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
             UI_Float32Editbox(memory->debug, &emitter->max_vel, "max velocity");
             UI_Int32Editbox(memory->debug, &emitter->particle_spawn_rate, "spawn rate");
             UI_Float32Editbox(memory->debug, &emitter->render.size, "size");
-            UI_UInt8Editbox(memory->debug, &emitter->render.color, "color");
-            ui_color_picker(memory->debug, &emitter->render.color, "color");
+            ui_color_picker(memory->debug, &emitter->render.color, "color mhehe");
         }
 
         ui_window_end(memory->debug);
 
-        ui_window_begin(memory->debug, "Other Window 01", V2(400, 200));
+        ui_window_begin(memory->debug, "Other Window 01", V2(0), V2(310, 200));
 
         ui_button(memory->debug, "Beten", V2(0, 500), V2(150, 50));
         ui_cursor_sameline(memory->debug);
@@ -482,7 +476,7 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
         ui_window_end(memory->debug);
 
-        ui_window_begin(memory->debug, "Other Window 02", V2(300, 400));
+        ui_window_begin(memory->debug, "Other Window 02", V2(0), V2(300, 400));
 
         local_persist f32 test = 100.0f;
         ui_slider(memory->debug, 0, 1000, &test, "test var");
