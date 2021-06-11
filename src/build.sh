@@ -6,7 +6,7 @@ fi
 pushd ../build
 include_paths="-I ../third_party/stb/ -I../third_party/obj_parser/"
 lib_dirs="-L../third_party/stb/build"
-source_files="../src/linux_platform.cpp";
+source_files="../src/linux_platform.cpp"
 disabled_warnings="-Wno-unused-variable -Wno-write-strings -Wno-unused-function -Wno-switch -Wno-unused-but-set-variable"
 linux_libraries="-lm -lpthread -lX11 -lGL -ldl -l:stb_image.a -l:stb_truetype.a"
 game_libraries="-lm"
