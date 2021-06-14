@@ -1,0 +1,13 @@
+@struct MemoryArena:
+{
+    used: sizet,
+    size: sizet,
+    base: *u8,
+    temp_arena_count: u32,
+}
+
+@struct TemporaryArena:
+{
+    arena: *MemoryArena,
+    used: sizet,
+}

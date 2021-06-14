@@ -631,6 +631,8 @@ imediate_ui(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
     debug->temp_arena = begin_temporary_memory(&debug->arena);
     debug->prev_mouse_pos = debug->input.mouse.position;
     debug->input = *input;
+    debug->screen_width = ren->screen_width;
+    debug->screen_height = ren->screen_height;
 
     mat4 projection = mat4_orthographic((f32)ren->screen_width,
                                         (f32)ren->screen_height);
@@ -808,7 +810,7 @@ ui_fps(DebugState* debug)
     char* fps_text = "%.2f fps";
     char out[32];
     sprintf(out, fps_text, debug->game_fps);
-    vec2 position = V2(0.0f, (f32)group->renderer->screen_height - debug->font.font_size);
+    vec2 position = V2(0.0f, (f32)debug->screen_height - debug->font.font_size);
 
     ui_text(debug->render_group, &debug->font, out, position, 100);
 }

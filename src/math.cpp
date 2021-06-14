@@ -1,319 +1,228 @@
-#if !defined(MATH_H)
-#define MATH_H
-
 #define PI_F 3.14159265359f
 #define MIN(a,b) (((a)<(b)) ? (a) : (b))
 #define MAX(a,b) (((a)>(b)) ? (a) : (b))
 #define CLAMP(a, min, max) (((a)<=(max)) ? ( ((a)<(min)) ? (min) : (a) ) : (max))
 
-struct vec2
-{
-    f32 x, y;
-
-    vec2 operator+(vec2 other);
-    vec2 operator-(vec2 other);
-    vec2 operator-(f32 n);
-    void operator-=(f32 n);
-    void operator+=(f32 n);
-    void operator+=(vec2 v);
-    void operator-=(vec2 v);
-    vec2 operator*(vec2 other);
-    vec2 operator*(f32 a);
-    void operator*=(f32 a);
-    void operator/=(f32 a);
-    vec2 operator/(f32 a);
-};
-
-struct vec2i
-{
-    i32 x, y;
-};
-
-struct vec3 
-{
-    union
-    {
-        struct
-        {
-            f32 x, y, z;
-        };
-        struct
-        {
-            vec2 xy;
-        };
-        f32 data[3];
-    };
-
-    f32 &operator[](sizet i);
-    vec3 operator+(vec3 other);
-    vec3 operator-(vec3 other);
-    vec3 operator*(vec3 other);
-    vec3 operator*(f32 a);
-    vec3 operator/(f32 a);
-};
-
-struct vec3i
-{
-    i32 x, y, z;
-};
-
-struct vec4
-{
-    union
-    {
-        struct
-        {
-            f32 x, y, z, w;
-        };
-        struct
-        {
-            vec3 xyz;
-        };
-        f32 data[4];
-    };
-
-    f32 &operator[](sizet i);
-    vec4 operator+(vec4 other);
-    vec4 operator-(vec4 other);
-    void operator*=(f32 n);
-};
-
-struct mat4
-{
-    union
-    {
-        vec4 rows[4];
-        f32 data[16];
-    };
-
-    vec4 &operator[](sizet i);
-    mat4 operator*(mat4 other);
-    vec4 operator*(vec4 other);
-};
-
-struct vec4i
-{
-    i32 x, y, z, w;
-};
-
-inline vec2
+internal vec2
 V2(f32 x, f32 y)
 {
     return {x, y};
 }
 
-inline vec2i
+internal vec2i
 V2I(i32 x, i32 y)
 {
     return {x, y};
 }
 
-inline vec3
+internal vec3
 V3(f32 x, f32 y, f32 z)
 {
     return {x, y, z};
 }
 
-inline vec3i
+internal vec3i
 V3I(i32 x, i32 y, i32 z)
 {
     return {x, y, z};
 }
 
-inline vec2
+internal vec2
 V2(f32 a)
 {
     return {a, a};
 }
 
-inline vec3
+internal vec3
 V3(vec2 v, f32 z)
 {
     return {v.x, v.y, z};
 }
 
-inline vec3
+internal vec3
 V3(f32 n)
 {
     return {n, n, n};
 }
 
-inline vec4
+internal vec4
 V4(f32 x, f32 y, f32 z, f32 w)
 {
     return {x, y, z ,w};
 }
 
-inline vec4
+internal vec4
 V4(vec3 v, f32 w)
 {
     return {v.x, v.y, v.z, w};
 }
 
-inline vec4
+internal vec4
 V4(f32 n)
 {
     return {n, n, n, n};
 }
 
-inline void 
-vec2::operator+=(vec2 v)
+void 
+operator+=(vec2& v1, vec2 v2)
 {
-    x += v.x;
-    y += v.y;
+    v1.x += v2.x;
+    v1.y += v2.y;
 }
 
-inline void 
-vec2::operator-=(vec2 v)
+void 
+operator-=(vec2& v1, vec2 v2)
 {
-    x -= v.x;
-    y -= v.y;
+    v1.x -= v2.x;
+    v1.y -= v2.y;
 }
 
-inline vec2
-vec2::operator/(f32 a)
+void 
+operator*=(vec2& v1, vec2 v2)
 {
-    return {x/a, y/a};
+    v1.x *= v2.x;
+    v1.y *= v2.y;
 }
 
-inline vec2 
-vec2::operator*(vec2 other)
+vec2
+operator/(vec2& v, f32 a)
 {
-    return V2(other.x*x, other.y*y);
+    return {v.x/a, v.y/a};
 }
 
-inline vec2
-vec2::operator+(vec2 other)
+vec2 
+operator*(vec2& v1, vec2 v2)
 {
-    return {other.x+x, other.y+y};
+    return V2(v1.x*v2.x, v1.y*v2.y);
 }
 
-inline vec2
-vec2::operator-(f32 n)
+vec2
+operator+(vec2& v1, vec2 v2)
 {
-    return {x-n, y-n};
+    return {v1.x+v2.x, v1.y+v2.y};
 }
 
-inline vec2
-vec2::operator-(vec2 other)
+vec2
+operator-(vec2& v, f32 n)
 {
-    return {x-other.x, y-other.y};
+    return {v.x-n, v.y-n};
 }
 
-inline void 
-vec2::operator-=(f32 n)
+vec2
+operator-(vec2& v1, vec2 v2)
 {
-    x -= n;
-    y -= n;
+    return {v1.x-v2.x, v1.y-v2.y};
 }
 
-inline void 
-vec2::operator*=(f32 a)
+void 
+operator-=(vec2& v, f32 n)
 {
-    x *= a;
-    y *= a;
+    v.x -= n;
+    v.y -= n;
 }
 
-inline void
-vec2::operator/=(f32 a)
+void 
+operator*=(vec2& v, f32 n)
 {
-    x /= a;
-    y /= a;
+    v.x *= n;
+    v.y *= n;
 }
 
-inline void 
-vec2::operator+=(f32 n)
+void
+operator/=(vec2& v, f32 n)
 {
-    x += n;
-    y += n;
+    v.x /= n;
+    v.y /= n;
 }
 
-inline vec2 
-vec2::operator*(f32 a)
+void 
+operator+=(vec2& v, f32 n)
 {
-    return {x*a, y*a};
+    v.x += n;
+    v.y += n;
 }
 
-inline f32
+vec2 
+operator*(const vec2& v, f32 n)
+{
+    return {v.x*n, v.y*n};
+}
+
+f32
 square_root(f32 of)
 {
     return sqrtf(of);
 }
 
-inline f32
+f32
 vec2_length(vec2 v)
 {
     return square_root(v.x*v.x + v.y*v.y);
 }
 
-inline f32
+f32
 vec2_length_squared(vec2 v)
 {
     return (v.x*v.x + v.y*v.y);
 }
 
-inline vec2
+vec2
 vec2_normalized(vec2 v)
 {
     f32 len = vec2_length(v);
     return {v.x/len, v.y/len};
 }
 
-inline f32
+f32
 vec2_distance(vec2 a, vec2 b)
 {
     return vec2_length(b - a);
 }
 
-inline f32
+f32
 vec2_distance_squared(vec2 a, vec2 b)
 {
     return vec2_length_squared(b - a);
 }
 
-inline vec3
-vec3::operator+(vec3 other)
+vec3
+operator+(vec3& v1, vec3 v2)
 {
-    return {x+other.x, y+other.y, z+other.z};
+    return {v1.x+v2.x, v1.y+v2.y, v1.z+v2.z};
 }
 
-inline vec3
-vec3::operator-(vec3 other)
+vec3
+operator-(vec3& v1, vec3 v2)
 {
-    return {x-other.x, y-other.y, z-other.z};
+    return {v1.x-v2.x, v1.y-v2.y, v1.z-v2.z};
 }
 
-inline vec3
-vec3::operator*(vec3 other)
+vec3
+operator*(vec3& v1, vec3 v2)
 {
-    return {x*other.x, y*other.y, z*other.z};
+    return {v1.x*v2.x, v1.y*v2.y, v1.z*v2.z};
 }
 
-inline vec3
-vec3::operator*(f32 a)
+vec3
+operator*(vec3& v, f32 n)
 {
-    return {x*a, y*a, z*a};
+    return {v.x*n, v.y*n, v.z*n};
 }
 
-inline f32 
-&vec3::operator[](sizet i)
+
+vec3
+operator/(vec3& v, f32 n)
 {
-    return data[i];
+    return {v.x/n, v.y/n, v.z/n};
 }
 
-inline vec3
-vec3::operator/(f32 a)
-{
-    return {x/a, y/a, z/a};
-}
-
-inline f32
+f32
 vec3_length(vec3 v)
 {
     return sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
 }
 
-inline vec3
+vec3
 vec3_normalized(vec3 v)
 {
     f32 len = vec3_length(v);
@@ -326,7 +235,7 @@ vec3_normalized(vec3 v)
 }
 
 
-inline vec3
+vec3
 vec3_cross(vec3 a, vec3 b)
 {
     return {
@@ -336,57 +245,49 @@ vec3_cross(vec3 a, vec3 b)
     };
 }
 
-inline vec3
+vec3
 vec3_dot(vec3 a, vec3 b)
 {
     return {a.x*b.x + a.y*b.y + a.z*b.z};
 }
 
-inline f32 
-&vec4::operator[](sizet i)
-{
-    return data[i];
-}
 
-inline vec4 
-vec4::operator+(vec4 other)
+vec4 
+operator+(vec4& v1, vec4 v2)
 {
     vec4 out;
-    for (sizet i = 0; i < 4; ++i)
-    {
-        out[i] = data[i] + other[i];
-    }
+    out.x = v1.x + v2.x;
+    out.y = v1.y + v2.y;
+    out.z = v1.z + v2.z;
+    out.w = v1.w + v2.w;
+
     return out;
 }
 
 void 
-vec4::operator*=(f32 n)
+operator*=(vec4& v,  f32 n)
 {
-    x *= n;
-    y *= n;
-    z *= n;
-    w *= n;
+    v.x *= n;
+    v.y *= n;
+    v.z *= n;
+    v.w *= n;
 }
 
-inline vec4 
-vec4::operator-(vec4 other)
+vec4 
+operator-(vec4& v1, vec4 v2)
 {
     vec4 out;
-    for (sizet i = 0; i < 4; ++i)
-    {
-        out[i] = data[i] - other[i];
-    }
+    out.x = v1.x - v2.x;
+    out.y = v1.y - v2.y;
+    out.z = v1.z - v2.z;
+    out.w = v1.w - v2.w;
+
     return out;
 }
 
-inline vec4 
-&mat4::operator[](sizet i)
-{
-    return rows[i];
-}
 
-inline mat4 
-mat4::operator*(mat4 other)
+mat4 
+operator*(mat4& m1, mat4 m2)
 {
     mat4 out;
     for (sizet x = 0; x < 4; ++x)
@@ -396,7 +297,7 @@ mat4::operator*(mat4 other)
             f32 sum = 0.0f;
             for (sizet m = 0; m < 4; ++m)
             {
-                sum += rows[x][m] * other[m][y];
+                sum += m1[x][m] * m2[m][y];
             }
             out[x][y] = sum;
         }
@@ -404,8 +305,8 @@ mat4::operator*(mat4 other)
     return out;
 }
 
-inline vec4 
-mat4::operator*(vec4 other)
+vec4 
+operator*(mat4 mat, vec4 other)
 {
     vec4 out = {};
     for (sizet x = 0; x < 4; ++x)
@@ -415,7 +316,7 @@ mat4::operator*(vec4 other)
             f32 sum = 0.0f;
             for (sizet m = 0; m < 4; ++m)
             {
-                sum += rows[x][m] * other[m];
+                sum += mat[x][m] * other[m];
             }
             out[x] = sum;
         }
@@ -423,7 +324,7 @@ mat4::operator*(vec4 other)
     return out;
 }
 
-inline mat4
+mat4
 mat4_identity()
 {
     mat4 out = {};
@@ -435,7 +336,7 @@ mat4_identity()
     return out;
 }
 
-inline mat4
+mat4
 mat4_scale(vec3 v)
 {
     mat4 out = mat4_identity();
@@ -446,7 +347,7 @@ mat4_scale(vec3 v)
     return out;
 }
 
-inline mat4
+mat4
 mat4_translate(vec3 v)
 {
     mat4 out = mat4_identity();
@@ -458,7 +359,7 @@ mat4_translate(vec3 v)
     return out;
 }
 
-inline mat4
+mat4
 mat4_rotate(f32 angle, vec3 v)
 {
     f32 radians = angle * PI_F / 180;
@@ -477,7 +378,7 @@ mat4_rotate(f32 angle, vec3 v)
 }
 
 
-internal inline mat4
+internal mat4
 mat4_inverse(mat4 m)
 {
     f32 A2323 = m[2][2] * m[3][3] - m[2][3] * m[3][2];
@@ -528,7 +429,7 @@ mat4_inverse(mat4 m)
 }
 
 
-internal inline mat4
+internal mat4
 mat4_transpose(mat4 matrix)
 {
     mat4 out;
@@ -544,13 +445,13 @@ mat4_transpose(mat4 matrix)
 }
 
 
-inline f32
+internal f32
 degrees_to_radians(f32 d) 
 {
     return (d*((f32)PI_F/180));
 }
 
-inline mat4
+internal mat4
 mat4_orthographic(f32 w, f32 h)
 {
     mat4 out = {
@@ -563,7 +464,7 @@ mat4_orthographic(f32 w, f32 h)
     return out;
 }
 
-inline mat4
+internal mat4
 mat4_perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
 {
     f32 t = tanf(degrees_to_radians(fov/2.0f));
@@ -579,7 +480,7 @@ mat4_perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
     return out;
 }
 
-inline b8
+internal b8
 point_is_inside_rect(vec2 p, vec2 pos, vec2 scale)
 {
     return (p.x >= pos.x && 
@@ -588,4 +489,25 @@ point_is_inside_rect(vec2 p, vec2 pos, vec2 scale)
             p.y <= (pos.y + scale.y));
 }
 
-#endif
+f32&
+vec2::operator[](sizet i)
+{
+    return (&(x))[i];
+}
+
+f32&
+vec3::operator[](sizet i)
+{
+    return (&(x))[i];
+}
+f32&
+vec4::operator[](sizet i)
+{
+    return (&(x))[i];
+}
+
+vec4&
+mat4::operator[](sizet i)
+{
+    return rows[i];
+}

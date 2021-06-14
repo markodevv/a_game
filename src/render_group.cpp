@@ -27,7 +27,6 @@ setup_render_group(MemoryArena* arena, mat4 projection, Camera camera, Renderer*
 
     render_group->setup.projection = projection;
     render_group->setup.camera = camera;
-    render_group->renderer = ren;
     render_group->assets = assets;
 
     render_group->push_buffer_capacity = Megabytes(10);

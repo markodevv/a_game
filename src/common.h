@@ -59,18 +59,6 @@ typedef size_t sizet;
 
 #endif
 
-// #if 0
-// #else
-// 
-    // #ifdef PLATFORM_WIN32
-// #define PLATFORM_API __declspec(dllexport)
-    // #elif PLATFORM_LINUX
-// #define PLATFORM_API 
-    // #endif
-// 
-// #endif
-
-
 
 
 #endif 

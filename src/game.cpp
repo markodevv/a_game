@@ -10,20 +10,25 @@
 
 
 #include "common.h"
-#include "memory.h"
+#include "headers/memory.h"
+#include "memory.cpp"
 #include "string.cpp"
 #include "log.h"
-#include "math.h"
-#include "input.h"
-#include "debug.h"
-#include "renderer.h"
+#include "headers/math.h"
+#include "math.cpp"
+#include "headers/input.h"
+#include "input.cpp"
+#include "headers/renderer.h"
 #include "renderer.cpp"
-#include "game.h"
+#include "headers/debug.h"
+#include "platform.h"
+#include "headers/game.h"
 #include "render_group.cpp"
 #include "asset_loading.cpp"
 #include "debug_ui.cpp"
 
 
+#include "generated_print.cpp"
 
 // NOTE: Debug data
 
@@ -92,7 +97,6 @@ add_force(Entity* entity, vec2 force)
 }
 
 // F = m*a
-
 internal void
 integrate(Entity* entity, f32 dt)
 {
@@ -100,7 +104,8 @@ integrate(Entity* entity, f32 dt)
         return;
 
 
-    add_force(entity, V2(0, -1) * 300);
+    vec2 force = V2(0, -1) * 300;
+    add_force(entity, force);
 
     entity->position += entity->rigidbody.velocity * dt;
 
@@ -290,9 +295,9 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
     RenderGroup* render_group = setup_render_group(&game_state->transient_arena,
                                                    mat4_orthographic((f32)ren->screen_width,
                                                                     (f32)ren->screen_height),
-                                                   main_cam,
-                                                   ren, 
-                                                   &game_state->assets);
+                                                                       main_cam,
+                                                                       ren, 
+                                                                       &game_state->assets);
 
 
     Entity* player_ent = get_entity(game_state, game_state->player_entity_index);
@@ -325,13 +330,6 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
                   LAYER_MID);
 
 
-        // f32 distance = vec2_distance(player_ent->position, V2(300, 0));
-        // PRINT("Distance %.2f", distance);
-        // if (distance <= 300.0f)
-        // {
-            // add_force(player_ent, V2(0.0f, 10000.0f));
-        // }
-// 
         integrate(player_ent, delta_time);
     }
 
@@ -464,6 +462,9 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
             UI_Int32Editbox(memory->debug, &emitter->particle_spawn_rate, "spawn rate");
             UI_Float32Editbox(memory->debug, &emitter->render.size, "size");
             ui_color_picker(memory->debug, &emitter->render.color, "color mhehe");
+            print("Min vel", emitter->min_vel);
+            print("Vertex", *ren->vertices);
+            print("Max vel", emitter->max_vel);
         }
 
         ui_window_end(memory->debug);

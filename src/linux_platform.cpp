@@ -26,20 +26,25 @@
 #undef Font
 
 #include "common.h"
-#include "memory.h"
+#include "headers/memory.h"
+#include "memory.cpp"
 #include "string.cpp"
 #include "log.h"
-#include "math.h"
-#include "input.h"
-#include "debug.h"
-#include "renderer.h"
+#include "headers/math.h"
+#include "math.cpp"
+#include "headers/input.h"
+#include "input.cpp"
+#include "headers/renderer.h"
 #include "renderer.cpp"
-#include "game.h"
+#include "headers/debug.h"
+#include "platform.h"
+#include "headers/game.h"
 #include "asset_loading.cpp"
 #include "render_group.cpp"
-#include "opengl_renderer.h"
+#include "headers/opengl_renderer.h"
 #include "opengl_renderer.cpp"
 
+typedef void (*GameMainLoop)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
 
 
 // typedef XID GLXContextID;
@@ -269,9 +274,17 @@ linux_init_opengl()
     // LinuxLoadOpenGLFunction(glDrawElements);
 }
 
+internal int
+linux_error_handler(Display* display, XErrorEvent* event)
+{
+    PRINT("GLX ERROR CODE [%d]", event->error_code);
+    return 0;
+}
+
 internal LinuxWindowInfo
 linux_opengl_prep(Display* display)
 {
+    // XSetErrorHandler(linux_error_handler);
     LinuxWindowInfo result = {};
 
     i32 glx_major, glx_minor;
@@ -539,11 +552,31 @@ main()
 
         last_ns = ts.tv_nsec;
 
-        for (sizet i = 0; i < ArrayCount(game_input.buttons); ++i)
-        {
-            game_input.buttons[i].pressed = 0;
-            game_input.buttons[i].released = 0;
-        }
+        game_input.move_left.pressed = 0;
+        game_input.move_left.released = 0;
+        game_input.move_right.pressed = 0;
+        game_input.move_right.released = 0;
+        game_input.move_up.pressed = 0;
+        game_input.move_up.released = 0;
+        game_input.move_down.pressed = 0;
+        game_input.move_down.released = 0;
+        game_input.move_forward.pressed = 0;
+        game_input.move_forward.released = 0;
+        game_input.move_back.pressed = 0;
+        game_input.move_back.released = 0;
+        game_input.pause_button.pressed = 0;
+        game_input.pause_button.released = 0;
+        game_input.left_mouse_button.pressed = 0;
+        game_input.left_mouse_button.released = 0;
+        game_input.right_mouse_button.pressed = 0;
+        game_input.right_mouse_button.released = 0;
+        game_input.backspace.pressed = 0;
+        game_input.backspace.released = 0;
+        game_input.escape.pressed = 0;
+        game_input.escape.released = 0;
+        game_input.enter.pressed = 0;
+        game_input.enter.released = 0;
+
         game_input.character = '\0';
         game_input.modifiers = 0;
 

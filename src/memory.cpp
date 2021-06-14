@@ -1,23 +1,6 @@
-#if !defined(MEMORY_H)
-#define MEMORY_H
-
 #define PushMemory(arena, type, ...)  (type *)push_memory(arena, sizeof(type), ##__VA_ARGS__)
 
-struct MemoryArena
-{
-    sizet used;
-    sizet size;
-    u8* base;
-    u32 temp_arena_count;
-};
-
-struct TemporaryArena
-{
-    MemoryArena* arena;
-    sizet used;
-};
-
-inline void*
+internal void*
 push_memory(MemoryArena* arena, sizet type_size, sizet count = 1)
 {
     ASSERT((arena->size - arena->used) > (type_size * count));
@@ -27,7 +10,7 @@ push_memory(MemoryArena* arena, sizet type_size, sizet count = 1)
     return out;
 }
 
-inline void
+internal void
 init_arena(MemoryArena* arena, sizet size, void* base)
 {
     arena->used = 0;
@@ -35,7 +18,7 @@ init_arena(MemoryArena* arena, sizet size, void* base)
     arena->base = (u8*)base;
 }
 
-inline void
+internal void
 sub_arena(MemoryArena* main, MemoryArena* sub, sizet size)
 {
     u8* base = PushMemory(main, u8, size);
@@ -77,5 +60,3 @@ memory_clear(void* memory, u32 size)
         next_to_clear++;
     }
 }
-
-#endif

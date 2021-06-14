@@ -1,0 +1,47 @@
+@struct @printable vec2:
+{
+    x: f32,
+    y: f32,
+}
+
+@struct @printable vec2i:
+{
+    x: i32,
+    y: i32,
+}
+
+@struct @printable vec3:
+{
+    x: f32, 
+    y: f32,
+    z: f32,
+}
+
+@struct @printable vec3i:
+{
+    x: i32,
+    y: i32,
+    z: i32,
+}
+
+@struct @printable vec4:
+{
+    x: f32,
+    y: f32,
+    z: f32,
+    w: f32,
+}
+
+@struct mat4:
+{
+    rows: ([4]vec4);
+}
+
+@struct @printable vec4i:
+{
+    x: i32,
+    y: i32,
+    z: i32,
+    w: i32,
+}
+

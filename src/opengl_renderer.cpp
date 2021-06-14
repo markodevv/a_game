@@ -1,5 +1,48 @@
-
 #include "math.h"
+
+OpenGLFunction(void,     glAttachShader,            GLuint program, GLuint shader);
+OpenGLFunction(void,     glBindBuffer,              GLenum target, GLuint buffer);
+OpenGLFunction(void,     glBindFramebuffer,         GLenum target, GLuint framebuffer);
+OpenGLFunction(void,     glBufferData,              GLenum target, GLsizeiptr size, const GLvoid *data, GLenum usage);
+OpenGLFunction(void,     glBufferSubData,           GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid * data);
+OpenGLFunction(GLenum,   glCheckFramebufferStatus,  GLenum target);
+OpenGLFunction(void,     glClearBufferfv,           GLenum buffer, GLint drawbuffer, const GLfloat * value);
+OpenGLFunction(void,     glCompileShader,           GLuint shader);
+OpenGLFunction(GLuint,   glCreateProgram,           void);
+OpenGLFunction(GLuint,   glCreateShader,            GLenum type);
+OpenGLFunction(void,     glDeleteBuffers,           GLsizei n, const GLuint *buffers);
+OpenGLFunction(void,     glDeleteFramebuffers,      GLsizei n, const GLuint *framebuffers);
+OpenGLFunction(void,     glEnableVertexAttribArray, GLuint index);
+OpenGLFunction(void,     glDrawBuffers,             GLsizei n, const GLenum *bufs);
+OpenGLFunction(void,     glFramebufferTexture2D,    GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+OpenGLFunction(void,     glGenBuffers,              GLsizei n, GLuint *buffers);
+OpenGLFunction(void,     glGenFramebuffers,         GLsizei n, GLuint * framebuffers);
+OpenGLFunction(GLint,    glGetAttribLocation,       GLuint program, const GLchar *name);
+OpenGLFunction(void,     glGetShaderInfoLog,        GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
+OpenGLFunction(void,     glGetShaderiv,             GLuint shader, GLenum pname, GLint *params);
+OpenGLFunction(GLint,    glGetUniformLocation,      GLuint program, const GLchar *name);
+OpenGLFunction(void,     glLinkProgram,             GLuint program);
+OpenGLFunction(void,     glShaderSource,            GLuint shader, GLsizei count, const GLchar* const *string, const GLint *length);
+OpenGLFunction(void,     glUniform1i,               GLint location, GLint v0);
+OpenGLFunction(void,     glUniform1f,               GLint location, GLfloat v0);
+OpenGLFunction(void,     glUniform2f,               GLint location, GLfloat v0, GLfloat v1);
+OpenGLFunction(void,     glUniform4f,               GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
+OpenGLFunction(void,     glUniform1iv,              GLint location, GLsizei size, const GLint* value);
+OpenGLFunction(void,     glUniform2iv,              GLint location, GLsizei size, const GLint* value);
+OpenGLFunction(void,     glUniform3iv,              GLint location, GLsizei size, const GLint* value);
+OpenGLFunction(void,     glUniform4iv,              GLint location, GLsizei size, const GLint* value);
+OpenGLFunction(void,     glUniform1fv,              GLint location, GLsizei size, const GLfloat* value);
+OpenGLFunction(void,     glUniform2fv,              GLint location, GLsizei size, const GLfloat* value);
+OpenGLFunction(void,     glUniform3fv,              GLint location, GLsizei size, const GLfloat* value);
+OpenGLFunction(void,     glUniform4fv,              GLint location, GLsizei size, const GLfloat* value);
+OpenGLFunction(void,     glUniformMatrix4fv,        GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+OpenGLFunction(void,     glUseProgram,              GLuint program);
+OpenGLFunction(void,     glVertexAttribPointer,     GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid * pointer);
+OpenGLFunction(void,     glGenVertexArrays,         GLsizei n, GLuint *arrays);
+OpenGLFunction(void,     glBindVertexArray,         GLuint array);
+OpenGLFunction(void,     glDeleteShader,            GLuint shader);
+OpenGLFunction(void,     glGetProgramInfoLog,       GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
+OpenGLFunction(void,     glGetProgramiv,            GLuint program, GLenum pname, GLint *params);
 
 global_variable const char* vertex_shader_2D =
 R"(
@@ -392,7 +435,6 @@ opengl_end_frame(Renderer* ren)
 
     RenderGroup* render_group = ren->render_groups;
 
-
     // NOTE: Dumb sort
 
     while(render_group)
@@ -400,6 +442,7 @@ opengl_end_frame(Renderer* ren)
         sort_render_group(render_group);
 
         SortElement* sort_element = sort_element_start(render_group);
+
         for (u32 element_index = 0; 
             element_index < render_group->sort_element_count;
             ++element_index, ++sort_element)
@@ -436,12 +479,20 @@ opengl_end_frame(Renderer* ren)
 
                     vec2 positions[] =
                     {
-                        V2(1.0f,  1.0f) * quad->size + quad->position, // top right
-                        V2(1.0f,  0.0f) * quad->size + quad->position, // bottom right
-                        V2(0.0f,  0.0f) * quad->size + quad->position, // bottom left
-                        V2(0.0f,  1.0f) * quad->size + quad->position, // top left
+                         V2(1.0f,  1.0f),
+                         V2(1.0f,  0.0f),
+                         V2(0.0f,  0.0f),
+                         V2(0.0f,  1.0f),
                     };
 
+                    positions[0] *= quad->size;
+                    positions[1] *= quad->size;
+                    positions[2] *= quad->size;
+                    positions[3] *= quad->size;
+                    positions[0] += quad->position;
+                    positions[1] += quad->position;
+                    positions[2] += quad->position;
+                    positions[3] += quad->position;
 
                     u32 indices[] = {
                         0, 1, 3,
@@ -508,7 +559,7 @@ opengl_end_frame(Renderer* ren)
         i32 vp_loc = opengl_get_uniform_location(ren->shader_program, "u_viewproj");
         mat4 cam_mat = camera_transform(&setup->camera);
         mat4 viewproj = setup->projection * cam_mat;
-        glUniformMatrix4fv(vp_loc, 1, true, (f32*)viewproj.data);
+        glUniformMatrix4fv(vp_loc, 1, true, &viewproj.rows[0].x);
 
 
         glBindVertexArray(ren->VAO);

@@ -1,8 +1,6 @@
 #if !defined(DEBUG_H)
 #define DEBUG_H
 
-#include "renderer.h"
-
 
 
 struct DebugColapsableItem

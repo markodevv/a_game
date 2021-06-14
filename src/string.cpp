@@ -1,13 +1,3 @@
-struct String8
-{
-    u8* data;
-    u32 length;
-};
-
-#define STRING8(str) (String8){.data = (str), .length = sizeof(str) - 1}
-
-
-
 internal inline u32
 string_length(char* string)
 {
