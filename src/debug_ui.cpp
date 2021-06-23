@@ -1018,9 +1018,6 @@ ui_slider(DebugState* debug,
 
 }
 
-
-
-
 internal void
 ui_color_picker(DebugState* debug, Color* var, char* var_name)
 {
@@ -1056,7 +1053,7 @@ ui_color_picker(DebugState* debug, Color* var, char* var_name)
         {
             if (point_is_inside_rect(debug->input.mouse.position, pos, size))
             {
-                ui_change_focus(debug, get_window(debug, "Color Picker"));
+                ui_change_focus(debug, colorpicker_window);
                 set_window_position(debug, debug->input.mouse.position, "Color Picker");
                 set_window_size(debug, V2(300, 400), "Color Picker");
                 colorpicker_is_active = true;
@@ -1080,6 +1077,8 @@ ui_color_picker(DebugState* debug, Color* var, char* var_name)
                         
 
         UI_UInt8Editbox(debug, var, "Color");
+        push_quad(debug->render_group, V2(100), V2(400), COLOR(255), layer + LAYER_FRONT, 0, SHADER_ID_COLORPICKER);
+
 
 
         debug->current_window = debug->focused_window;

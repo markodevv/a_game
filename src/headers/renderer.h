@@ -79,6 +79,14 @@ struct RenderEntryHeader
 RenderEntryType entry_type;
 };
 
+enum ShaderId 
+{
+SHADER_ID_NORMAL,
+SHADER_ID_COLORPICKER,
+SHADER_ID_TEST,
+NUM_SHADERS,
+};
+
 typedef struct QuadEntry QuadEntry;
 struct QuadEntry
 {
@@ -87,6 +95,7 @@ vec2 size;
 Color color;
 SpriteHandle sprite_handle;
 SubSprite* subsprite;
+ShaderId shader_id;
 u32 layer;
 };
 
@@ -106,13 +115,41 @@ SpriteHandle sprite_handles[32];
 u32 num_sprites;
 };
 
-typedef struct TexturedQuadsEntry TexturedQuadsEntry;
-struct TexturedQuadsEntry
+enum UniformType 
 {
-RenderSetup* render_setup;
-u32 vertex_offset;
-u32 index_offset;
-u32 num_quads;
+UNIFORM_F32,
+UNIFORM_F64,
+UNIFORM_I32,
+UNIFORM_U32,
+UNIFORM_VEC2,
+UNIFORM_VEC3,
+UNIFORM_VEC4,
+UNIFORM_MAT4,
+UNIFORM_TEXTURE2D,
+};
+
+typedef struct UniformTypeInfo UniformTypeInfo;
+struct UniformTypeInfo
+{
+UniformType type;
+u32 size;
+};
+
+typedef struct Uniform Uniform;
+struct Uniform
+{
+UniformTypeInfo type_info;
+void* data;
+char* name;
+Uniform* next;
+};
+
+typedef struct Shader Shader;
+struct Shader
+{
+u32 bind_id;
+Uniform* uniforms;
+i32 num_uniforms;
 };
 
 typedef struct Assets Assets;
@@ -120,6 +157,7 @@ struct Assets
 {
 MemoryArena arena;
 Sprite sprites[64];
+Shader shaders[NUM_SHADERS];
 u32 num_sprites;
 };
 
@@ -135,14 +173,15 @@ u32 sort_element_count;
 RenderGroup* next;
 };
 
+#define MAX_VERTICES 100000
+#define MAX_INDICES 150000
 typedef struct Renderer Renderer;
 struct Renderer
 {
-VertexData vertices[10000];
+VertexData vertices[MAX_VERTICES];
 u32 vertex_count;
-u32 indices[15000];
+u32 indices[MAX_INDICES];
 u32 indices_count;
-i32 shader_program;
 u32 VBO;
 u32 EBO;
 u32 VAO;

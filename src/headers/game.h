@@ -28,9 +28,12 @@ vec2 size;
 Color color;
 };
 
-enum EntityFlag 
+typedef struct Transform Transform;
+struct Transform
 {
-ENTITY_FLAG_ENABLED,
+vec2 position;
+vec2 scale;
+vec2 rotation;
 };
 
 typedef struct Rigidbody Rigidbody;
@@ -39,15 +42,6 @@ struct Rigidbody
 vec2 velocity;
 vec2 acceleration;
 f32 mass;
-};
-
-typedef struct Entity Entity;
-struct Entity
-{
-u32 flags;
-Render render;
-vec2 position;
-Rigidbody rigidbody;
 };
 
 typedef struct Particle Particle;
@@ -62,19 +56,30 @@ struct ParticleEmitter
 {
 vec2 min_vel;
 vec2 max_vel;
-vec2 position;
 f32 drag;
-u32 particle_spawn_rate;
 Render render;
+u32 particle_spawn_rate;
+vec2 position;
 Particle* particles;
 u32 particle_index;
 u32 max_particles;
 };
 
-enum ComponentType 
+#define COMPONENT_Render 1<<0
+#define COMPONENT_Rigidbody 1<<1
+#define COMPONENT_Transform 1<<2
+#define COMPONENT_ParticleEmitter 1<<3
+#define ENTITY_MAX 10000
+typedef u32 EntityId;
+typedef struct WorldState WorldState;
+struct WorldState
 {
-COMPONENT_Transform,
-COMPONENT_Render,
+Render renders[ENTITY_MAX];
+Rigidbody rigidbodys[ENTITY_MAX];
+Transform transforms[ENTITY_MAX];
+u32 entity_masks[ENTITY_MAX];
+ParticleEmitter particle_emitters[ENTITY_MAX];
+u32 num_entities;
 };
 
 typedef struct GameState GameState;
@@ -93,10 +98,8 @@ SpriteHandle backgroud_sprite;
 u32 tile_map[19][10];
 u32 tile_size;
 b8 is_free_camera;
-ParticleEmitter particle_emitter;
-u32 player_entity_index;
-Entity entities[1024];
-u32 num_entities;
+EntityId particle_emitter;
+WorldState* world;
 RenderSetup render_setup;
 Renderer renderer;
 };

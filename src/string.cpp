@@ -11,8 +11,10 @@ string_length(char* string)
 }
 
 internal inline b8
-string_equals(char* s1, char* s2)
+string_match(char* s1, char* s2)
 {
+    ASSERT(s1 && s2);
+
     u32 len = string_length(s1);
 
     for (u32 i = 0; i < len; ++i)
@@ -46,6 +48,7 @@ last_backslash_index(char* str)
 internal inline u32
 string_copy(char* dest, char* src)
 {
+
     u32 len = string_length(src);
 
     for (u32 i = 0; i < len; ++i)
@@ -73,6 +76,8 @@ string_copy(char* dest, char* src, u32 num_chars)
 internal inline char*
 string_copy(MemoryArena* arena, char* src)
 {
+    ASSERT(src);
+
     u32 len = string_length(src);
     char* out = PushMemory(arena, char, len + 1);
 

@@ -2,6 +2,7 @@
 {
     x: f32,
     y: f32,
+    @function ("f32& operator[](sizet i)"),
 }
 
 @struct @printable vec2i:
@@ -15,6 +16,7 @@
     x: f32, 
     y: f32,
     z: f32,
+    @function ("f32& operator[](sizet i)"),
 }
 
 @struct @printable vec3i:
@@ -30,11 +32,13 @@
     y: f32,
     z: f32,
     w: f32,
+    @function ("f32& operator[](sizet i)"),
 }
 
 @struct mat4:
 {
     rows: ([4]vec4);
+    @function ("vec4& operator[](sizet i)"),
 }
 
 @struct @printable vec4i:

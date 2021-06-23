@@ -32,7 +32,7 @@
 
 // NOTE: Debug data
 
-global_variable b8 global_is_edit_mode = 1;
+global_variable b8 global_is_edit_mode = 0;
 
 internal void
 game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
@@ -60,24 +60,13 @@ game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
 
 
 internal u32
-add_entity(GameState* game_state)
+add_entity(WorldState* world)
 {
-    u32 id = game_state->num_entities++;
-    ASSERT(game_state->num_entities < ArrayCount(game_state->entities));
+    u32 id = world->num_entities++;
+    ASSERT(world->num_entities < ENTITY_MAX);
     return id;
 }
 
-internal Entity*
-get_entity(GameState* game_state, u32 entity_index)
-{
-    Entity* entity = 0;
-    if (entity_index < game_state->num_entities && entity_index >= 0)
-    {
-        entity = &game_state->entities[entity_index];
-    }
-
-    return entity;
-}
 
 
 internal b8
@@ -91,32 +80,75 @@ is_colliding(vec2 p1, vec2 s1, vec2 p2, vec2 s2)
 }
 
 internal void
-add_force(Entity* entity, vec2 force)
+add_force(Rigidbody* rigidbody, vec2 force)
 {
-    entity->rigidbody.acceleration += force;
+    rigidbody->acceleration += force;
 }
+
 
 // F = m*a
 internal void
-integrate(Entity* entity, f32 dt)
+integrate(Rigidbody* rigidbody, vec2* position, f32 dt)
 {
-    if (entity->rigidbody.mass <= 0.0f)
+    if (rigidbody->mass <= 0.0f)
         return;
 
 
     vec2 force = V2(0, -1) * 300;
-    add_force(entity, force);
+    add_force(rigidbody, force);
 
-    entity->position += entity->rigidbody.velocity * dt;
+    *position += rigidbody->velocity * dt;
 
-    entity->rigidbody.acceleration /= entity->rigidbody.mass;
+    rigidbody->acceleration /= rigidbody->mass;
 
-    entity->rigidbody.velocity += entity->rigidbody.acceleration * dt;
+    rigidbody->velocity += rigidbody->acceleration * dt;
 
     f32 drag = powf(0.5f, dt);
-    entity->rigidbody.velocity *= drag;
+    rigidbody->velocity *= drag;
 
-    entity->rigidbody.acceleration = V2(0.0f);
+    rigidbody->acceleration = V2(0.0f);
+}
+
+#define get_component(world, id, type) \
+        (type*)get_component_using_flag(world, id, COMPONENT_##type)
+
+
+internal void*
+get_component_using_flag(WorldState* world, EntityId id, u32 component)
+{
+    ASSERT((world->entity_masks[id] & component) == component);
+
+    switch(component)
+    {
+        case COMPONENT_Render:
+        {
+            return world->renders + id;
+        } break;
+        case COMPONENT_Transform:
+        {
+            return world->transforms + id;
+        } break;
+        case COMPONENT_Rigidbody:
+        {
+            return world->rigidbodys + id;
+        } break;
+        case COMPONENT_ParticleEmitter:
+        {
+            return world->particle_emitters + id;
+        } break;
+    }
+    return 0;
+}
+
+
+#define add_component(world, id, type) \
+        (type*)add_component_using_flag(world, id, COMPONENT_##type)
+
+internal void*
+add_component_using_flag(WorldState* world, EntityId id, u32 component)
+{
+    world->entity_masks[id] |= component;
+    return get_component_using_flag(world, id, component);
 }
 
 
@@ -129,28 +161,31 @@ integrate(Particle* particle, f32 dt)
     particle->position += particle->rigidbody.velocity * dt;
 }
 
-internal ParticleEmitter
+internal EntityId
 create_particle_emitter(MemoryArena* arena,
-                       vec2 min_vel,
-                       vec2 max_vel,
-                       u32 particle_spawn_rate,
-                       Color color,
-                       vec2 size,
-                       u32 num_particles)
+                        WorldState* world,
+                        vec2 min_vel,
+                        vec2 max_vel,
+                        u32 particle_spawn_rate,
+                        Color color,
+                        vec2 size,
+                        u32 num_particles)
 {
-    ParticleEmitter result = {};
+    EntityId result = add_entity(world);
 
-    result.min_vel = min_vel;
-    result.max_vel = max_vel;
+    ParticleEmitter* pa = add_component(world, result, ParticleEmitter);
 
-    result.particle_spawn_rate = particle_spawn_rate;
+    pa->min_vel = min_vel;
+    pa->max_vel = max_vel;
 
-    result.render.size = size;
-    result.render.color = color;
+    pa->particle_spawn_rate = particle_spawn_rate;
+
+    pa->render.size = size;
+    pa->render.color = color;
     
-    result.max_particles = num_particles;
+    pa->max_particles = num_particles;
 
-    result.particles = PushMemory(arena, Particle, num_particles);
+    pa->particles = PushMemory(arena, Particle, num_particles);
 
     return result;
 }
@@ -170,6 +205,18 @@ random_between_two_vectors(vec2 min, vec2 max)
     return V2(random_between_two_floats(min.x, max.x),
               random_between_two_floats(min.y, max.y));
 }
+
+internal Render
+RENDER(vec2 size, Color color, SpriteHandle sprite)
+{
+    Render result = {};
+    result.size = size;
+    result.color = color;
+    result.sprite = sprite;
+
+    return result;
+}
+
 
 
 extern "C" PLATFORM_API void
@@ -239,26 +286,35 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
                                                    "../assets/platform_metroidvania asset pack v1.01/tiles and background_foreground/background.png");
 
         platform->init_renderer(&game_state->renderer);
+        game_state->world = PushMemory(&game_state->transient_arena, WorldState);
 
 
 
+
+        WorldState* world = game_state->world;
+        u32 player_entity_id = add_entity(world);
+        add_component(world, player_entity_id, Render);
+        add_component(world, player_entity_id, Transform);
+        add_component(world, player_entity_id, Rigidbody);
+
+        Render* player_render = get_component(world, player_entity_id, Render);
+        Transform* player_tran = get_component(world, player_entity_id, Transform);
+        Rigidbody* player_rigid = get_component(world, player_entity_id, Rigidbody);
+
+        *player_render = RENDER(V2(60,60), COLOR(255), 0);
+        player_tran->position = V2(100, 300);
+        player_rigid->mass = 1.0f;
 
         game_state->particle_emitter = create_particle_emitter(&game_state->arena,
-                                                             V2(-50, 50),
-                                                             V2(80, 120),
-                                                             4,
-                                                             COLOR(50, 100, 22, 255),
-                                                             V2(10, 10),
-                                                             128);
+                                                               world,
+                                                               V2(-50, 50),
+                                                               V2(80, 120),
+                                                               4,
+                                                               COLOR(50, 100, 22, 255),
+                                                               V2(10, 10),
+                                                               128);
 
-        u32 player_entity_id = add_entity(game_state);
-        Entity* player_ent = get_entity(game_state, player_entity_id);
 
-        player_ent->position = V2(100, 300);
-        player_ent->render.color = COLOR(255);
-        player_ent->render.size = V2(60, 60);
-
-        player_ent->rigidbody.mass = 1.0f;
 
         u32 tile_map[10][19] = {
             {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -300,37 +356,40 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
                                                                        &game_state->assets);
 
 
-    Entity* player_ent = get_entity(game_state, game_state->player_entity_index);
-
-    if (player_ent)
     {
+        // NOTE: player entity id should always be 0
+        Rigidbody* player_rigid = game_state->world->rigidbodys + 0;
+        Render* player_render = game_state->world->renders + 0;
+        Transform* player_tran = game_state->world->transforms + 0;
+
         if (button_down(input->move_left))
         {
-            add_force(player_ent, V2(-1000.0f, 0.0f));
+            add_force(player_rigid, V2(-1000.0f, 0.0f));
         }
         if (button_down(input->move_right))
         {
-            add_force(player_ent, V2(1000.0f, 0.0f));
+            add_force(player_rigid, V2(1000.0f, 0.0f));
         }
         if (button_down(input->move_up))
         {
-            add_force(player_ent, V2(0.0f, 1000.0f));
+            add_force(player_rigid, V2(0.0f, 1000.0f));
         }
 
-        if (player_ent->position.y <= 100.0f)
+        if (player_tran->position.y <= 100.0f)
         {
-            add_force(player_ent, V2(0.0f, 3000.0f));
+            add_force(player_rigid, V2(0.0f, 3000.0f));
         }
 
         push_quad(render_group, 
                   &game_state->hero_sprite,
-                  player_ent->position, 
-                  player_ent->render.size, 
-                  player_ent->render.color,
+                  player_tran->position,
+                  player_render->size,
+                  player_render->color,
                   LAYER_MID);
 
 
-        integrate(player_ent, delta_time);
+        integrate(player_rigid, &player_tran->position, delta_time);
+
     }
 
 
@@ -367,8 +426,9 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
 
     
-    ParticleEmitter* particle_emitter = &game_state->particle_emitter;
-    particle_emitter->position = player_ent->position;
+    ParticleEmitter* particle_emitter = get_component(game_state->world, 
+                                                      game_state->particle_emitter,
+                                                      ParticleEmitter);
     for (u32 particle_index = 0; 
          particle_index < particle_emitter->max_particles;
          ++particle_index)
@@ -405,8 +465,6 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
     ren->screen_height = memory->screen_height;
 
 
-
-
     push_quad(render_group,
               V2(0),
               V2((f32)ren->screen_width,
@@ -434,7 +492,6 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
     }
 
 
-
     if (global_is_edit_mode)
     {
         imediate_ui(memory->debug, input, &game_state->assets, ren);
@@ -443,52 +500,34 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
         ui_window_begin(memory->debug, "Window");
 
-        if (ui_submenu(memory->debug, ("Player")))
-        {
-            Entity* player = game_state->entities;
-
-            UI_Float32Editbox(memory->debug, &player->position, "player position");
-            UI_Float32Editbox(memory->debug, &player->rigidbody.acceleration, "player acceleration");
-            UI_Float32Editbox(memory->debug, &player->rigidbody.velocity, "player velocity");
-            UI_Float32Editbox(memory->debug, &player->rigidbody.mass, "player mass");
-
-        }
         if (ui_submenu(memory->debug, ("Particle Emitter")))
         {
-            ParticleEmitter* emitter = &game_state->particle_emitter;
+            ParticleEmitter* emitter = get_component(game_state->world,
+                                                     game_state->particle_emitter,
+                                                     ParticleEmitter);
 
             UI_Float32Editbox(memory->debug, &emitter->min_vel, "min velocity");
             UI_Float32Editbox(memory->debug, &emitter->max_vel, "max velocity");
             UI_Int32Editbox(memory->debug, &emitter->particle_spawn_rate, "spawn rate");
             UI_Float32Editbox(memory->debug, &emitter->render.size, "size");
             ui_color_picker(memory->debug, &emitter->render.color, "color mhehe");
-            print("Min vel", emitter->min_vel);
-            print("Vertex", *ren->vertices);
-            print("Max vel", emitter->max_vel);
         }
-
-        ui_window_end(memory->debug);
-
-        ui_window_begin(memory->debug, "Other Window 01", V2(0), V2(310, 200));
-
-        ui_button(memory->debug, "Beten", V2(0, 500), V2(150, 50));
-        ui_cursor_sameline(memory->debug);
-        ui_button(memory->debug, "Beten", V2(0, 500), V2(150, 50));
-
-        ui_window_end(memory->debug);
-
-        ui_window_begin(memory->debug, "Other Window 02", V2(0), V2(300, 400));
-
-        local_persist f32 test = 100.0f;
-        ui_slider(memory->debug, 0, 1000, &test, "test var");
-        ui_slider(memory->debug, 0, 1000, &test, "test var");
-        ui_slider(memory->debug, 0, 1000, &test, "test var");
 
         ui_window_end(memory->debug);
 
         end_temporary_memory(&memory->debug->temp_arena);
     }
 
+    Shader* shader = &render_group->assets->shaders[SHADER_ID_TEST];
+    set_shader_uniform(shader, "u_size", V2(500), vec2);
+
+    push_quad(render_group, 
+              V2(0),
+              V2(500),
+              COLOR(100, 0, 40, 255),
+              LAYER_FRONT,
+              0,
+              SHADER_ID_TEST);
 
     platform->end_frame(ren);
 

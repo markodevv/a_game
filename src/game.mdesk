@@ -32,9 +32,11 @@
     color: Color,
 }
 
-@enum EntityFlag:
+@struct Transform:
 {
-    ENTITY_FLAG_ENABLED,
+    position: vec2,
+    scale: vec2,
+    rotation: vec2,
 }
 
 @struct Rigidbody:
@@ -45,45 +47,53 @@
     mass: f32,
 }
 
-@struct Entity:
-{
-    flags: u32,
-
-    render: Render,
-
-    position: vec2,
-    rigidbody: Rigidbody,
-}
-
-
 @struct Particle:
 {
     position: vec2,
     rigidbody: Rigidbody,
 }
 
+
 @struct ParticleEmitter:
 {
     min_vel: vec2,
     max_vel: vec2,
 
-    position: vec2,
-
     drag: f32,
 
-    particle_spawn_rate: u32,
     render: Render,
+
+    particle_spawn_rate: u32,
+
+    position: vec2,
 
     particles: *Particle,
     particle_index: u32,
     max_particles :u32,
 }
 
-@enum ComponentType:
+@define ("COMPONENT_Render 1<<0")
+@define ("COMPONENT_Rigidbody 1<<1")
+@define ("COMPONENT_Transform 1<<2")
+@define ("COMPONENT_ParticleEmitter 1<<3")
+@define ("ENTITY_MAX 10000")
+
+@typedef ("u32 EntityId;")
+
+
+@struct WorldState:
 {
-    COMPONENT_Transform,
-    COMPONENT_Render,
+    renders: ([ENTITY_MAX]Render),
+    rigidbodys: ([ENTITY_MAX]Rigidbody),
+    transforms: ([ENTITY_MAX]Transform),
+    entity_masks: ([ENTITY_MAX]u32),
+    particle_emitters: ([ENTITY_MAX]ParticleEmitter),
+
+    num_entities: u32,
 }
+
+
+
 
 @struct GameState:
 {
@@ -107,11 +117,9 @@
 
     is_free_camera: b8,
 
-    particle_emitter: ParticleEmitter,
+    particle_emitter: EntityId,
 
-    player_entity_index: u32,
-    entities: ([1024]Entity),
-    num_entities: u32,
+    world: *WorldState,
 
     render_setup: RenderSetup,
     renderer: Renderer,

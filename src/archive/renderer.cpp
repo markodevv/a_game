@@ -360,3 +360,57 @@ load_3D_model(Assets* assets, char* path)
     return out;
 }
 
+internal void
+opengl_load_model_to_gpu(Model* model)
+{
+    u32 stride = sizeof(f32) * 9;
+
+    for (u32 mesh_index = 0; mesh_index < model->num_meshes; ++mesh_index)
+    {
+        Mesh* mesh = &model->meshes[mesh_index];
+
+        glGenVertexArrays(1, &mesh->VAO);
+        glGenBuffers(1, &mesh->VBO);
+
+        glBindVertexArray(mesh->VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
+
+        if (mesh->indices)
+        {
+            glGenBuffers(1, &mesh->EBO);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
+            u32 size = mesh->num_indices * sizeof(u32);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, (void*)mesh->indices, GL_STATIC_DRAW);
+        }
+
+        u32 size = sizeof(VertexData) * mesh->num_vertices;
+        glBufferData(GL_ARRAY_BUFFER, size, (void*)mesh->vertices, GL_STATIC_DRAW);
+         
+        // position
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+        glEnableVertexAttribArray(0); 
+
+        // normal
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
+        glEnableVertexAttribArray(1); 
+
+        // uv
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6*sizeof(f32)));
+        glEnableVertexAttribArray(2); 
+
+        // texture id
+        glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
+        glEnableVertexAttribArray(3); 
+
+        glBindVertexArray(0);
+
+    }
+    for (u32 i = 0; i < model->num_textures; ++i)
+    {
+        opengl_load_texture(model->loaded_images + i,
+                            texture_slot,
+                            &model->loaded_images[i].id);
+        texture_slot++;
+    }
+
+}

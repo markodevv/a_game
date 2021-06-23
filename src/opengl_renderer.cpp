@@ -43,74 +43,66 @@ OpenGLFunction(void,     glBindVertexArray,         GLuint array);
 OpenGLFunction(void,     glDeleteShader,            GLuint shader);
 OpenGLFunction(void,     glGetProgramInfoLog,       GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
 OpenGLFunction(void,     glGetProgramiv,            GLuint program, GLenum pname, GLint *params);
+OpenGLFunction(void,     glGetActiveUniform,	    GLuint program, GLuint index, GLsizei bufSize, GLsizei *length, GLint *size, GLenum *type, GLchar *name);
+OpenGLFunction(void,     glGetActiveUniformBlockiv,	GLuint program, GLuint uniformBlockIndex, GLenum pname, GLint *params);
+OpenGLFunction(void,     glGetActiveUniformName, GLuint program, GLuint uniformIndex, GLsizei bufSize, GLsizei *length, GLchar *uniformName);
 
-global_variable const char* vertex_shader_2D =
-R"(
-#version 330 core
-layout (location = 0) in vec3 att_pos;
-layout (location = 1) in vec2 att_uv;
-layout (location = 2) in vec4 att_color;
-layout (location = 3) in float att_tex_id;
 
-out vec2 uv;
-out vec4 color;
-out float tex_id;
+#include "shaders.h"
 
-uniform mat4 u_viewproj;
 
-void main()
+internal inline i32
+opengl_get_uniform_location(i32 shader, char* uniform)
 {
-   gl_Position = u_viewproj * vec4(att_pos, 1.0f);
-   uv = att_uv;
-   color = att_color;
-   tex_id = att_tex_id;
-}
-)";
-
-global_variable const char* fragment_shader_2D =
-R"(
-#version 330 core
-
-out vec4 frag_color;
-
-uniform sampler2D u_textures[9];
-
-in vec2 uv;
-in vec4 color;
-in float tex_id;
-
-void main()
-{
-    highp int index = int(tex_id);
-    if (index == 0)
+    i32 loc = glGetUniformLocation(shader, uniform);
+    if (loc == -1)
     {
-        frag_color = color;
+        PRINT("Failed to get uniform location: %s\n", uniform);
     }
-    else if (index == 1)
-    {
-        frag_color = color * texture(u_textures[1], uv);
-    }
-    else if (index == 2)
-    {
-        frag_color = color * texture(u_textures[2], uv);
-    }
-    else if (index == 3)
-    {
-        frag_color = color * texture(u_textures[3], uv);
-    }
-    else if (index == 4)
-    {
-        frag_color = color * texture(u_textures[4], uv);
-    }
+    return loc;
+
 }
 
-)";
-
-
-
-internal void
-opengl_compile_shaders(i32 shader_program, const char* vertex_shader, const char* fragment_shader)
+internal UniformTypeInfo
+get_uniform_type_info(GLenum type)
 {
+    switch(type)
+    {
+        case GL_FLOAT:
+        {
+            return {UNIFORM_F32, sizeof(f32)};
+        }break;
+        case GL_FLOAT_VEC2:
+        {
+            return {UNIFORM_VEC2, sizeof(vec2)};
+        }break;
+        case GL_FLOAT_VEC3:
+        {
+            return {UNIFORM_VEC3, sizeof(vec3)};
+        }break;
+        case GL_FLOAT_VEC4:
+        {
+            return {UNIFORM_VEC4, sizeof(vec4)};
+        }break;
+        case GL_SAMPLER_2D:
+        {
+            return {UNIFORM_TEXTURE2D, 0};
+        }break;
+        case GL_FLOAT_MAT4:
+        {
+            return {UNIFORM_MAT4, sizeof(mat4)};
+        }break;
+    }
+
+    ASSERT(false);
+}
+
+
+internal Shader
+opengl_create_shader(MemoryArena* arena, const char* vertex_shader, const char* fragment_shader)
+{
+    i32 shader_program = glCreateProgram();
+
     i32 success;
     char *info_log = (char*)malloc(sizeof(char) * 5120);
 
@@ -148,24 +140,68 @@ opengl_compile_shaders(i32 shader_program, const char* vertex_shader, const char
         glGetProgramInfoLog(shader_program, 5120, NULL, info_log);
         PRINT("Failed to link shader \n%s", info_log);
     }
+    glUseProgram(shader_program);
+
+    char texture_uniform_name[] = {"u_textures[0]"};
+    i32 loc = opengl_get_uniform_location(shader_program, texture_uniform_name);
+
+    if (loc != -1)
+    {
+        for (u32 tex_id = 0; tex_id < 9; ++tex_id)
+        {
+            texture_uniform_name[11] = '0' + tex_id;
+            loc = opengl_get_uniform_location(shader_program, texture_uniform_name);
+            glUniform1i(loc, tex_id);
+        }
+    }
 
 
     glDeleteShader(vs);
     glDeleteShader(fs);
     free(info_log);
-}
 
-internal inline i32
-opengl_get_uniform_location(i32 shader, char* uniform)
-{
-    i32 loc = glGetUniformLocation(shader, uniform);
-    if (loc == -1)
+    Shader shader = {};
+    shader.bind_id = shader_program;
+    i32 max_name_len = 0;
+
+    glGetProgramiv(shader_program, GL_ACTIVE_UNIFORMS, &shader.num_uniforms);
+    glGetProgramiv(shader_program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &max_name_len);
+
+    for (i32 uniform_id= 0; uniform_id < shader.num_uniforms; ++uniform_id)
     {
-        PRINT("Failed to get uniform location: %s\n", uniform);
-    }
-    return loc;
+        char name[128];
 
+        glGetActiveUniformName(shader.bind_id,
+                               uniform_id,
+                               ArrayCount(name),
+                               NULL,
+                               name);
+
+
+        // TODO: 
+        // u_viewproj should be set as global uniform shared between shaders
+        // using UBOs..
+
+        Uniform* uniform = add_uniform(&shader, name, arena);
+        i32 size = 0;
+        GLenum gl_type = 0;
+
+
+        glGetActiveUniform(shader_program,
+                           uniform_id,
+                           0,
+                           0,
+                           0,
+                           &gl_type,
+                           0);
+
+        uniform->type_info = get_uniform_type_info(gl_type);
+        uniform->data = PushMemory(arena, u8, uniform->type_info.size);
+    }
+
+    return shader;
 }
+
 
 internal u32
 opengl_load_texture(Sprite* sprite, u32 slot)
@@ -222,72 +258,55 @@ opengl_load_texture(Sprite* sprite, u32 slot)
 }
 
 
-#if 0
-internal void
-opengl_load_model_to_gpu(Model* model)
-{
-    u32 stride = sizeof(f32) * 9;
 
-    for (u32 mesh_index = 0; mesh_index < model->num_meshes; ++mesh_index)
-    {
-        Mesh* mesh = &model->meshes[mesh_index];
 
-        glGenVertexArrays(1, &mesh->VAO);
-        glGenBuffers(1, &mesh->VBO);
-
-        glBindVertexArray(mesh->VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
-
-        if (mesh->indices)
-        {
-            glGenBuffers(1, &mesh->EBO);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
-            u32 size = mesh->num_indices * sizeof(u32);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, (void*)mesh->indices, GL_STATIC_DRAW);
-        }
-
-        u32 size = sizeof(VertexData) * mesh->num_vertices;
-        glBufferData(GL_ARRAY_BUFFER, size, (void*)mesh->vertices, GL_STATIC_DRAW);
-         
-        // position
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
-        glEnableVertexAttribArray(0); 
-
-        // normal
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
-        glEnableVertexAttribArray(1); 
-
-        // uv
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6*sizeof(f32)));
-        glEnableVertexAttribArray(2); 
-
-        // texture id
-        glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
-        glEnableVertexAttribArray(3); 
-
-        glBindVertexArray(0);
-
-    }
-    for (u32 i = 0; i < model->num_textures; ++i)
-    {
-        opengl_load_texture(model->loaded_images + i,
-                            texture_slot,
-                            &model->loaded_images[i].id);
-        texture_slot++;
-    }
-
-}
-#endif
 
 
 internal void
 opengl_init(Renderer* ren)
 {
+    Shader* shaders = ren->assets->shaders;
+    MemoryArena* arena = &ren->assets->arena;
 
-    ren->shader_program = glCreateProgram();
+    shaders[SHADER_ID_NORMAL] = opengl_create_shader(arena, basic_vertex_shader, basic_fragment_shader);
+    shaders[SHADER_ID_COLORPICKER] = opengl_create_shader(arena, basic_vertex_shader, colorpicker_fragment_shader);
+    shaders[SHADER_ID_TEST] = opengl_create_shader(arena, basic_vertex_shader, test_shader);
+    
+
+    glGenVertexArrays(1, &ren->VAO);
+    glGenBuffers(1, &ren->VBO);
+    glGenBuffers(1, &ren->EBO);
 
 
-    opengl_compile_shaders(ren->shader_program, vertex_shader_2D, fragment_shader_2D);
+    glBindVertexArray(ren->VAO);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ren->EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * MAX_INDICES, NULL, GL_DYNAMIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * MAX_VERTICES, NULL, GL_DYNAMIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ren->EBO);
+
+    u32 stride = sizeof(f32) * 6 + sizeof(u8) * 4;
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+    glEnableVertexAttribArray(0); 
+
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
+    glEnableVertexAttribArray(1); 
+
+    glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, (void*)(5*sizeof(f32)));
+    glEnableVertexAttribArray(2); 
+
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(5*sizeof(f32) + 4*(sizeof(u8))));
+    glEnableVertexAttribArray(3); 
+
+
+    glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glBindVertexArray(0);
 
 #if 0
     char texture_uniform_name[] = {"u_textures[-]"};
@@ -329,62 +348,11 @@ opengl_init(Renderer* ren)
 
 
 #endif
-    // 2D 
-
-    glGenVertexArrays(1, &ren->VAO);
-    glGenBuffers(1, &ren->VBO);
-    glGenBuffers(1, &ren->EBO);
-
-
-    glBindVertexArray(ren->VAO);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ren->EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * MAX_INDICES, NULL, GL_DYNAMIC_DRAW);
-
-    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * MAX_VERTICES, NULL, GL_DYNAMIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ren->EBO);
-
-    u32 stride = sizeof(f32) * 6 + sizeof(u8) * 4;
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
-    glEnableVertexAttribArray(0); 
-
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
-    glEnableVertexAttribArray(1); 
-
-    glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, (void*)(5*sizeof(f32)));
-    glEnableVertexAttribArray(2); 
-
-    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(5*sizeof(f32) + 4*(sizeof(u8))));
-    glEnableVertexAttribArray(3); 
-
-
-    glUseProgram(ren->shader_program);
-
-
-    char texture_uniform_name[] = {"u_textures[-]"};
-    for (u32 tex_id = 0; tex_id < 9; ++tex_id)
-    {
-        texture_uniform_name[11] = '0' + tex_id;
-        i32 loc = opengl_get_uniform_location(ren->shader_program, texture_uniform_name);
-        glUniform1i(loc, tex_id);
-    }
-    glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    glBindVertexArray(0);
 }
 
 
-internal void
-opengl_begin_frame(Renderer* ren)
-{
 
-}
-
-
+// NOTE: Dumb sort
 internal void
 sort_render_group(RenderGroup* render_group)
 {
@@ -404,6 +372,108 @@ sort_render_group(RenderGroup* render_group)
     }
 }
 
+
+internal void
+upload_shader_uniform(u32 shader_program, Uniform* uniform)
+{
+    // TODO: should cache this when we load shader
+    i32 location = opengl_get_uniform_location(shader_program, uniform->name);
+
+    switch (uniform->type_info.type)
+    {
+        case UNIFORM_F32:
+        {
+            glUniform1fv(location, 1, (f32*)uniform->data);
+        } break;
+        case UNIFORM_VEC2:
+        {
+            glUniform2fv(location, 1, (f32*)uniform->data);
+        } break;
+        case UNIFORM_VEC3:
+        {
+            glUniform3fv(location, 1, (f32*)uniform->data);
+        } break;
+        case UNIFORM_VEC4:
+        {
+            glUniform4fv(location, 1, (f32*)uniform->data);
+        } break;
+        case UNIFORM_MAT4:
+        {
+            glUniformMatrix4fv(location, 1, true, (f32*)uniform->data);
+        } break;
+        case UNIFORM_TEXTURE2D:
+        {
+        } break;
+
+        default:
+        {
+            ASSERT(false);
+        } break;
+    }
+
+}
+
+internal void
+opengl_draw(Renderer* ren, RenderSetup* setup, ShaderId shader_id)
+{
+    Shader* shader = get_shader(ren->assets, shader_id);
+    u32 shader_program = shader->bind_id;
+
+    glUseProgram(shader_program);
+
+    for (u32 sprite_index = 0; sprite_index < setup->num_sprites; ++sprite_index)
+    {
+        // PRINT("sprite handle %d", setup->sprite_handles[sprite_index]);
+        Sprite* sprite = get_loaded_sprite(ren->assets, 
+                                           setup->sprite_handles[sprite_index]);
+
+        if (!sprite->loaded_to_gpu)
+        {
+            sprite->id = opengl_load_texture(sprite, ren->slot);
+            sprite->slot = ren->slot;
+            ++ren->slot;
+            ASSERT(ren->slot < 32);
+        }
+        glActiveTexture(GL_TEXTURE0 + sprite->slot);
+        glBindTexture(GL_TEXTURE_2D, sprite->id);
+    }
+
+    u32 num_vertices = ren->vertex_count;
+    u32 num_indices = ren->indices_count;
+
+
+    u32 vertices_size = num_vertices * sizeof(VertexData);
+    u32 indices_size = num_indices * sizeof(u32);
+
+    i32 vp_loc = opengl_get_uniform_location(shader_program, "u_viewproj");
+    mat4 cam_mat = camera_transform(&setup->camera);
+    mat4 viewproj = setup->projection * cam_mat;
+    glUniformMatrix4fv(vp_loc, 1, true, &viewproj.rows[0].x);
+
+
+    Uniform* uniform = shader->uniforms;
+    while (uniform)
+    {
+        if (!string_match(uniform->name, "u_viewproj"))
+        {
+            upload_shader_uniform(shader_program, uniform);
+        }
+        uniform = uniform->next;
+    }
+
+
+    glBindVertexArray(ren->VAO);
+
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indices_size, ren->indices);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, ren->vertices);
+
+    glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, 0);
+
+
+    ren->vertex_count = 0;
+    ren->indices_count = 0;
+}
+
 internal void
 opengl_end_frame(Renderer* ren)
 {
@@ -417,6 +487,7 @@ opengl_end_frame(Renderer* ren)
         h = ren->screen_height;
         glViewport(0, 0, w, h);
     }
+
 
     //NOTE: this is a default white texture 
     Sprite* white_sprite = get_loaded_sprite(ren->assets, ren->white_sprite);
@@ -434,8 +505,8 @@ opengl_end_frame(Renderer* ren)
     u32 header_size = sizeof(RenderEntryHeader);
 
     RenderGroup* render_group = ren->render_groups;
+    ShaderId current_shader = SHADER_ID_NORMAL;
 
-    // NOTE: Dumb sort
 
     while(render_group)
     {
@@ -454,6 +525,13 @@ opengl_end_frame(Renderer* ren)
                 case RENDER_ENTRY_QuadEntry:
                 {
                     QuadEntry* quad = (QuadEntry*)(base + header_size);
+
+                    // NOTE: we flush draw everything on shader change
+                    if (quad->shader_id != current_shader)
+                    {
+                        opengl_draw(ren, &render_group->setup, current_shader);
+                        current_shader = quad->shader_id;
+                    }
                     u32 sprite_slot = 0;
 
                     vec2 uvs[] = {
@@ -510,7 +588,6 @@ opengl_end_frame(Renderer* ren)
                         vertex->texture_slot = (f32)sprite_slot;
 
                         ++vertex;
-
                     }
 
                     for (u32 i = 0; i < INDICES_PER_QUAD; ++i)
@@ -521,6 +598,8 @@ opengl_end_frame(Renderer* ren)
 
                     ren->vertex_count += VERTICES_PER_QUAD;
                     ren->indices_count += INDICES_PER_QUAD;
+                    ASSERT(ren->vertex_count < MAX_VERTICES &&
+                           ren->indices_count < MAX_INDICES);
                 } break;
                 default:
                 {
@@ -528,51 +607,9 @@ opengl_end_frame(Renderer* ren)
                 } break;
             }
         }
-
-        glUseProgram(ren->shader_program);
-        RenderSetup* setup = &render_group->setup;
-
-        for (u32 sprite_index = 0; sprite_index < setup->num_sprites; ++sprite_index)
-        {
-            // PRINT("sprite handle %d", setup->sprite_handles[sprite_index]);
-            Sprite* sprite = get_loaded_sprite(ren->assets, 
-                                               setup->sprite_handles[sprite_index]);
-
-            if (!sprite->loaded_to_gpu)
-            {
-                sprite->id = opengl_load_texture(sprite, ren->slot);
-                sprite->slot = ren->slot;
-                ++ren->slot;
-                ASSERT(ren->slot < 32);
-            }
-            glActiveTexture(GL_TEXTURE0 + sprite->slot);
-            glBindTexture(GL_TEXTURE_2D, sprite->id);
-        }
-
-        u32 num_vertices = ren->vertex_count;
-        u32 num_indices = ren->indices_count;
-
-
-        u32 vertices_size = num_vertices * sizeof(VertexData);
-        u32 indices_size = num_indices * sizeof(u32);
-
-        i32 vp_loc = opengl_get_uniform_location(ren->shader_program, "u_viewproj");
-        mat4 cam_mat = camera_transform(&setup->camera);
-        mat4 viewproj = setup->projection * cam_mat;
-        glUniformMatrix4fv(vp_loc, 1, true, &viewproj.rows[0].x);
-
-
-        glBindVertexArray(ren->VAO);
-
-        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indices_size, ren->indices);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, ren->vertices);
-
-        glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, 0);
-
+        opengl_draw(ren, &render_group->setup, current_shader);
         render_group = render_group->next;
 
-        ren->vertex_count = 0;
-        ren->indices_count = 0;
     }
     ren->render_groups = 0;
 

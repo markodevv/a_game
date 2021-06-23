@@ -258,6 +258,9 @@ linux_init_opengl()
     LinuxLoadOpenGLFunction(glGetProgramiv);
     LinuxLoadOpenGLFunction(glXCreateContextAttribsARB);
     LinuxLoadOpenGLFunction(glXSwapIntervalEXT);
+    LinuxLoadOpenGLFunction(glGetActiveUniform);
+    LinuxLoadOpenGLFunction(glGetActiveUniformBlockiv);
+    LinuxLoadOpenGLFunction(glGetActiveUniformName);
     // LinuxLoadOpenGLFunction(glActiveTexture);
     // LinuxLoadOpenGLFunction(glGenTextures);
     // LinuxLoadOpenGLFunction(glBindTexture);

@@ -77,6 +77,14 @@
     entry_type: RenderEntryType,
 }
 
+@enum ShaderId:
+{
+    SHADER_ID_NORMAL,
+    SHADER_ID_COLORPICKER,
+    SHADER_ID_TEST,
+    NUM_SHADERS,
+}
+
 @struct QuadEntry:
 {
     position: vec2,
@@ -84,6 +92,8 @@
     color: Color,
     sprite_handle: SpriteHandle,
     subsprite: *SubSprite,
+    
+    shader_id: ShaderId,
 
     layer: u32,
 }
@@ -103,12 +113,39 @@
     num_sprites: u32,
 }
 
-@struct TexturedQuadsEntry:
+@enum UniformType:
 {
-    render_setup: *RenderSetup,
-    vertex_offset: u32,
-    index_offset: u32,
-    num_quads: u32,
+    UNIFORM_F32,
+    UNIFORM_F64,
+    UNIFORM_I32,
+    UNIFORM_U32,
+    UNIFORM_VEC2,
+    UNIFORM_VEC3,
+    UNIFORM_VEC4,
+    UNIFORM_MAT4,
+    UNIFORM_TEXTURE2D,
+}
+
+@struct UniformTypeInfo:
+{
+    type: UniformType,
+    size: u32,
+}
+
+@struct Uniform:
+{
+    type_info: UniformTypeInfo,
+    data: *void,
+    name: *char,
+
+    next: *Uniform;
+}
+
+@struct Shader:
+{
+    bind_id: u32,
+    uniforms: *Uniform,
+    num_uniforms: i32,
 }
 
 @struct Assets:
@@ -116,6 +153,7 @@
     arena: MemoryArena,
 
     sprites: ([64]Sprite),
+    shaders: ([NUM_SHADERS]Shader),
     num_sprites: u32,
 }
 
@@ -134,15 +172,17 @@
     next: *RenderGroup,
 }
 
+@define ("MAX_VERTICES 100000")
+@define ("MAX_INDICES 150000")
+
 
 @struct Renderer:
 {
-    vertices: ([10000]VertexData),
+    vertices: ([MAX_VERTICES]VertexData),
     vertex_count: u32,
-    indices: ([15000]u32),
+    indices: ([MAX_INDICES]u32),
     indices_count: u32,
 
-    shader_program: i32,
     VBO: u32,
     EBO: u32,
     VAO: u32,

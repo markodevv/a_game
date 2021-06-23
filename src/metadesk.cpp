@@ -26,7 +26,6 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
 
     char str[256];
     sprintf(str, "headers/%.*s", MD_StringExpand(header_file_name));
-    printf("Opening file %s\n\n", str);
     FILE* header_file = fopen(str, "w+");
 
     for(MD_EachNode(node, code->first_child))
@@ -35,9 +34,18 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
         {
             MD_C_Generate_Struct(header_file, node);
 
+            for(MD_Node *child = node->first_child; !MD_NodeIsNil(child); child = child->next)
+            {
+                if (MD_NodeHasTag(child, MD_S8Lit("function")))
+                {
+                    fprintf(header_file, "%.*s;\n", MD_StringExpand(child->first_child->string));
+                }
+            }
+            fprintf(header_file, "};\n\n");
+
             if (MD_NodeHasTag(node, MD_S8Lit("printable")))
             {
-                fprintf(print_file, "void print(char* name, %.*s var)\n{\n", MD_StringExpand(node->string),
+                fprintf(print_file, "void DEBUG_LOG(char* name, %.*s var)\n{\n", MD_StringExpand(node->string),
                                                                    MD_StringExpand(node->string));
                 fprintf(print_file, "printf(\"@%%s\\n\", name);\n");
 
@@ -67,8 +75,12 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
                     }
                     else
                     {
-                        fprintf(print_file, "print(\"%.*s\", var.%.*s);\n", MD_StringExpand(child->string),
-                                                                            MD_StringExpand(child->string));
+                        // printf("Type name |%.*s| \n", MD_StringExpand(child->string));
+                        if (!MD_StringMatch(child->string, MD_S8Lit(""), 0))
+                        {
+                            fprintf(print_file, "DEBUG_LOG(\"%.*s\", var.%.*s);\n", MD_StringExpand(child->string),
+                                                                                    MD_StringExpand(child->string));
+                        }
                     }
                 }
                 fprintf(print_file, "printf(\"-----------\\n\");");
@@ -93,7 +105,6 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
             fprintf(header_file, "typedef %.*s\n", MD_StringExpand(node->first_child->string));
         }
     }
-    printf("Generated file %s\n\n", str);
 
     fclose(header_file);
 }

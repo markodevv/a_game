@@ -112,16 +112,18 @@ push_quad(RenderGroup* group,
           vec2 size, 
           Color color, 
           u32 layer,
-          SpriteHandle sprite_handle = 0)
+          SpriteHandle sprite_handle = 0,
+          ShaderId shader_id = SHADER_ID_NORMAL)
 {
     add_sprite_to_setup(&group->setup, sprite_handle);
-    QuadEntry* entry = PushRenderEntry(group, QuadEntry, layer);
+    u32 key = layer;
+    QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
 
     entry->position = position;
     entry->size = size;
     entry->color = color;
     entry->sprite_handle = sprite_handle;
-
+    entry->shader_id = shader_id;
 }
 
 
@@ -132,12 +134,14 @@ push_quad(RenderGroup* group,
           vec2 position, 
           vec2 size, 
           Color color, 
-          u32 layer)
+          u32 layer,
+          ShaderId shader_id = SHADER_ID_NORMAL)
 {
     ASSERT(subsprite);
 
     add_sprite_to_setup(&group->setup, subsprite->sprite_sheet);
-    QuadEntry* entry = PushRenderEntry(group, QuadEntry, layer);
+    u32 key = layer;
+    QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
 
     entry->position = position;
     entry->size = size;

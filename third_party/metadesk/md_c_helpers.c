@@ -551,9 +551,8 @@ MD_C_Generate_Struct(FILE *file, MD_Node *node)
         for(MD_Node *child = node->first_child; !MD_NodeIsNil(child); child = child->next)
         {
             MD_C_Generate_Decl(file, child);
-            fprintf(file, ";\n");
         }
-        fprintf(file, "};\n\n");
+        //fprintf(file, "};\n\n");
     }
 }
 
@@ -702,10 +701,12 @@ MD_C_Generate_DeclByNameAndType(FILE *file, MD_String8 name, MD_C_Expr *type)
 MD_FUNCTION_IMPL void
 MD_C_Generate_Decl(FILE *file, MD_Node *node)
 {
-    if(node)
+    // TODO(marko): edit by me so i can add functions to structs
+    if(node && !MD_NodeHasTag(node, MD_S8Lit("function")))
     {
         MD_C_Expr *type = MD_C_ParseAsType(node->first_child, node->last_child);
         MD_C_Generate_DeclByNameAndType(file, node->string, type);
+        fprintf(file, ";\n");
     }
 }
 
