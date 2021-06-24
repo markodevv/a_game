@@ -13,7 +13,6 @@ typedef b8 WriteEntireFileProc(char* file_name, u32 size, void* memory);
 typedef SpriteHandle LoadSpriteProc(Assets* assets, char* sprite_path);
 
 typedef void RenderProc(Renderer* ren);
-typedef void EndDrawFrame(Renderer* ren);
 
 
 struct Platform
@@ -23,6 +22,6 @@ struct Platform
     WriteEntireFileProc* write_entire_file;
 
     RenderProc* init_renderer;
-    EndDrawFrame* end_frame;
+    RenderProc* end_frame;
 };
 #endif

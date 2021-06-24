@@ -5,6 +5,9 @@
 #include <md_c_helpers.c>
 
 FILE* print_file;
+FILE* syntax_file;
+
+MD_String8 syntax_file_last_line;
 
 MD_String8
 GetHeaderStringFromMdesk(MD_String8 string)
@@ -15,6 +18,76 @@ GetHeaderStringFromMdesk(MD_String8 string)
 
     return result;
 }
+
+void
+GeneratePrintFunction(MD_Node* node)
+{
+    fprintf(print_file, "void DEBUG_LOG(char* name, %.*s var)\n{\n", MD_StringExpand(node->string),
+                                                       MD_StringExpand(node->string));
+    fprintf(print_file, "printf(\"@%%s\\n\", name);\n");
+
+    for(MD_EachNode(child, node->first_child))
+    {
+        if (MD_StringMatch(child->first_child->string, MD_S8Lit("f32"), 0) ||
+            MD_StringMatch(child->first_child->string, MD_S8Lit("f64"), 0))
+        {
+            fprintf(print_file, "printf(\"%.*s : %%.2f\\n\", ", MD_StringExpand(child->string));
+            fprintf(print_file, "var.%.*s);\n", MD_StringExpand(child->string));
+        }
+        else if (MD_StringMatch(child->first_child->string, MD_S8Lit("i32"), 0) ||
+                 MD_StringMatch(child->first_child->string, MD_S8Lit("i8"), 0)  ||
+                 MD_StringMatch(child->first_child->string, MD_S8Lit("i16"), 0) ||
+                 MD_StringMatch(child->first_child->string, MD_S8Lit("u8"), 0)  ||
+                 MD_StringMatch(child->first_child->string, MD_S8Lit("u16"), 0) ||
+                 MD_StringMatch(child->first_child->string, MD_S8Lit("i64"), 0))
+        {
+            fprintf(print_file, "printf(\"%.*s : %%d\\n\", ", MD_StringExpand(child->string));
+            fprintf(print_file, "var.%.*s);\n", MD_StringExpand(child->string));
+        }
+        else if (MD_StringMatch(child->first_child->string, MD_S8Lit("u32"), 0) ||
+                 MD_StringMatch(child->first_child->string, MD_S8Lit("u64"), 0))
+        {
+            fprintf(print_file, "printf(\"%.*s : %%lu\\n\", ", MD_StringExpand(child->string));
+            fprintf(print_file, "var.%.*s);\n", MD_StringExpand(child->string));
+        }
+        else
+        {
+            // printf("Type name |%.*s| \n", MD_StringExpand(child->string));
+            if (!MD_StringMatch(child->string, MD_S8Lit(""), 0))
+            {
+                fprintf(print_file, "DEBUG_LOG(\"%.*s\", var.%.*s);\n", MD_StringExpand(child->string),
+                                                                        MD_StringExpand(child->string));
+            }
+        }
+    }
+    fprintf(print_file, "printf(\"-----------\\n\");");
+    fprintf(print_file, "\n}\n\n");
+}
+
+// bool
+// SloppyStringContains(MD_String8 s1, MD_String8 s2)
+// {
+    // for (u32 i = 0; i < MD_CalculateCStringLength(s1); ++i)
+    // {
+        // if (s1[i] == ' ')
+            // continue;
+        // S2 is shorter string
+        // for (u32 j = 0; j < s2.size; ++j)
+        // {
+            // if (s2.str[i + j] != s1[j])
+            // {
+                // i += j;
+                // break;
+            // }
+            // else if (j == (s2.size - 1))
+            // {
+                // return true;
+            // }
+        // }
+    // }
+// 
+    // return false;
+// }
 
 void 
 GenerateHeaderFromMdesk(MD_String8 file_path)
@@ -34,6 +107,23 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
         {
             MD_C_Generate_Struct(header_file, node);
 
+            // Check if struct isn't already added to syntax_file
+            if (MD_FindSubstring(syntax_file_last_line, node->string, 0, 0)
+                == syntax_file_last_line.size)
+            {
+                static bool is_first = true;
+
+                // NOTE: this is a hack
+                if (is_first)
+                {
+                    fprintf(syntax_file, "syn keyword marko_keyword");
+                    is_first = false;
+                }
+                // Add it
+                fprintf(syntax_file, " %.*s", MD_StringExpand(node->string));
+            }
+
+
             for(MD_Node *child = node->first_child; !MD_NodeIsNil(child); child = child->next)
             {
                 if (MD_NodeHasTag(child, MD_S8Lit("function")))
@@ -45,46 +135,7 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
 
             if (MD_NodeHasTag(node, MD_S8Lit("printable")))
             {
-                fprintf(print_file, "void DEBUG_LOG(char* name, %.*s var)\n{\n", MD_StringExpand(node->string),
-                                                                   MD_StringExpand(node->string));
-                fprintf(print_file, "printf(\"@%%s\\n\", name);\n");
-
-                for(MD_EachNode(child, node->first_child))
-                {
-                    if (MD_StringMatch(child->first_child->string, MD_S8Lit("f32"), 0) ||
-                        MD_StringMatch(child->first_child->string, MD_S8Lit("f64"), 0))
-                    {
-                        fprintf(print_file, "printf(\"%.*s : %%.2f\\n\", ", MD_StringExpand(child->string));
-                        fprintf(print_file, "var.%.*s);\n", MD_StringExpand(child->string));
-                    }
-                    else if (MD_StringMatch(child->first_child->string, MD_S8Lit("i32"), 0) ||
-                             MD_StringMatch(child->first_child->string, MD_S8Lit("i8"), 0)  ||
-                             MD_StringMatch(child->first_child->string, MD_S8Lit("i16"), 0) ||
-                             MD_StringMatch(child->first_child->string, MD_S8Lit("u8"), 0)  ||
-                             MD_StringMatch(child->first_child->string, MD_S8Lit("u16"), 0) ||
-                             MD_StringMatch(child->first_child->string, MD_S8Lit("i64"), 0))
-                    {
-                        fprintf(print_file, "printf(\"%.*s : %%d\\n\", ", MD_StringExpand(child->string));
-                        fprintf(print_file, "var.%.*s);\n", MD_StringExpand(child->string));
-                    }
-                    else if (MD_StringMatch(child->first_child->string, MD_S8Lit("u32"), 0) ||
-                             MD_StringMatch(child->first_child->string, MD_S8Lit("u64"), 0))
-                    {
-                        fprintf(print_file, "printf(\"%.*s : %%lu\\n\", ", MD_StringExpand(child->string));
-                        fprintf(print_file, "var.%.*s);\n", MD_StringExpand(child->string));
-                    }
-                    else
-                    {
-                        // printf("Type name |%.*s| \n", MD_StringExpand(child->string));
-                        if (!MD_StringMatch(child->string, MD_S8Lit(""), 0))
-                        {
-                            fprintf(print_file, "DEBUG_LOG(\"%.*s\", var.%.*s);\n", MD_StringExpand(child->string),
-                                                                                    MD_StringExpand(child->string));
-                        }
-                    }
-                }
-                fprintf(print_file, "printf(\"-----------\\n\");");
-                fprintf(print_file, "\n}\n\n");
+                GeneratePrintFunction(node);
             }
         }
         else if(MD_NodeHasTag(node, MD_S8Lit("enum")))
@@ -112,7 +163,21 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
 int 
 main()
 {
+    char buffer[2048];
     print_file = fopen("generated_print.cpp", "w+");
+    syntax_file = fopen("/home/marko/.vim/syntax/c.vim", "a+");
+
+    if (!syntax_file)
+    {
+        printf("Failed to open syntax file!\n");
+    }
+    // We get the last line of syntax_file
+    while(!feof(syntax_file))
+    {
+        fgets(buffer, 2048, syntax_file);
+    }
+
+    syntax_file_last_line = MD_S8CString(buffer);
 
     GenerateHeaderFromMdesk(MD_S8Lit("memory.mdesk"));
     GenerateHeaderFromMdesk(MD_S8Lit("math.mdesk"));
@@ -123,5 +188,7 @@ main()
     GenerateHeaderFromMdesk(MD_S8Lit("opengl_renderer.mdesk"));
 
     fclose(print_file);
+    fclose(syntax_file);
+
     return 0;
 }

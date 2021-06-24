@@ -261,7 +261,6 @@ opengl_load_texture(Sprite* sprite, u32 slot)
 
 
 
-
 internal void
 opengl_init(Renderer* ren)
 {
