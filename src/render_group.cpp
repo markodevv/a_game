@@ -3,7 +3,7 @@
 
 
 internal RenderGroup*
-setup_render_group(MemoryArena* arena, mat4 projection, Camera camera, Renderer* ren, Assets* assets)
+setup_render_group(MemoryArena* arena, mat4 projection, Renderer* ren, Assets* assets)
 {
     RenderGroup* render_group;
 
@@ -26,7 +26,6 @@ setup_render_group(MemoryArena* arena, mat4 projection, Camera camera, Renderer*
     }
 
     render_group->setup.projection = projection;
-    render_group->setup.camera = camera;
     render_group->assets = assets;
 
     render_group->push_buffer_capacity = Megabytes(10);
@@ -111,15 +110,15 @@ push_quad(RenderGroup* group,
           vec2 position, 
           vec2 size, 
           Color color, 
-          u32 layer,
+          f32 layer,
           SpriteHandle sprite_handle = 0,
           ShaderId shader_id = SHADER_ID_NORMAL)
 {
     add_sprite_to_setup(&group->setup, sprite_handle);
-    u32 key = layer;
+    u32 key = shader_id;
     QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
 
-    entry->position = position;
+    entry->position = V3(position, layer);
     entry->size = size;
     entry->color = color;
     entry->sprite_handle = sprite_handle;
@@ -134,19 +133,40 @@ push_quad(RenderGroup* group,
           vec2 position, 
           vec2 size, 
           Color color, 
-          u32 layer,
+          f32 layer,
           ShaderId shader_id = SHADER_ID_NORMAL)
 {
     ASSERT(subsprite);
 
     add_sprite_to_setup(&group->setup, subsprite->sprite_sheet);
-    u32 key = layer;
+    u32 key = shader_id;
     QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
 
-    entry->position = position;
+    entry->position = V3(position, layer);
     entry->size = size;
     entry->color = color;
     entry->subsprite = subsprite;
 
 }
 
+internal void
+push_triangle(RenderGroup* group, 
+              vec2 p1, 
+              vec2 p2, 
+              vec2 p3, 
+              Color color, 
+              f32 layer,
+              SpriteHandle sprite_handle = 0,
+              ShaderId shader_id = SHADER_ID_NORMAL)
+{
+    add_sprite_to_setup(&group->setup, sprite_handle);
+    u32 key = shader_id;
+    TriangleEntry* entry = PushRenderEntry(group, TriangleEntry, key);
+
+    entry->points[0] = V3(p1, layer);
+    entry->points[1] = V3(p2, layer);
+    entry->points[2] = V3(p3, layer);
+    entry->color = color;
+    entry->sprite_handle = sprite_handle;
+    entry->shader_id = shader_id;
+}

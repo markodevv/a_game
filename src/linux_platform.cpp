@@ -579,6 +579,7 @@ main()
         game_input.escape.released = 0;
         game_input.enter.pressed = 0;
         game_input.enter.released = 0;
+        game_input.mouse.wheel_delta = 0;
 
         game_input.character = '\0';
         game_input.modifiers = 0;
@@ -672,24 +673,38 @@ main()
                 case ButtonPress:
                 case ButtonRelease:
                 {
-                    if (LINUX_LEFT_MOUSE)
+                    switch (x_event.xbutton.button)
                     {
-                        b8 was_down = game_input.left_mouse_button.is_down;
-                        b8 is_down = (x_event.type == ButtonPress);
+                        case LINUX_LEFT_MOUSE:
+                        {
+                            b8 was_down = game_input.left_mouse_button.is_down;
+                            b8 is_down = (x_event.type == ButtonPress);
 
-                        game_input.left_mouse_button.pressed = (!was_down && is_down);
-                        // PRINT("was_down %d", (!was_down && is_down));
-                        game_input.left_mouse_button.is_down = is_down;
-                        game_input.left_mouse_button.released = (x_event.type == ButtonRelease);
-                    }
-                    else if (LINUX_RIGHT_MOUSE)
-                    {
-                        b8 was_down = game_input.right_mouse_button.is_down;
-                        b8 is_down = (x_event.type == ButtonPress);
+                            game_input.left_mouse_button.pressed = (!was_down && is_down);
+                            // PRINT("was_down %d", (!was_down && is_down));
+                            game_input.left_mouse_button.is_down = is_down;
+                            game_input.left_mouse_button.released = (x_event.type == ButtonRelease);
+                        } break;
+                        case LINUX_RIGHT_MOUSE:
+                        {
+                            b8 was_down = game_input.right_mouse_button.is_down;
+                            b8 is_down = (x_event.type == ButtonPress);
 
-                        game_input.right_mouse_button.pressed = (!was_down && is_down);
-                        game_input.right_mouse_button.is_down = (x_event.type == ButtonPress);
-                        game_input.right_mouse_button.released = (x_event.type == ButtonRelease);
+                            game_input.right_mouse_button.pressed = (!was_down && is_down);
+                            game_input.right_mouse_button.is_down = (x_event.type == ButtonPress);
+                            game_input.right_mouse_button.released = (x_event.type == ButtonRelease);
+                        } break;
+                        // NOTE: Mouse scroll
+                        case Button4:
+                        {
+                            PRINT("Scolled up");
+                            game_input.mouse.wheel_delta = 120.0f;
+                        } break;
+                        case Button5:
+                        {
+                            PRINT("Scolled down");
+                            game_input.mouse.wheel_delta = -120.0f;
+                        } break;
                     }
                 };
             }

@@ -246,6 +246,9 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         Renderer* ren = &game_state->renderer;
 
 
+        ren->camera.up = V3(0, 1, 0);
+        ren->camera.direction = V3(0, 0, 1);
+        ren->camera.position.z = 10.0f;
 
         ren->assets = &game_state->assets;
 
@@ -343,17 +346,12 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
     TemporaryArena main_temp_arena = begin_temporary_memory(&game_state->transient_arena);
 
-    Camera main_cam = {};
-    main_cam.up = V3(0, 1, 0);
-    main_cam.direction = V3(0, 0, 1);
-    main_cam.position.z = 1.0f;
 
     RenderGroup* render_group = setup_render_group(&game_state->transient_arena,
                                                    mat4_orthographic((f32)ren->screen_width,
                                                                     (f32)ren->screen_height),
-                                                                       main_cam,
-                                                                       ren, 
-                                                                       &game_state->assets);
+                                                                     ren, 
+                                                                     &game_state->assets);
 
 
     {
@@ -393,10 +391,10 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
     }
 
 
-    Camera* cam = &game_state->render_setup.camera;
-
-    if (game_state->is_free_camera)
     {
+
+        Camera* cam = &ren->camera;
+
         if (input->mouse.wheel_delta)
         {
             f32 scroll_amount = (f32)input->mouse.wheel_delta;
@@ -421,8 +419,8 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         {
             cam->position.y -= 5.0f;
         }
-    }
 
+    }
 
 
     
@@ -486,7 +484,7 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
                           V2((f32)x * game_state->tile_size, (f32)y * game_state->tile_size),
                           V2(game_state->tile_size - 4.0f, game_state->tile_size - 4.0f),
                           COLOR(75, 75, 0, 255),
-                          LAYER_MID);
+                          LAYER_BACKMID);
             }
         }
     }
@@ -528,6 +526,20 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
               LAYER_FRONT,
               0,
               SHADER_ID_TEST);
+
+    push_triangle(render_group,
+                  V2(100, 200),
+                  V2(400, 300),
+                  V2(200, 700),
+                  COLOR(255),
+                  10.0f);
+
+    push_triangle(render_group,
+                  V2(300, 200),
+                  V2(400, 300),
+                  V2(500, 700),
+                  COLOR(100, 0, 50, 255),
+                  9.0f);
 
     platform->end_frame(ren);
 

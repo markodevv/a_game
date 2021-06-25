@@ -142,6 +142,22 @@ operator+=(vec2& v, f32 n)
     v.y += n;
 }
 
+void 
+operator*=(vec3& v1, vec3 v2)
+{
+    v1.x *= v2.x;
+    v1.y *= v2.y;
+    v1.z *= v2.z;
+}
+
+void 
+operator+=(vec3& v1, vec3 v2)
+{
+    v1.x += v2.x;
+    v1.y += v2.y;
+    v1.z += v2.z;
+}
+
 vec2 
 operator*(const vec2& v, f32 n)
 {
@@ -446,7 +462,7 @@ mat4_transpose(mat4 matrix)
 
 
 internal f32
-degrees_to_radians(f32 d) 
+to_radians(f32 d) 
 {
     return (d*((f32)PI_F/180));
 }
@@ -454,10 +470,14 @@ degrees_to_radians(f32 d)
 internal mat4
 mat4_orthographic(f32 w, f32 h)
 {
+
+    f32 f = 100.0f;
+    f32 n = 0.0f;
+
     mat4 out = {
         2/w,  0.0f, 0.0f, -1.0f, 
         0.0f, 2/h,  0.0f, -1.0f,
-        0.0f, 0.0f, 1.0f,  0.0f,
+        0.0f, 0.0f, -2/(f-n),  -(f-n)/(f+n),
         0.0f, 0.0f, 0.0f,  1.0f
     };
 
@@ -467,7 +487,7 @@ mat4_orthographic(f32 w, f32 h)
 internal mat4
 mat4_perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
 {
-    f32 t = tanf(degrees_to_radians(fov/2.0f));
+    f32 t = tanf(to_radians(fov/2.0f));
     f32 a = w/h;
 
     mat4 out =

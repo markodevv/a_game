@@ -68,8 +68,8 @@
 
 @enum RenderEntryType:
 {
-    RENDER_ENTRY_TexturedQuadsEntry,
     RENDER_ENTRY_QuadEntry,
+    RENDER_ENTRY_TriangleEntry,
 }
 
 @struct RenderEntryHeader:
@@ -87,15 +87,23 @@
 
 @struct QuadEntry:
 {
-    position: vec2,
+    position: vec3,
     size: vec2,
     color: Color,
     sprite_handle: SpriteHandle,
     subsprite: *SubSprite,
     
     shader_id: ShaderId,
+}
 
-    layer: u32,
+@struct TriangleEntry:
+{
+    points: ([3]vec3),
+    color: Color,
+    sprite_handle: SpriteHandle,
+    subsprite: *SubSprite,
+    
+    shader_id: ShaderId,
 }
 
 @struct SortElement:
@@ -107,7 +115,6 @@
 @struct RenderSetup:
 {
     projection: mat4,
-    camera: Camera,
 
     sprite_handles: ([32]SpriteHandle),
     num_sprites: u32,
@@ -140,6 +147,7 @@
 
     next: *Uniform;
 }
+
 
 @struct Shader:
 {
@@ -186,6 +194,8 @@
     VBO: u32,
     EBO: u32,
     VAO: u32,
+
+    camera: Camera,
 
     slot: u32,
 

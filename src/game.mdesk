@@ -121,7 +121,6 @@
 
     world: *WorldState,
 
-    render_setup: RenderSetup,
     renderer: Renderer,
 }
 

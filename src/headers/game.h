@@ -100,7 +100,6 @@ u32 tile_size;
 b8 is_free_camera;
 EntityId particle_emitter;
 WorldState* world;
-RenderSetup render_setup;
 Renderer renderer;
 };
 

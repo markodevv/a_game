@@ -69,8 +69,8 @@ SpriteHandle font_sprite_handle;
 
 enum RenderEntryType 
 {
-RENDER_ENTRY_TexturedQuadsEntry,
 RENDER_ENTRY_QuadEntry,
+RENDER_ENTRY_TriangleEntry,
 };
 
 typedef struct RenderEntryHeader RenderEntryHeader;
@@ -90,13 +90,22 @@ NUM_SHADERS,
 typedef struct QuadEntry QuadEntry;
 struct QuadEntry
 {
-vec2 position;
+vec3 position;
 vec2 size;
 Color color;
 SpriteHandle sprite_handle;
 SubSprite* subsprite;
 ShaderId shader_id;
-u32 layer;
+};
+
+typedef struct TriangleEntry TriangleEntry;
+struct TriangleEntry
+{
+vec3 points[3];
+Color color;
+SpriteHandle sprite_handle;
+SubSprite* subsprite;
+ShaderId shader_id;
 };
 
 typedef struct SortElement SortElement;
@@ -110,7 +119,6 @@ typedef struct RenderSetup RenderSetup;
 struct RenderSetup
 {
 mat4 projection;
-Camera camera;
 SpriteHandle sprite_handles[32];
 u32 num_sprites;
 };
@@ -185,6 +193,7 @@ u32 indices_count;
 u32 VBO;
 u32 EBO;
 u32 VAO;
+Camera camera;
 u32 slot;
 vec3 light_pos;
 i32 screen_width;

@@ -6,6 +6,8 @@
 
 FILE* print_file;
 FILE* syntax_file;
+bool generate_print_functions = false;
+bool update_syntax_file = false;
 
 MD_String8 syntax_file_last_line;
 
@@ -108,19 +110,22 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
             MD_C_Generate_Struct(header_file, node);
 
             // Check if struct isn't already added to syntax_file
-            if (MD_FindSubstring(syntax_file_last_line, node->string, 0, 0)
-                == syntax_file_last_line.size)
+            if (update_syntax_file)
             {
-                static bool is_first = true;
-
-                // NOTE: this is a hack
-                if (is_first)
+                if (MD_FindSubstring(syntax_file_last_line, node->string, 0, 0)
+                    == syntax_file_last_line.size)
                 {
-                    fprintf(syntax_file, "syn keyword marko_keyword");
-                    is_first = false;
+                    static bool is_first = true;
+
+                    // NOTE: this is a hack
+                    if (is_first)
+                    {
+                        fprintf(syntax_file, "syn keyword marko_keyword");
+                        is_first = false;
+                    }
+                    // Add it
+                    fprintf(syntax_file, " %.*s", MD_StringExpand(node->string));
                 }
-                // Add it
-                fprintf(syntax_file, " %.*s", MD_StringExpand(node->string));
             }
 
 
@@ -135,7 +140,10 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
 
             if (MD_NodeHasTag(node, MD_S8Lit("printable")))
             {
-                GeneratePrintFunction(node);
+                if (generate_print_functions)
+                {
+                    GeneratePrintFunction(node);
+                }
             }
         }
         else if(MD_NodeHasTag(node, MD_S8Lit("enum")))
@@ -160,10 +168,34 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
     fclose(header_file);
 }
 
+
 int 
-main()
+main(int argc, char* argv[])
 {
+    for (int i = 1; i < argc; ++i)
+    {
+        if (MD_StringMatch(MD_S8CString(argv[i]), MD_S8Lit("-generate_print"), 0))
+        {
+            generate_print_functions = true;
+        }
+        else if (MD_StringMatch(MD_S8CString(argv[i]), MD_S8Lit("-update_syntax"), 0))
+        {
+            update_syntax_file = true;
+        }
+        else if (MD_StringMatch(MD_S8CString(argv[i]), MD_S8Lit("-help"), 0))
+        {
+            printf("Available flags: -generated_print, -update_syntax\n");
+            return 0;
+        }
+        else
+        {
+            printf("Usage: %s -flag1 -flag2...\n", argv[0]);
+            return 0;
+        }
+    }
+
     char buffer[2048];
+
     print_file = fopen("generated_print.cpp", "w+");
     syntax_file = fopen("/home/marko/.vim/syntax/c.vim", "a+");
 

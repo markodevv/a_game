@@ -302,8 +302,11 @@ opengl_init(Renderer* ren)
     glEnableVertexAttribArray(3); 
 
 
-    glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // glEnable(GL_BLEND);
+	// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
 
     glBindVertexArray(0);
 
@@ -445,7 +448,8 @@ opengl_draw(Renderer* ren, RenderSetup* setup, ShaderId shader_id)
     u32 indices_size = num_indices * sizeof(u32);
 
     i32 vp_loc = opengl_get_uniform_location(shader_program, "u_viewproj");
-    mat4 cam_mat = camera_transform(&setup->camera);
+    // NOTE: For now we only have 1 main camera.
+    mat4 cam_mat = camera_transform(&ren->camera);
     mat4 viewproj = setup->projection * cam_mat;
     glUniformMatrix4fv(vp_loc, 1, true, &viewproj.rows[0].x);
 
@@ -477,7 +481,7 @@ internal void
 opengl_end_frame(Renderer* ren)
 {
     glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     local_persist i32 w, h;
     if (w != ren->screen_width || h != ren->screen_height)
@@ -554,18 +558,18 @@ opengl_end_frame(Renderer* ren)
                     }
 
 
-                    vec2 positions[] =
+                    vec3 positions[] =
                     {
-                         V2(1.0f,  1.0f),
-                         V2(1.0f,  0.0f),
-                         V2(0.0f,  0.0f),
-                         V2(0.0f,  1.0f),
+                         V3(1.0f,  1.0f, 1.0f),
+                         V3(1.0f,  0.0f, 1.0f),
+                         V3(0.0f,  0.0f, 1.0f),
+                         V3(0.0f,  1.0f, 1.0f),
                     };
 
-                    positions[0] *= quad->size;
-                    positions[1] *= quad->size;
-                    positions[2] *= quad->size;
-                    positions[3] *= quad->size;
+                    positions[0] *= V3(quad->size, 1.0f);
+                    positions[1] *= V3(quad->size, 1.0f);
+                    positions[2] *= V3(quad->size, 1.0f);
+                    positions[3] *= V3(quad->size, 1.0f);
                     positions[0] += quad->position;
                     positions[1] += quad->position;
                     positions[2] += quad->position;
@@ -581,7 +585,7 @@ opengl_end_frame(Renderer* ren)
 
                     for (u32 i = 0; i < VERTICES_PER_QUAD; ++i)
                     {
-                        vertex->position = V3(positions[i], 0.0f);
+                        vertex->position = positions[i];
                         vertex->color = quad->color;
                         vertex->uv = uvs[i];
                         vertex->texture_slot = (f32)sprite_slot;
@@ -599,6 +603,48 @@ opengl_end_frame(Renderer* ren)
                     ren->indices_count += INDICES_PER_QUAD;
                     ASSERT(ren->vertex_count < MAX_VERTICES &&
                            ren->indices_count < MAX_INDICES);
+                } break;
+                case RENDER_ENTRY_TriangleEntry:
+                {
+                    TriangleEntry* triangle = (TriangleEntry*)(base + header_size);
+                    u32 sprite_slot = 0;
+
+                    if (triangle->shader_id != current_shader)
+                    {
+                        opengl_draw(ren, &render_group->setup, current_shader);
+                        current_shader = triangle->shader_id;
+                    }
+
+                    if (triangle->sprite_handle)
+                    {
+                        sprite_slot = get_loaded_sprite(ren->assets, triangle->sprite_handle)->slot;
+                    }
+
+
+                    VertexData* vertex = ren->vertices + ren->vertex_count;
+                    u32* index = ren->indices + ren->indices_count;
+
+                    u32 indices[] = {
+                        0, 1, 2,
+                    };
+
+                    for (u32 i = 0; i < 3; ++i)
+                    {
+                        vertex->position = triangle->points[i];
+                        vertex->color = triangle->color;
+                        // TODO:
+                        // vertex->uv = uvs[i];
+                        vertex->texture_slot = (f32)sprite_slot;
+
+                        *index = ren->vertex_count + indices[i];
+
+                        ++index;
+                        ++vertex;
+                    }
+
+                    ren->vertex_count += 3;
+                    ren->indices_count += 3;
+
                 } break;
                 default:
                 {

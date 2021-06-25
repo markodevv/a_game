@@ -636,10 +636,8 @@ imediate_ui(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
 
     mat4 projection = mat4_orthographic((f32)ren->screen_width,
                                         (f32)ren->screen_height);
-    Camera cam = {V3(0.0f, 0.0f, 1.0f), V3(0.0f, 0.0f, 1.0f), V3(0.0f, 1.0f, 0.0f)};
     debug->render_group = setup_render_group(&debug->arena,
                                              projection,
-                                             cam,
                                              ren, 
                                              assets);
     debug->next_hot_item = debug->hot_item;
