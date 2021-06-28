@@ -25,10 +25,12 @@
 #include "headers/game.h"
 #include "render_group.cpp"
 #include "asset_loading.cpp"
+
+#include "generated_print.cpp"
+
 #include "debug_ui.cpp"
 
 
-#include "generated_print.cpp"
 
 // NOTE: Debug data
 
@@ -248,7 +250,7 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
         ren->camera.up = V3(0, 1, 0);
         ren->camera.direction = V3(0, 0, 1);
-        ren->camera.position.z = 10.0f;
+        ren->camera.position.z = 9000.0f;
 
         ren->assets = &game_state->assets;
 
@@ -390,6 +392,11 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
     }
 
+    if (button_pressed(input->f1))
+    {
+        global_is_edit_mode = !global_is_edit_mode;
+    }
+
 
     {
 
@@ -427,6 +434,7 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
     ParticleEmitter* particle_emitter = get_component(game_state->world, 
                                                       game_state->particle_emitter,
                                                       ParticleEmitter);
+    particle_emitter->position = V2(500, 500);
     for (u32 particle_index = 0; 
          particle_index < particle_emitter->max_particles;
          ++particle_index)
@@ -463,13 +471,13 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
     ren->screen_height = memory->screen_height;
 
 
-    push_quad(render_group,
-              V2(0),
-              V2((f32)ren->screen_width,
-                 (f32)ren->screen_height),
-              COLOR(255),
-              LAYER_BACK,
-              game_state->backgroud_sprite);
+    // push_quad(render_group,
+              // V2(0),
+              // V2((f32)ren->screen_width,
+                 // (f32)ren->screen_height),
+              // COLOR(255),
+              // LAYER_BACK,
+              // game_state->backgroud_sprite);
 
 
 
@@ -509,6 +517,12 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
             UI_Int32Editbox(memory->debug, &emitter->particle_spawn_rate, "spawn rate");
             UI_Float32Editbox(memory->debug, &emitter->render.size, "size");
             ui_color_picker(memory->debug, &emitter->render.color, "color mhehe");
+            local_persist f32 test = 0.5f;
+            ui_slider(memory->debug,
+                      0.1f, 
+                      10.9f,
+                      &test,
+                      "Test slider");
         }
 
         ui_window_end(memory->debug);
@@ -516,30 +530,20 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         end_temporary_memory(&memory->debug->temp_arena);
     }
 
-    Shader* shader = &render_group->assets->shaders[SHADER_ID_TEST];
-    set_shader_uniform(shader, "u_size", V2(500), vec2);
 
-    push_quad(render_group, 
-              V2(0),
-              V2(500),
-              COLOR(100, 0, 40, 255),
-              LAYER_FRONT,
-              0,
-              SHADER_ID_TEST);
-
-    push_triangle(render_group,
-                  V2(100, 200),
-                  V2(400, 300),
-                  V2(200, 700),
-                  COLOR(255),
-                  10.0f);
-
-    push_triangle(render_group,
-                  V2(300, 200),
-                  V2(400, 300),
-                  V2(500, 700),
-                  COLOR(100, 0, 50, 255),
-                  9.0f);
+    // push_triangle(render_group,
+                  // V2(100, 200),
+                  // V2(400, 300),
+                  // V2(200, 700),
+                  // COLOR(255),
+                  // 10.0f);
+// 
+    // push_triangle(render_group,
+                  // V2(300, 200),
+                  // V2(400, 300),
+                  // V2(500, 700),
+                  // COLOR(100, 0, 50, 255),
+                  // 9.0f);
 
     platform->end_frame(ren);
 

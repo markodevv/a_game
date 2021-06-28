@@ -10,6 +10,23 @@ struct UiWindow
 vec2 position;
 vec2 size;
 u32 layer;
+UiWindow* next;
+};
+
+typedef struct StackedWindow StackedWindow;
+struct StackedWindow
+{
+UiWindow* window;
+vec2 previous_draw_cursor;
+};
+
+typedef struct Colorpicker Colorpicker;
+struct Colorpicker
+{
+Color color;
+f32 hue;
+f32 saturation;
+f32 brightness;
 };
 
 typedef struct DebugState DebugState;
@@ -23,6 +40,7 @@ void* next_hot_item;
 void* active_item;
 GameInput input;
 Font font;
+Colorpicker colorpicker;
 char text_input_buffer[256];
 u32 text_insert_index;
 u8 editbox_value_to_set_size;
@@ -34,11 +52,13 @@ vec2 prev_mouse_pos;
 UiWindow window_table[64];
 UiWindow* current_window;
 UiWindow* focused_window;
+StackedWindow window_stack[32];
+u32 num_stacked_windows;
+b8 do_pop_window;
 vec2 draw_cursor;
-vec2 last_draw_cursor;
 u32 top_layer;
 b8 is_newline;
-DebugColapsableItem window_items[512];
+DebugColapsableItem window_items[64];
 u32 current_item_index;
 i32 screen_height;
 i32 screen_width;

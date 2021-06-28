@@ -30,6 +30,7 @@ ButtonState right_mouse_button;
 ButtonState backspace;
 ButtonState escape;
 ButtonState enter;
+ButtonState f1;
 u32 modifiers;
 MouseInput mouse;
 char character;

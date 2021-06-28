@@ -61,14 +61,14 @@ global_variable Color red_color = {232, 69, 69, 255};
         { \
             char* temp_name = string_copy(&debug->arena, var_name); \
             truncate_var_name(temp_name); \
-            ui_text(debug->render_group,  \
+            draw_text(debug->render_group,  \
                        &debug->font, temp_name,  \
                        V2(pos.x, pos.y + (size.y - debug->font.font_size)),  \
                        layer + LAYER_FRONT); \
         } \
         else \
         { \
-            ui_text(debug->render_group,  \
+            draw_text(debug->render_group,  \
                        &debug->font, var_name,  \
                        V2(pos.x, pos.y + (size.y - debug->font.font_size)),  \
                        layer + LAYER_FRONT); \
@@ -113,7 +113,7 @@ global_variable Color red_color = {232, 69, 69, 255};
         } \
  \
         is_editing_box = true; \
-        ui_text(debug->render_group, &debug->font, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font.font_size)), layer + LAYER_FRONT); \
+        draw_text(debug->render_group, &debug->font, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font.font_size)), layer + LAYER_FRONT); \
         debug->text_input_buffer[debug->text_insert_index] = '\0'; \
  \
         f32 cursor_x = pos.x + get_text_width(&debug->font, debug->text_input_buffer); \
@@ -135,7 +135,7 @@ global_variable Color red_color = {232, 69, 69, 255};
                 debug->editbox_value_is_int = is_int; \
             } \
         } \
-        ui_text(debug->render_group,  \
+        draw_text(debug->render_group,  \
                    &debug->font, \
                    text,  \
                    V2(pos.x + (size.x / 2),  \
@@ -195,12 +195,18 @@ window_is_focused(DebugState* debug, UiWindow* window)
 }
 
 internal void
-ui_change_focus(DebugState* debug, UiWindow* window)
+ui_set_window_focus(DebugState* debug, UiWindow* window)
 {
+    // TODO: this is a hack
+    if (debug->top_layer >= 10000)
+    {
+        debug->top_layer = 0;
+    }
     debug->top_layer += 20;
     window->layer = debug->top_layer;
     debug->focused_window = window;
 }
+
 
 // TODO: handle collisions
 internal UiWindow*
@@ -542,13 +548,13 @@ get_text_width(Font* font, char* text)
 }
 
 internal void
-ui_text(RenderGroup* render_group,
+draw_text(RenderGroup* render_group,
            Font* font,
            char* text,
            vec2 position,
            u32 layer,
            TextAlign align = TEXT_ALIGN_LEFT,
-           Color color = {255, 255, 255, 255})
+           Color color = {255, 255, 255, 254})
 {
     if (align == TEXT_ALIGN_MIDDLE)
     {
@@ -612,7 +618,7 @@ ui_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
     }
 
     push_quad(debug->render_group, position, size, color, layer + LAYER_MID);
-    ui_text(debug->render_group, 
+    draw_text(debug->render_group, 
                &debug->font, 
                title, 
                V2(position.x + (size.x / 2),
@@ -633,6 +639,7 @@ imediate_ui(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
     debug->input = *input;
     debug->screen_width = ren->screen_width;
     debug->screen_height = ren->screen_height;
+    debug->current_window = 0;
 
     mat4 projection = mat4_orthographic((f32)ren->screen_width,
                                         (f32)ren->screen_height);
@@ -646,7 +653,6 @@ imediate_ui(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
 
     if (button_pressed(input->left_mouse_button))
     {
-        PRINT("PRessed LMB");
         UiWindow** windows =  PushMemory(&debug->arena, 
                                              UiWindow*, 
                                              ArrayCount(debug->window_table));
@@ -684,7 +690,6 @@ imediate_ui(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
                               focused_window->position,
                               focused_window->size))
         {
-            PRINT("Clicked on focused window");
             return;
         }
 
@@ -695,8 +700,7 @@ imediate_ui(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
                                   window->position,
                                   window->size))
             {
-                PRINT("Change focus to %p", window);
-                ui_change_focus(debug, window);
+                ui_set_window_focus(debug, window);
                 break;
             }
         }
@@ -704,11 +708,36 @@ imediate_ui(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
 }
 
 internal void
+push_window(DebugState* debug, UiWindow* window)
+{
+    StackedWindow* sw = debug->window_stack + debug->num_stacked_windows;
+    sw->window = window;
+    sw->previous_draw_cursor = debug->draw_cursor;
+
+    ++debug->num_stacked_windows;
+    ASSERT(debug->num_stacked_windows < ArrayCount(debug->window_stack));
+}
+
+internal StackedWindow*
+pop_window(DebugState* debug)
+{
+    --debug->num_stacked_windows;
+    return debug->window_stack + debug->num_stacked_windows;
+}
+
+
+internal void
 ui_window_begin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(400, 500), u32 style_flags = 0)
 {
     UiWindow* window = get_window(debug, title);
 
     ASSERT(window);
+
+    if (debug->current_window)
+    {
+        push_window(debug, debug->current_window);
+        debug->do_pop_window = true;
+    }
 
     debug->current_window = window;
     u32 layer = window->layer;
@@ -766,7 +795,7 @@ ui_window_begin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2
         // TODO window focus
         if (!debug->focused_window)
         {
-            ui_change_focus(debug, window);
+            ui_set_window_focus(debug, window);
         }
 
 
@@ -781,7 +810,7 @@ ui_window_begin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2
         }
 
         push_quad(debug->render_group, titlebar_pos, titlebar_size, color, layer + LAYER_MID);
-        ui_text(debug->render_group, 
+        draw_text(debug->render_group, 
                 &debug->font,
                 title, 
                 V2(titlebar_pos.x + (titlebar_size.x / 2),
@@ -797,8 +826,17 @@ ui_window_begin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2
 internal void
 ui_window_end(DebugState* debug)
 {
-
-    debug->current_window = 0;
+    if (debug->do_pop_window)
+    {
+        StackedWindow* sw = pop_window(debug);
+        debug->current_window = sw->window;
+        debug->draw_cursor = sw->previous_draw_cursor;
+        debug->do_pop_window = false;
+    }
+    else
+    {
+        debug->current_window = 0;
+    }
 }
 
 internal void
@@ -810,7 +848,7 @@ ui_fps(DebugState* debug)
     sprintf(out, fps_text, debug->game_fps);
     vec2 position = V2(0.0f, (f32)debug->screen_height - debug->font.font_size);
 
-    ui_text(debug->render_group, &debug->font, out, position, 100);
+    draw_text(debug->render_group, &debug->font, out, position, 100);
 }
 
 
@@ -830,7 +868,7 @@ ui_checkbox(DebugState* debug, b8* toggle_var, char* var_name)
         truncate_var_name(var_name);
     }
 
-    ui_text(debug->render_group, 
+    draw_text(debug->render_group, 
                &debug->font, 
                var_name, 
                V2(pos.x, pos.y + (size.y - debug->font.font_size)),
@@ -915,7 +953,7 @@ ui_button(DebugState* debug, char* name, vec2 pos = V2(0), vec2 size = V2(80, 40
         pos.x + (size.x / 2.0f),
         pos.y + (size.y / 2.0f) - (debug->font.font_size / 4.0f)
     );
-    ui_text(group, &debug->font, name, text_pos, layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
+    draw_text(group, &debug->font, name, text_pos, layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
 
 
     if (window_is_focused(debug, debug->current_window))
@@ -952,7 +990,7 @@ ui_slider(DebugState* debug,
         var_name = string_copy(&debug->arena, var_name);
         truncate_var_name(var_name);
     }
-    ui_text(debug->render_group, 
+    draw_text(debug->render_group, 
                &debug->font, 
                var_name, 
                V2(pos.x, pos.y + (bar_size.y - debug->font.font_size)), 
@@ -961,7 +999,7 @@ ui_slider(DebugState* debug,
     pos.x += MAX_NAME_WIDTH;
 
     vec2 button_position = pos;
-    vec2 button_size = V2(15, bar_size.y);
+    vec2 button_size = V2(10, bar_size.y);
     button_position.y -= (button_size.y - bar_size.y) / 2.0f;
 
     f32 range = max - min;
@@ -1001,7 +1039,7 @@ ui_slider(DebugState* debug,
     vec2 text_pos = V2(pos.x+(bar_size.x/2), pos.y + (bar_size.y - debug->font.font_size));
     char text[32];
     snprintf(text, 32, "%.2f", *value);
-    ui_text(debug->render_group, &debug->font, text, text_pos, layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
+    draw_text(debug->render_group, &debug->font, text, text_pos, layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
 
     button_position.x += (((*value)-min)/range) * (bar_size.x - button_size.x);
     push_quad(group, button_position, button_size, button_color, layer + LAYER_FRONT);
@@ -1014,6 +1052,155 @@ ui_slider(DebugState* debug,
         }
     }
 
+}
+
+internal void
+hue_slider(DebugState* debug, Colorpicker* cp)
+{
+
+    Color cursor_color = COLOR(255);
+    vec2 size = V2(20, 200);
+    ui_cursor_newline(debug, size.x, size.y);
+    vec2 pos = debug->draw_cursor;
+
+    if (is_active(debug, &cp->hue))
+    {
+        if (button_down(debug->input.left_mouse_button))
+        {
+            cursor_color.a = 180;
+            cp->hue = (debug->input.mouse.position.y - pos.y) / size.y;
+            cp->hue = CLAMP(cp->hue, 0.0f, 1.0f);
+        }
+        else
+        {
+            debug->active_item = 0;
+        }
+    }
+    else if (is_hot(debug, &cp->hue))
+    {
+        if (button_pressed(debug->input.left_mouse_button))
+        {
+            set_active(debug, &cp->hue);
+        }
+    }
+    Shader* hue_shader = get_shader(debug->render_group->assets, SHADER_ID_HUE_QUAD);
+    vec2 cursor_pos = V2(pos.x, pos.y + (cp->hue * size.y));
+
+    set_shader_uniform(hue_shader, "u_size", V2(20, 200), vec2);
+    set_shader_uniform(hue_shader, "u_position", pos, vec2);
+
+    push_quad(debug->render_group, 
+              pos,
+              size,
+              COLOR(100, 0, 40, 255),
+              debug->current_window->layer + LAYER_FRONT,
+              0,
+              SHADER_ID_HUE_QUAD);
+
+    push_quad(debug->render_group,
+              cursor_pos,
+              V2(20, 4),
+              cursor_color,
+              debug->current_window->layer + LAYER_FRONT + 10.0f,
+              0,
+              SHADER_ID_NORMAL);
+
+    if (window_is_focused(debug, debug->current_window))
+    {
+        if (point_is_inside_rect(debug->input.mouse.position, pos, size))
+        {
+            debug->hot_item = &cp->hue;
+        }
+    }
+
+
+}
+
+internal void
+hsb_picker(DebugState* debug, Colorpicker* cp)
+{
+    vec2 pos = debug->draw_cursor;
+    vec2 size = V2(200, 200);
+    Color cursor_color = COLOR(255);
+    // TODO: this should use ui_same_line() API
+    pos.x += 40;
+
+    if (is_active(debug, &cp->saturation))
+    {
+        if (button_down(debug->input.left_mouse_button))
+        {
+            if (point_is_inside_rect(debug->input.mouse.position,
+                                     pos,
+                                     size))
+            {
+                cursor_color.a = 180;
+                cp->saturation = (debug->input.mouse.position.x - pos.x) / size.x;
+                cp->brightness = (debug->input.mouse.position.y - pos.y) / size.y;
+            }
+        }
+        else
+        {
+            debug->active_item = 0;
+        }
+    }
+    else if (is_hot(debug, &cp->saturation))
+    {
+        if (button_pressed(debug->input.left_mouse_button))
+        {
+            set_active(debug, &cp->saturation);
+        }
+    }
+
+    vec2 cursor_pos = pos + (size * V2(cp->saturation, cp->brightness));
+
+    Shader* sb_shader = get_shader(debug->render_group->assets, SHADER_ID_SB_QUAD);
+    set_shader_uniform(sb_shader, "u_size", V2(200, 200), vec2);
+    set_shader_uniform(sb_shader, "u_position", pos, vec2);
+    set_shader_uniform(sb_shader, "u_hue", cp->hue, f32);
+
+    push_quad(debug->render_group, 
+              pos,
+              size,
+              COLOR(255),
+              debug->current_window->layer + LAYER_FRONT,
+              0,
+              SHADER_ID_SB_QUAD);
+
+    push_quad(debug->render_group, 
+              cursor_pos,
+              V2(4.0f),
+              cursor_color,
+              debug->current_window->layer + LAYER_FRONT + 10.0f,
+              0,
+              SHADER_ID_NORMAL);
+
+    if (window_is_focused(debug, debug->current_window))
+    {
+        if (point_is_inside_rect(debug->input.mouse.position, pos, size))
+        {
+            debug->hot_item = &cp->saturation;
+        }
+    }
+
+}
+
+internal Color 
+hsb2rgb(vec3 c)
+{
+    vec3 rgb = CLAMP_V3(ABS_V3(FMOD_V3(V3(0.0f, 4.0f, 2.0f) + c.x * 6.0f,
+                             6.0f) - 3.0f) - 1.0f,
+                     0.0f,
+                     1.0f );
+    rgb = rgb*rgb*(rgb * -2.0f + 3.0f);
+
+    c =  vec3_mix(V3(1.0f), rgb, c.y) * c.z;
+    Color result;
+    result.r = c.x * 255;
+    result.g = c.y * 255;
+    result.b = c.z * 255;
+    result.a = 255;
+
+    return result;
 }
 
 internal void
@@ -1033,7 +1220,7 @@ ui_color_picker(DebugState* debug, Color* var, char* var_name)
         truncate_var_name(var_name);
     }
 
-    ui_text(debug->render_group, 
+    draw_text(debug->render_group, 
             &debug->font, 
             var_name, 
             V2(pos.x, pos.y + (size.y - debug->font.font_size)), 
@@ -1044,6 +1231,7 @@ ui_color_picker(DebugState* debug, Color* var, char* var_name)
 
 
     UiWindow* colorpicker_window = get_window(debug, "Color Picker");
+    Colorpicker* colorpicker = &debug->colorpicker;
 
     if (button_pressed(debug->input.left_mouse_button))
     {
@@ -1051,9 +1239,20 @@ ui_color_picker(DebugState* debug, Color* var, char* var_name)
         {
             if (point_is_inside_rect(debug->input.mouse.position, pos, size))
             {
-                ui_change_focus(debug, colorpicker_window);
-                set_window_position(debug, debug->input.mouse.position, "Color Picker");
-                set_window_size(debug, V2(300, 400), "Color Picker");
+                vec2 window_size = V2(260 + 2*PADDING, 300);
+                vec2 window_pos = debug->input.mouse.position;
+                ui_set_window_focus(debug, colorpicker_window);
+
+                if ((window_pos.y + window_size.y) >= debug->screen_height ||
+                    (window_pos.x + window_size.x) >= debug->screen_width)
+                {
+                    window_pos.x = debug->screen_width - window_size.x;
+                    window_pos.y = debug->screen_height - window_size.y;
+                }
+                set_window_position(debug, window_pos, "Color Picker");
+                set_window_size(debug, window_size, "Color Picker");
+
+                colorpicker->color = *var;
                 colorpicker_is_active = true;
             }
         }
@@ -1070,16 +1269,23 @@ ui_color_picker(DebugState* debug, Color* var, char* var_name)
     if (colorpicker_is_active)
     {
 
+
         ui_window_begin(debug, "Color Picker", 
                         colorpicker_window->position, colorpicker_window->size);
+
                         
 
+        hue_slider(debug, colorpicker);
+        hsb_picker(debug, colorpicker);
+
+        *var = hsb2rgb(V3(colorpicker->hue,
+                          colorpicker->saturation,
+                          colorpicker->brightness));
+
+
+
         UI_UInt8Editbox(debug, var, "Color");
-        push_quad(debug->render_group, V2(100), V2(400), COLOR(255), layer + LAYER_FRONT, 0, SHADER_ID_COLORPICKER);
 
-
-
-        debug->current_window = debug->focused_window;
         ui_window_end(debug);
 
     }

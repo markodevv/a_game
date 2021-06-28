@@ -116,7 +116,15 @@ push_quad(RenderGroup* group,
 {
     add_sprite_to_setup(&group->setup, sprite_handle);
     u32 key = shader_id;
+
+    if (color.a != 255)
+    {
+        key += 100 + layer;
+    }
+
     QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
+
+
 
     entry->position = V3(position, layer);
     entry->size = size;
@@ -140,6 +148,11 @@ push_quad(RenderGroup* group,
 
     add_sprite_to_setup(&group->setup, subsprite->sprite_sheet);
     u32 key = shader_id;
+
+    if (color.a != 255)
+    {
+        key += 100 + layer;
+    }
     QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
 
     entry->position = V3(position, layer);
@@ -161,6 +174,12 @@ push_triangle(RenderGroup* group,
 {
     add_sprite_to_setup(&group->setup, sprite_handle);
     u32 key = shader_id;
+
+    if (color.a != 255)
+    {
+        key += 50 + layer;
+    }
+
     TriangleEntry* entry = PushRenderEntry(group, TriangleEntry, key);
 
     entry->points[0] = V3(p1, layer);

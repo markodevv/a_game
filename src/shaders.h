@@ -60,51 +60,81 @@ void main()
 
 )";
 
-global_variable const char* colorpicker_fragment_shader =
-R"(
-#version 330 core
-
-out vec4 frag_color;
-
-in vec2 uv;
-in float tex_id;
-
-uniform vec4 col;
-uniform vec4 col2;
-
-void main()
-{
-    highp int index = int(tex_id);
-    frag_color = col + col2;
-}
-
-)";
-
-global_variable const char* test_shader =
+global_variable const char* hue_quad_shader =
 R"(
 #version 330 core
 
 out vec4 frag_color;
 
 uniform vec2 u_size;
+uniform vec2 u_position;
+
+#define PI 3.1415926f
 
 in vec2 uv;
 in vec4 color;
 in float tex_id;
 
+vec3 hsb2rgb(in vec3 c)
+{
+    vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),
+                             6.0)-3.0)-1.0,
+                     0.0,
+                     1.0 );
+    rgb = rgb*rgb*(3.0-2.0*rgb);
+    return c.z * mix(vec3(1.0), rgb, c.y);
+}
+
 
 void main()
 {
-    vec2 st = gl_FragCoord.xy / u_size;
+    vec2 st = (gl_FragCoord.xy - u_position) / u_size;
 
-    float test = st.y * (1.0f - st.x);
 
-    vec3 col = color.xyz * test;
-    frag_color = vec4(col,1.0f);
+    vec3 col = hsb2rgb(vec3(st.y, 1.0f, 1.0f));
+    
+
+    frag_color = vec4(col, 1.0f);
 }
 
 )";
 
 
+global_variable const char* sat_brigh_quad_shader =
+R"(
+#version 330 core
+
+out vec4 frag_color;
+
+uniform vec2 u_size;
+uniform vec2 u_position;
+uniform float u_hue;
+
+#define PI 3.1415926f
+
+in vec2 uv;
+in vec4 color;
+in float tex_id;
+
+vec3 hsb2rgb(in vec3 c)
+{
+    vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),
+                             6.0)-3.0)-1.0,
+                     0.0,
+                     1.0 );
+    rgb = rgb*rgb*(3.0-2.0*rgb);
+    return c.z * mix(vec3(1.0), rgb, c.y);
+}
 
 
+void main()
+{
+    vec2 st = (gl_FragCoord.xy - u_position) / u_size;
+
+    
+    vec3 col = hsb2rgb(vec3(u_hue, st.x, st.y));
+
+    frag_color = vec4(col, 1.0f);
+}
+
+)";

@@ -2,6 +2,53 @@
 #define MIN(a,b) (((a)<(b)) ? (a) : (b))
 #define MAX(a,b) (((a)>(b)) ? (a) : (b))
 #define CLAMP(a, min, max) (((a)<=(max)) ? ( ((a)<(min)) ? (min) : (a) ) : (max))
+#define CLAMP_V3(v, min, max) clamp_vec3(v, min, max)
+#define ABS(x) ((x)<0)?(-x):(x)
+#define ABS_V3(v) abs_vec3(v)
+#define FMOD(a, b) (f32)fmod((double)a, (double)b)
+#define FMOD_V3(v, x) fmod_vec3(v, x)
+
+internal vec3 
+fmod_vec3(vec3 v, f32 x)
+{
+    vec3 result = {};
+    result.x = (f32)fmod((double)v.x, (double)x);
+    result.y = (f32)fmod((double)v.y, (double)x);
+    result.z = (f32)fmod((double)v.z, (double)x);
+
+    return result;
+}
+
+internal vec3 
+abs_vec3(vec3 v)
+{
+    v.x = ABS(v.x);
+    v.y = ABS(v.y);
+    v.z = ABS(v.z);
+
+    return v;
+}
+
+internal vec3
+clamp_vec3(vec3 v, f32 min, f32 max)
+{
+    v.x = CLAMP(v.x, min, max);
+    v.y = CLAMP(v.y, min, max);
+    v.z = CLAMP(v.z, min, max);
+
+    return v;
+}
+
+internal vec3
+vec3_mix(vec3 v1, vec3 v2, f32 s)
+{
+    vec3 result = {};
+    result.x =  v1.x*(1.0f - s)+v2.x*s;
+    result.y =  v1.y*(1.0f - s)+v2.y*s;
+    result.z =  v1.z*(1.0f - s)+v2.z*s;
+
+    return result;
+}
 
 internal vec2
 V2(f32 x, f32 y)
@@ -84,6 +131,12 @@ operator*=(vec2& v1, vec2 v2)
     v1.y *= v2.y;
 }
 
+vec2 
+operator*(const vec2& v, f32 n)
+{
+    return {v.x*n, v.y*n};
+}
+
 vec2
 operator/(vec2& v, f32 a)
 {
@@ -158,10 +211,16 @@ operator+=(vec3& v1, vec3 v2)
     v1.z += v2.z;
 }
 
-vec2 
-operator*(const vec2& v, f32 n)
+vec3 
+operator*(const vec3& v, f32 n)
 {
-    return {v.x*n, v.y*n};
+    return {v.x*n, v.y*n, v.z*n};
+}
+
+vec3 
+operator*(const vec3& v1, const vec3& v2)
+{
+    return {v1.x*v2.x, v1.y*v2.y, v1.z*v2.z};
 }
 
 f32
@@ -208,9 +267,21 @@ operator+(vec3& v1, vec3 v2)
 }
 
 vec3
+operator+(const vec3& v1, f32 x)
+{
+    return {v1.x+x, v1.y+x, v1.z+x};
+}
+
+vec3
 operator-(vec3& v1, vec3 v2)
 {
     return {v1.x-v2.x, v1.y-v2.y, v1.z-v2.z};
+}
+
+vec3
+operator-(const vec3& v1, f32 x)
+{
+    return {v1.x-x, v1.y-x, v1.z-x};
 }
 
 vec3
@@ -471,7 +542,7 @@ internal mat4
 mat4_orthographic(f32 w, f32 h)
 {
 
-    f32 f = 100.0f;
+    f32 f = 10000.0f;
     f32 n = 0.0f;
 
     mat4 out = {

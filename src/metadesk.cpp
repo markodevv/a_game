@@ -184,7 +184,7 @@ main(int argc, char* argv[])
         }
         else if (MD_StringMatch(MD_S8CString(argv[i]), MD_S8Lit("-help"), 0))
         {
-            printf("Available flags: -generated_print, -update_syntax\n");
+            printf("Available flags: -generate_print, -update_syntax\n");
             return 0;
         }
         else
@@ -196,20 +196,24 @@ main(int argc, char* argv[])
 
     char buffer[2048];
 
-    print_file = fopen("generated_print.cpp", "w+");
-    syntax_file = fopen("/home/marko/.vim/syntax/c.vim", "a+");
-
-    if (!syntax_file)
+    if (generate_print_functions)
+        print_file = fopen("generated_print.cpp", "w+");
+    if (update_syntax_file)
     {
-        printf("Failed to open syntax file!\n");
-    }
-    // We get the last line of syntax_file
-    while(!feof(syntax_file))
-    {
-        fgets(buffer, 2048, syntax_file);
-    }
 
-    syntax_file_last_line = MD_S8CString(buffer);
+        syntax_file = fopen("/home/marko/.vim/syntax/c.vim", "a+");
+        if (!syntax_file)
+        {
+            printf("Failed to open syntax file!\n");
+        }
+        // We get the last line of syntax_file
+        while(!feof(syntax_file))
+        {
+            fgets(buffer, 2048, syntax_file);
+        }
+
+        syntax_file_last_line = MD_S8CString(buffer);
+    }
 
     GenerateHeaderFromMdesk(MD_S8Lit("memory.mdesk"));
     GenerateHeaderFromMdesk(MD_S8Lit("math.mdesk"));
@@ -219,8 +223,10 @@ main(int argc, char* argv[])
     GenerateHeaderFromMdesk(MD_S8Lit("game.mdesk"));
     GenerateHeaderFromMdesk(MD_S8Lit("opengl_renderer.mdesk"));
 
-    fclose(print_file);
-    fclose(syntax_file);
+    if (generate_print_functions)
+        fclose(print_file);
+    if (update_syntax_file)
+        fclose(syntax_file);
 
     return 0;
 }

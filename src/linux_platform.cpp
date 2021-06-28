@@ -579,6 +579,8 @@ main()
         game_input.escape.released = 0;
         game_input.enter.pressed = 0;
         game_input.enter.released = 0;
+        game_input.f1.pressed = 0;
+        game_input.f1.released = 0;
         game_input.mouse.wheel_delta = 0;
 
         game_input.character = '\0';
@@ -669,6 +671,12 @@ main()
                                                x_event.xkey.type == KeyPress,
                                                x_event.xkey.type == KeyRelease);
                     }
+                    else if (x_event.xkey.keycode == KEYCODE_F1)
+                    {
+                        linux_set_button_state(&game_input.f1,
+                                               x_event.xkey.type == KeyPress,
+                                               x_event.xkey.type == KeyRelease);
+                    }
                 } break;
                 case ButtonPress:
                 case ButtonRelease:
@@ -698,12 +706,12 @@ main()
                         case Button4:
                         {
                             PRINT("Scolled up");
-                            game_input.mouse.wheel_delta = 120.0f;
+                            game_input.mouse.wheel_delta = 5.0f;
                         } break;
                         case Button5:
                         {
                             PRINT("Scolled down");
-                            game_input.mouse.wheel_delta = -120.0f;
+                            game_input.mouse.wheel_delta = -5.0f;
                         } break;
                     }
                 };

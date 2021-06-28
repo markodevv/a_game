@@ -29,6 +29,7 @@
     backspace: ButtonState,
     escape: ButtonState,
     enter: ButtonState,
+    f1: ButtonState,
 
     modifiers: u32,
     mouse: MouseInput,

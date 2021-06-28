@@ -1,4 +1,3 @@
-#include "math.h"
 
 OpenGLFunction(void,     glAttachShader,            GLuint program, GLuint shader);
 OpenGLFunction(void,     glBindBuffer,              GLenum target, GLuint buffer);
@@ -268,8 +267,8 @@ opengl_init(Renderer* ren)
     MemoryArena* arena = &ren->assets->arena;
 
     shaders[SHADER_ID_NORMAL] = opengl_create_shader(arena, basic_vertex_shader, basic_fragment_shader);
-    shaders[SHADER_ID_COLORPICKER] = opengl_create_shader(arena, basic_vertex_shader, colorpicker_fragment_shader);
-    shaders[SHADER_ID_TEST] = opengl_create_shader(arena, basic_vertex_shader, test_shader);
+    shaders[SHADER_ID_HUE_QUAD] = opengl_create_shader(arena, basic_vertex_shader, hue_quad_shader);
+    shaders[SHADER_ID_SB_QUAD] = opengl_create_shader(arena, basic_vertex_shader, sat_brigh_quad_shader);
     
 
     glGenVertexArrays(1, &ren->VAO);
@@ -302,8 +301,10 @@ opengl_init(Renderer* ren)
     glEnableVertexAttribArray(3); 
 
 
-    // glEnable(GL_BLEND);
-	// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // glAlphaFunc(GL_GREATER, 0.5);
+
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);

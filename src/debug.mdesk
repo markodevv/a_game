@@ -8,8 +8,24 @@
     position: vec2,
     size: vec2,
     layer: u32,
+
+    next: *UiWindow,
 }
 
+@struct StackedWindow:
+{
+    window: *UiWindow,
+    previous_draw_cursor: vec2,
+}
+
+@struct Colorpicker:
+{
+    color: Color,
+
+    hue: f32,
+    saturation: f32,
+    brightness: f32,
+}
 
 @struct DebugState:
 {
@@ -26,6 +42,7 @@
 
     font: Font,
 
+    colorpicker: Colorpicker,
 
     text_input_buffer: ([256]char),
     text_insert_index: u32,
@@ -42,15 +59,18 @@
     current_window: *UiWindow, 
     focused_window: *UiWindow,
 
-    draw_cursor: vec2,
+    window_stack: ([32]StackedWindow),
+    num_stacked_windows: u32,
+    do_pop_window: b8,
 
-    last_draw_cursor: vec2,
+    draw_cursor: vec2,
 
     top_layer: u32,
 
     is_newline: b8,
 
-    window_items: ([512]DebugColapsableItem),
+    // TODO: this storage is trash
+    window_items: ([64]DebugColapsableItem),
     current_item_index: u32;
 
     screen_height: i32,
