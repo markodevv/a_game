@@ -1,7 +1,7 @@
-typedef struct DebugColapsableItem DebugColapsableItem;
-struct DebugColapsableItem
+typedef struct SubMenu SubMenu;
+struct SubMenu
 {
-b8 menu_is_active;
+b8 is_active;
 };
 
 typedef struct UiWindow UiWindow;
@@ -27,6 +27,9 @@ Color color;
 f32 hue;
 f32 saturation;
 f32 brightness;
+b8 is_active;
+void* key;
+Colorpicker* next;
 };
 
 typedef struct DebugState DebugState;
@@ -40,7 +43,7 @@ void* next_hot_item;
 void* active_item;
 GameInput input;
 Font font;
-Colorpicker colorpicker;
+Colorpicker colorpickers[64];
 char text_input_buffer[256];
 u32 text_insert_index;
 u8 editbox_value_to_set_size;
@@ -58,8 +61,8 @@ b8 do_pop_window;
 vec2 draw_cursor;
 u32 top_layer;
 b8 is_newline;
-DebugColapsableItem window_items[64];
-u32 current_item_index;
+SubMenu sub_menus[64];
+u32 sub_menu_index;
 i32 screen_height;
 i32 screen_width;
 };

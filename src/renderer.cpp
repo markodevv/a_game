@@ -59,48 +59,7 @@ add_uniform(Shader* shader, char* name, MemoryArena* arena)
     return uniform->next;
 }
 
-// internal Uniform*
-// get_uniform(Shader* shader, char* name, MemoryArena* arena = 0)
-// {
-    // u64 hash = 5381;
-    // i32 c;
-    // 
-    // char* key = name;
-    // while((c = *key++))
-    // {
-        // hash = ((hash << 5) + hash) + c;
-    // }
 // 
-    // u16 hash_index = hash % ArrayCount(shader->uniforms);
-// 
-    // Uniform* uni = shader->uniforms + hash_index;
-// 
-    // do
-    // {
-        // if (uni->name && string_match(name, uni->name))
-        // {
-            // break;
-        // }
-// 
-// 
-        // if (arena && !(uni->next) && (uni->name))
-        // {
-            // PRINT("Hash collision detected!");
-            // uni->next = PushMemory(arena, Uniform);
-            // uni->next->name = 0;
-            // uni = uni->next;
-        // }
-// 
-        // if (arena && !(uni->name))
-        // {
-            // uni->name = string_copy(arena, name);
-        // }
-    // } while(uni->name);
-// 
-// 
-    // return uni;
-// }
-
 
 #define set_shader_uniform(shader, n, value, type) \
 { \

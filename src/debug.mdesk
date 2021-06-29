@@ -1,6 +1,6 @@
-@struct DebugColapsableItem:
+@struct SubMenu:
 {
-     menu_is_active: b8,
+     is_active: b8,
 }
 
 @struct UiWindow:
@@ -25,6 +25,10 @@
     hue: f32,
     saturation: f32,
     brightness: f32,
+    is_active: b8,
+
+    key: *void,
+    next: *Colorpicker,
 }
 
 @struct DebugState:
@@ -42,7 +46,7 @@
 
     font: Font,
 
-    colorpicker: Colorpicker,
+    colorpickers: ([64]Colorpicker),
 
     text_input_buffer: ([256]char),
     text_insert_index: u32,
@@ -64,14 +68,12 @@
     do_pop_window: b8,
 
     draw_cursor: vec2,
-
     top_layer: u32,
-
     is_newline: b8,
 
     // TODO: this storage is trash
-    window_items: ([64]DebugColapsableItem),
-    current_item_index: u32;
+    sub_menus: ([64]SubMenu),
+    sub_menu_index: u32,
 
     screen_height: i32,
     screen_width: i32,

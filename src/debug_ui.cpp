@@ -592,17 +592,13 @@ ui_submenu_titlebar(DebugState* debug, vec2 position, vec2 size, char* title)
     Color color = bg_main_color;
     u32 layer = debug->current_window ? debug->current_window->layer : 0;
 
-    if (is_active(debug, title))
-    {
-
-    }
-    else if (is_hot(debug, title))
+    if (is_hot(debug, title))
     {
         color = faint_red_color;
         if (button_pressed(debug->input.left_mouse_button))
         {
             color = faint_redblue_color;
-            b8* active = &debug->window_items[debug->current_item_index].menu_is_active;
+            b8* active = &debug->sub_menus[debug->sub_menu_index].is_active;
             *active = !(*active);
         }
     }
@@ -640,6 +636,7 @@ imediate_ui(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
     debug->screen_width = ren->screen_width;
     debug->screen_height = ren->screen_height;
     debug->current_window = 0;
+    debug->sub_menu_index = 0;
 
     mat4 projection = mat4_orthographic((f32)ren->screen_width,
                                         (f32)ren->screen_height);
@@ -819,8 +816,6 @@ ui_window_begin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2
                 TEXT_ALIGN_MIDDLE);
     }
 
-
-    debug->current_item_index = 0;
 }
 
 internal void
@@ -1203,10 +1198,37 @@ hsb2rgb(vec3 c)
     return result;
 }
 
+internal Colorpicker*
+get_colorpicker(DebugState* debug, void* key)
+{
+    u64 hash = ((u64)key) >> 3;
+
+    u16 hash_index = hash % ArrayCount(debug->colorpickers);
+
+    Colorpicker* cp = debug->colorpickers + hash_index;
+
+    // TODO: currenty not handling collisions..
+    do
+    {
+        if (cp->key == key)
+        {
+            break;
+        }
+
+        if (!(cp->next) && !(cp->key))
+        {
+            cp->key = key;
+        }
+
+    } while(true);
+
+
+    return cp;
+}
+
 internal void
 ui_color_picker(DebugState* debug, Color* var, char* var_name)
 {
-    local_persist b8 colorpicker_is_active = false;
     vec2 size = V2(200, debug->font.font_size);
     Color color = *var;
 
@@ -1231,29 +1253,32 @@ ui_color_picker(DebugState* debug, Color* var, char* var_name)
 
 
     UiWindow* colorpicker_window = get_window(debug, "Color Picker");
-    Colorpicker* colorpicker = &debug->colorpicker;
+    Colorpicker* colorpicker = get_colorpicker(debug, (void*)var);
 
     if (button_pressed(debug->input.left_mouse_button))
     {
-        if (!colorpicker_is_active)
+        if (!colorpicker->is_active)
         {
-            if (point_is_inside_rect(debug->input.mouse.position, pos, size))
+            if (window_is_focused(debug, debug->current_window))
             {
-                vec2 window_size = V2(260 + 2*PADDING, 300);
-                vec2 window_pos = debug->input.mouse.position;
-                ui_set_window_focus(debug, colorpicker_window);
-
-                if ((window_pos.y + window_size.y) >= debug->screen_height ||
-                    (window_pos.x + window_size.x) >= debug->screen_width)
+                if (point_is_inside_rect(debug->input.mouse.position, pos, size))
                 {
-                    window_pos.x = debug->screen_width - window_size.x;
-                    window_pos.y = debug->screen_height - window_size.y;
-                }
-                set_window_position(debug, window_pos, "Color Picker");
-                set_window_size(debug, window_size, "Color Picker");
+                    vec2 window_size = V2(260 + 2*PADDING, 300);
+                    vec2 window_pos = debug->input.mouse.position;
+                    ui_set_window_focus(debug, colorpicker_window);
 
-                colorpicker->color = *var;
-                colorpicker_is_active = true;
+                    if ((window_pos.y + window_size.y) >= debug->screen_height ||
+                        (window_pos.x + window_size.x) >= debug->screen_width)
+                    {
+                        window_pos.x = debug->screen_width - window_size.x;
+                        window_pos.y = debug->screen_height - window_size.y;
+                    }
+                    set_window_position(debug, window_pos, "Color Picker");
+                    set_window_size(debug, window_size, "Color Picker");
+
+                    colorpicker->color = *var;
+                    colorpicker->is_active = true;
+                }
             }
         }
         else
@@ -1261,12 +1286,12 @@ ui_color_picker(DebugState* debug, Color* var, char* var_name)
             if (!point_is_inside_rect(debug->input.mouse.position, 
                                       colorpicker_window->position, colorpicker_window->size))
             {
-                colorpicker_is_active = false;
+                colorpicker->is_active = false;
             }
         }
     }
 
-    if (colorpicker_is_active)
+    if (colorpicker->is_active)
     {
 
 
@@ -1292,6 +1317,28 @@ ui_color_picker(DebugState* debug, Color* var, char* var_name)
 
 }
 
+internal void
+ui_init(DebugState* debug, Platform* platform, Assets* assets)
+{
+#ifdef PLATFORM_WIN32
+        debug->font = ui_load_font(&debug->arena,
+                                           platform,
+                                           assets,
+                                           "../consola.ttf",
+                                           16);
+#elif PLATFORM_LINUX
+        debug->font = ui_load_font(&debug->arena,
+                                           platform,
+                                           assets,
+                                           "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+                                           16);
+#endif
+        for (u32 i = 0; i < ArrayCount(debug->sub_menus); ++i)
+        {
+            debug->sub_menus[i].is_active = true;
+        }
+}
+
 
 
 internal b8
@@ -1307,10 +1354,10 @@ ui_submenu(DebugState* debug, char* title)
                              (f32)debug->font.font_size),
                            title);
 
-    b8 active = debug->window_items[debug->current_item_index].menu_is_active;
+    b8 active = debug->sub_menus[debug->sub_menu_index].is_active;
 
-    ASSERT(debug->current_item_index < ArrayCount(debug->window_items));
-    ++debug->current_item_index;
+    ASSERT(debug->sub_menu_index < ArrayCount(debug->sub_menus));
+    ++debug->sub_menu_index;
 
     return active;
 }

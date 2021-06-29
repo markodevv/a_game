@@ -261,23 +261,8 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
         memory->debug = PushMemory(&game_state->arena, DebugState);
         sub_arena(&game_state->arena, &memory->debug->arena, Megabytes(12));
-#ifdef PLATFORM_WIN32
-        memory->debug->font = ui_load_font(&memory->debug->arena,
-                                              platform,
-                                              &trans_state->assets,
-                                              "../consola.ttf",
-                                              16);
-#elif PLATFORM_LINUX
-        memory->debug->font = ui_load_font(&memory->debug->arena,
-                                              platform,
-                                              &game_state->assets,
-                                              "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
-                                              16);
-#endif
-        for (u32 i = 0; i < ArrayCount(memory->debug->window_items); ++i)
-        {
-            memory->debug->window_items[i].menu_is_active = true;
-        }
+
+        ui_init(memory->debug, &memory->platform, &game_state->assets);
 
 
         game_state->minotaur_sprite = load_sprite(platform, &game_state->assets, "../assets/minotaur.png");
@@ -523,6 +508,23 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
                       10.9f,
                       &test,
                       "Test slider");
+        }
+
+        if (ui_submenu(memory->debug, "Player"))
+        {
+            Rigidbody* rigid = get_component(game_state->world, 0, Rigidbody);
+            Transform* trans = get_component(game_state->world, 0, Transform);
+            Render* render = get_component(game_state->world, 0, Render);
+
+            UI_Float32Editbox(memory->debug, &rigid->velocity, "velocity");
+            UI_Float32Editbox(memory->debug, &rigid->mass, "mass");
+
+            UI_Float32Editbox(memory->debug, &trans->position, "position");
+            UI_Float32Editbox(memory->debug, &trans->scale, "scale");
+            UI_Float32Editbox(memory->debug, &trans->rotation, "rotation");
+
+            UI_Float32Editbox(memory->debug, &render->size, "size");
+            ui_color_picker(memory->debug, &render->color, "color");
         }
 
         ui_window_end(memory->debug);
