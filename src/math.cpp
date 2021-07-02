@@ -1,12 +1,13 @@
 #define PI_F 3.14159265359f
-#define MIN(a,b) (((a)<(b)) ? (a) : (b))
-#define MAX(a,b) (((a)>(b)) ? (a) : (b))
-#define CLAMP(a, min, max) (((a)<=(max)) ? ( ((a)<(min)) ? (min) : (a) ) : (max))
-#define CLAMP_V3(v, min, max) clamp_vec3(v, min, max)
-#define ABS(x) ((x)<0)?(-x):(x)
-#define ABS_V3(v) abs_vec3(v)
-#define FMOD(a, b) (f32)fmod((double)a, (double)b)
-#define FMOD_V3(v, x) fmod_vec3(v, x)
+#define Min(a,b) (((a)<(b)) ? (a) : (b))
+#define Max(a,b) (((a)>(b)) ? (a) : (b))
+#define Clamp(a, min, max) (((a)<=(max)) ? ( ((a)<(min)) ? (min) : (a) ) : (max))
+#define Clamp_V3(v, min, max) clamp_vec3(v, min, max)
+#define Abs(x) ((x)<0)?(-x):(x)
+#define Abs_V3(v) abs_vec3(v)
+#define Fmod(a, b) (f32)fmod((double)a, (double)b)
+#define Fmod_V3(v, x) fmod_vec3(v, x)
+#define IFloor(x) ((int) floor(x))
 
 internal vec3 
 fmod_vec3(vec3 v, f32 x)
@@ -22,9 +23,9 @@ fmod_vec3(vec3 v, f32 x)
 internal vec3 
 abs_vec3(vec3 v)
 {
-    v.x = ABS(v.x);
-    v.y = ABS(v.y);
-    v.z = ABS(v.z);
+    v.x = Abs(v.x);
+    v.y = Abs(v.y);
+    v.z = Abs(v.z);
 
     return v;
 }
@@ -32,9 +33,9 @@ abs_vec3(vec3 v)
 internal vec3
 clamp_vec3(vec3 v, f32 min, f32 max)
 {
-    v.x = CLAMP(v.x, min, max);
-    v.y = CLAMP(v.y, min, max);
-    v.z = CLAMP(v.z, min, max);
+    v.x = Clamp(v.x, min, max);
+    v.y = Clamp(v.y, min, max);
+    v.z = Clamp(v.z, min, max);
 
     return v;
 }
@@ -224,40 +225,40 @@ operator*(const vec3& v1, const vec3& v2)
 }
 
 f32
-square_root(f32 of)
+SquareRoot(f32 of)
 {
     return sqrtf(of);
 }
 
 f32
-vec2_length(vec2 v)
+Vec2Length(vec2 v)
 {
-    return square_root(v.x*v.x + v.y*v.y);
+    return SquareRoot(v.x*v.x + v.y*v.y);
 }
 
 f32
-vec2_length_squared(vec2 v)
+Vec2LengthSquared(vec2 v)
 {
     return (v.x*v.x + v.y*v.y);
 }
 
 vec2
-vec2_normalized(vec2 v)
+Vec2Normalized(vec2 v)
 {
-    f32 len = vec2_length(v);
+    f32 len = Vec2Length(v);
     return {v.x/len, v.y/len};
 }
 
 f32
-vec2_distance(vec2 a, vec2 b)
+Vec2Distance(vec2 a, vec2 b)
 {
-    return vec2_length(b - a);
+    return Vec2Length(b - a);
 }
 
 f32
-vec2_distance_squared(vec2 a, vec2 b)
+Vec2DistanceSquared(vec2 a, vec2 b)
 {
-    return vec2_length_squared(b - a);
+    return Vec2Length(b - a);
 }
 
 vec3
@@ -304,15 +305,15 @@ operator/(vec3& v, f32 n)
 }
 
 f32
-vec3_length(vec3 v)
+Vec3Length(vec3 v)
 {
     return sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
 }
 
 vec3
-vec3_normalized(vec3 v)
+Vec3Normalized(vec3 v)
 {
-    f32 len = vec3_length(v);
+    f32 len = Vec3Length(v);
 
     v.x = v.x / len;
     v.y = v.y / len;
@@ -323,7 +324,7 @@ vec3_normalized(vec3 v)
 
 
 vec3
-vec3_cross(vec3 a, vec3 b)
+Vec3Cross(vec3 a, vec3 b)
 {
     return {
         a.y*b.z - a.z*b.y,
@@ -333,7 +334,7 @@ vec3_cross(vec3 a, vec3 b)
 }
 
 vec3
-vec3_dot(vec3 a, vec3 b)
+Vec3Dot(vec3 a, vec3 b)
 {
     return {a.x*b.x + a.y*b.y + a.z*b.z};
 }
@@ -412,7 +413,7 @@ operator*(mat4 mat, vec4 other)
 }
 
 mat4
-mat4_identity()
+Mat4Identity()
 {
     mat4 out = {};
     out[0][0] = 1.0f;
@@ -424,9 +425,9 @@ mat4_identity()
 }
 
 mat4
-mat4_scale(vec3 v)
+Mat4Scale(vec3 v)
 {
-    mat4 out = mat4_identity();
+    mat4 out = Mat4Identity();
     out[0][0] = v.x;
     out[1][1] = v.y;
     out[2][2] = v.z;
@@ -435,9 +436,9 @@ mat4_scale(vec3 v)
 }
 
 mat4
-mat4_translate(vec3 v)
+Mat4Translate(vec3 v)
 {
-    mat4 out = mat4_identity();
+    mat4 out = Mat4Identity();
 
     out[0][3] = v.x;
     out[1][3] = v.y;
@@ -447,7 +448,7 @@ mat4_translate(vec3 v)
 }
 
 mat4
-mat4_rotate(f32 angle, vec3 v)
+Mat4Rotate(f32 angle, vec3 v)
 {
     f32 radians = angle * PI_F / 180;
     f32 cos = cosf(radians);
@@ -466,7 +467,7 @@ mat4_rotate(f32 angle, vec3 v)
 
 
 internal mat4
-mat4_inverse(mat4 m)
+Mat4Inverse(mat4 m)
 {
     f32 A2323 = m[2][2] * m[3][3] - m[2][3] * m[3][2];
     f32 A1323 = m[2][1] * m[3][3] - m[2][3] * m[3][1];
@@ -517,7 +518,7 @@ mat4_inverse(mat4 m)
 
 
 internal mat4
-mat4_transpose(mat4 matrix)
+Mat4Transpose(mat4 matrix)
 {
     mat4 out;
     for (sizet i = 0; i < 4; ++i)
@@ -533,13 +534,13 @@ mat4_transpose(mat4 matrix)
 
 
 internal f32
-to_radians(f32 d) 
+ToRadians(f32 d) 
 {
     return (d*((f32)PI_F/180));
 }
 
 internal mat4
-mat4_orthographic(f32 w, f32 h)
+Mat4Orthographic(f32 w, f32 h)
 {
 
     f32 f = 10000.0f;
@@ -556,9 +557,9 @@ mat4_orthographic(f32 w, f32 h)
 }
 
 internal mat4
-mat4_perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
+Mat4Perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
 {
-    f32 t = tanf(to_radians(fov/2.0f));
+    f32 t = tanf(ToRadians(fov/2.0f));
     f32 a = w/h;
 
     mat4 out =
@@ -572,7 +573,7 @@ mat4_perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
 }
 
 internal b8
-point_is_inside_rect(vec2 p, vec2 pos, vec2 scale)
+PointInsideRect(vec2 p, vec2 pos, vec2 scale)
 {
     return (p.x >= pos.x && 
             p.x <= (pos.x + scale.x) &&

@@ -1,4 +1,3 @@
-typedef struct Color Color;
 struct Color
 {
 u8 r;
@@ -6,8 +5,6 @@ u8 g;
 u8 b;
 u8 a;
 };
-
-typedef struct VertexData VertexData;
 struct VertexData
 {
 vec3 position;
@@ -15,37 +12,41 @@ vec2 uv;
 Color color;
 f32 texture_slot;
 };
-
-typedef struct Camera Camera;
 struct Camera
 {
 vec3 position;
 vec3 direction;
 vec3 up;
 };
-
 typedef i32 SpriteHandle;
-typedef struct Sprite Sprite;
+enum SpriteType 
+{
+TYPE_SPRITE,
+TYPE_SUBSPRITE,
+};
+
 struct Sprite
+{
+union 
+{
+struct 
 {
 char* name;
 void* data;
 i32 width;
 i32 height;
 i32 channels;
-u32 id;
-u32 slot;
-b8 loaded_to_gpu;
 };
-
-typedef struct SubSprite SubSprite;
-struct SubSprite
+struct 
 {
-SpriteHandle sprite_sheet;
+SpriteHandle main_sprite;
 vec2 uvs[4];
 };
-
-typedef struct CharMetric CharMetric;
+};
+u32 id;
+u32 slot;
+SpriteType type;
+};
 struct CharMetric
 {
 u16 x0;
@@ -56,29 +57,24 @@ f32 xoff;
 f32 yoff;
 f32 xadvance;
 };
-
-typedef struct Font Font;
 struct Font
 {
-SubSprite* char_subsprites;
+SpriteHandle* sprite_handles;
 CharMetric* char_metrics;
 u16 num_chars;
 u32 font_size;
 SpriteHandle font_sprite_handle;
 };
-
 enum RenderEntryType 
 {
 RENDER_ENTRY_QuadEntry,
 RENDER_ENTRY_TriangleEntry,
 };
 
-typedef struct RenderEntryHeader RenderEntryHeader;
 struct RenderEntryHeader
 {
 RenderEntryType entry_type;
 };
-
 enum ShaderId 
 {
 SHADER_ID_NORMAL,
@@ -87,42 +83,30 @@ SHADER_ID_SB_QUAD,
 NUM_SHADERS,
 };
 
-typedef struct QuadEntry QuadEntry;
 struct QuadEntry
 {
 vec3 position;
 vec2 size;
 Color color;
 SpriteHandle sprite_handle;
-SubSprite* subsprite;
 ShaderId shader_id;
 };
-
-typedef struct TriangleEntry TriangleEntry;
 struct TriangleEntry
 {
 vec3 points[3];
 Color color;
 SpriteHandle sprite_handle;
-SubSprite* subsprite;
 ShaderId shader_id;
 };
-
-typedef struct SortElement SortElement;
 struct SortElement
 {
 u32 entry_offset;
 u32 key;
 };
-
-typedef struct RenderSetup RenderSetup;
 struct RenderSetup
 {
 mat4 projection;
-SpriteHandle sprite_handles[32];
-u32 num_sprites;
 };
-
 enum UniformType 
 {
 UNIFORM_F32,
@@ -136,14 +120,11 @@ UNIFORM_MAT4,
 UNIFORM_TEXTURE2D,
 };
 
-typedef struct UniformTypeInfo UniformTypeInfo;
 struct UniformTypeInfo
 {
 UniformType type;
 u32 size;
 };
-
-typedef struct Uniform Uniform;
 struct Uniform
 {
 UniformTypeInfo type_info;
@@ -151,25 +132,21 @@ void* data;
 char* name;
 Uniform* next;
 };
-
-typedef struct Shader Shader;
 struct Shader
 {
 u32 bind_id;
 Uniform* uniforms;
 i32 num_uniforms;
 };
-
-typedef struct Assets Assets;
 struct Assets
 {
 MemoryArena arena;
-Sprite sprites[64];
-Shader shaders[NUM_SHADERS];
+SpriteHandle* loaded_sprite_queue;
+u32 num_queued_sprites;
+Sprite* sprites;
 u32 num_sprites;
+Shader shaders[NUM_SHADERS];
 };
-
-typedef struct RenderGroup RenderGroup;
 struct RenderGroup
 {
 RenderSetup setup;
@@ -180,10 +157,8 @@ u32 push_buffer_capacity;
 u32 sort_element_count;
 RenderGroup* next;
 };
-
 #define MAX_VERTICES 100000
 #define MAX_INDICES 150000
-typedef struct Renderer Renderer;
 struct Renderer
 {
 VertexData vertices[MAX_VERTICES];
@@ -202,5 +177,4 @@ Assets* assets;
 RenderGroup* render_groups;
 SpriteHandle white_sprite;
 };
-
 typedef void RendererProc(Renderer* ren);

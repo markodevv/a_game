@@ -544,15 +544,47 @@ MD_C_Generate_Struct(FILE *file, MD_Node *node)
 {
     if(node)
     {
-        fprintf(file, "typedef struct %.*s %.*s;\n",
-                MD_StringExpand(node->string),
-                MD_StringExpand(node->string));
-        fprintf(file, "struct %.*s\n{\n", MD_StringExpand(node->string));
+        // fprintf(file, "typedef struct %.*s %.*s;\n",
+                // MD_StringExpand(node->string),
+                // MD_StringExpand(node->string));
+        if ((MD_NodeHasTag(node, MD_S8Lit("anon"))))
+        {
+            fprintf(file, "struct \n{\n");
+        }
+        else
+        {
+            fprintf(file, "struct %.*s\n{\n", MD_StringExpand(node->string));
+        }
+
         for(MD_Node *child = node->first_child; !MD_NodeIsNil(child); child = child->next)
         {
-            MD_C_Generate_Decl(file, child);
+            if (MD_NodeHasTag(child, MD_S8Lit("function")))
+            {
+                fprintf(file, "%.*s;\n", MD_StringExpand(child->first_child->string));
+            }
+            else if (MD_NodeHasTag(child, MD_S8Lit("union")))
+            {
+                fprintf(file, "union \n{\n");
+                for(MD_Node *uni_child = child->first_child; !MD_NodeIsNil(uni_child); uni_child = uni_child->next)
+                {
+                    if (MD_NodeHasTag(uni_child, MD_S8Lit("struct")))
+                    {
+                        MD_C_Generate_Struct(file, uni_child);
+                    }
+                    else
+                    {
+                        fprintf(file, "    ");
+                        MD_C_Generate_Decl(file, uni_child);
+                    }
+                }
+                fprintf(file, "};\n");
+            }
+            else
+            {
+                MD_C_Generate_Decl(file, child);
+            }
         }
-        //fprintf(file, "};\n\n");
+        fprintf(file, "};\n");
     }
 }
 

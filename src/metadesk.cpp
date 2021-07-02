@@ -127,17 +127,6 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
                     fprintf(syntax_file, " %.*s", MD_StringExpand(node->string));
                 }
             }
-
-
-            for(MD_Node *child = node->first_child; !MD_NodeIsNil(child); child = child->next)
-            {
-                if (MD_NodeHasTag(child, MD_S8Lit("function")))
-                {
-                    fprintf(header_file, "%.*s;\n", MD_StringExpand(child->first_child->string));
-                }
-            }
-            fprintf(header_file, "};\n\n");
-
             if (MD_NodeHasTag(node, MD_S8Lit("printable")))
             {
                 if (generate_print_functions)

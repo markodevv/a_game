@@ -5,12 +5,12 @@
 #include <stdio.h>
 
 // NOTE: hashes are a fix for linux, don't know if it works for windows
-#define PRINT(msg, ...) \
+#define Print(msg, ...) \
 printf(msg"\n", ##__VA_ARGS__) 
 
 #else
 
-#define PRINT(msg, ...) 
+#define Print(msg, ...) 
 
 #endif
 

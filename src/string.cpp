@@ -1,5 +1,5 @@
 internal inline u32
-string_length(char* string)
+StringLength(char* string)
 {
     u32 len = 0;
     while(string[len])
@@ -11,11 +11,11 @@ string_length(char* string)
 }
 
 internal inline b8
-string_match(char* s1, char* s2)
+StringMatch(char* s1, char* s2)
 {
-    ASSERT(s1 && s2);
+    Assert(s1 && s2);
 
-    u32 len = string_length(s1);
+    u32 len = StringLength(s1);
 
     for (u32 i = 0; i < len; ++i)
     {
@@ -30,9 +30,9 @@ string_match(char* s1, char* s2)
 
 
 internal inline i32
-last_backslash_index(char* str)
+LastBackslashIndex(char* str)
 {
-    u32 len = string_length(str);
+    u32 len = StringLength(str);
     for(u32 i = len-1; i >= 0; --i)
     {
         if (str[i] == '/')
@@ -40,16 +40,16 @@ last_backslash_index(char* str)
             return i;
         }
     }
-    ASSERT(false);
+    Assert(false);
     return -1;
 }
 
 
 internal inline u32
-string_copy(char* dest, char* src)
+StringCopy(char* dest, char* src)
 {
 
-    u32 len = string_length(src);
+    u32 len = StringLength(src);
 
     for (u32 i = 0; i < len; ++i)
     {
@@ -61,7 +61,7 @@ string_copy(char* dest, char* src)
 }
 
 internal inline u32
-string_copy(char* dest, char* src, u32 num_chars)
+StringCopy(char* dest, char* src, u32 num_chars)
 {
 
     for (u32 i = 0; i < num_chars; ++i)
@@ -74,11 +74,11 @@ string_copy(char* dest, char* src, u32 num_chars)
 }
 
 internal inline char*
-string_copy(MemoryArena* arena, char* src)
+StringCopy(MemoryArena* arena, char* src)
 {
-    ASSERT(src);
+    Assert(src);
 
-    u32 len = string_length(src);
+    u32 len = StringLength(src);
     char* out = PushMemory(arena, char, len + 1);
 
     for (u32 i = 0; i < len; ++i)
@@ -91,9 +91,9 @@ string_copy(MemoryArena* arena, char* src)
 }
 
 internal inline u32
-string_append(char* dest, char* src, u32 num_chars)
+StringAppend(char* dest, char* src, u32 num_chars)
 {
-    u32 len = string_length(dest);
+    u32 len = StringLength(dest);
 
     for (u32 i = 0; i < num_chars; ++i)
     {

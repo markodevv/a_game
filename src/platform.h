@@ -17,11 +17,11 @@ typedef void RenderProc(Renderer* ren);
 
 struct Platform
 {
-    ReadEntireFileProc* read_entire_file;
-    FreeEntireFileProc* free_file_memory;
-    WriteEntireFileProc* write_entire_file;
+    ReadEntireFileProc* ReadEntireFile;
+    FreeEntireFileProc* FreeFileMemory;
+    WriteEntireFileProc* WriteEntireFile;
 
-    RenderProc* init_renderer;
-    RenderProc* end_frame;
+    RenderProc* InitRenderer;
+    RenderProc* EndFrame;
 };
 #endif

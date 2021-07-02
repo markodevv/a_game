@@ -1,9 +1,9 @@
 #define PushRenderEntry(group, type, sort_key) \
-(type *)push_render_entry(group, sizeof(type), RENDER_ENTRY_##type, sort_key) \
+(type *)PushRenderEntry_(group, sizeof(type), RENDER_ENTRY_##type, sort_key) \
 
 
 internal RenderGroup*
-setup_render_group(MemoryArena* arena, mat4 projection, Renderer* ren, Assets* assets)
+SetupRenderGroup(MemoryArena* arena, mat4 projection, Renderer* ren, Assets* assets)
 {
     RenderGroup* render_group;
 
@@ -32,27 +32,27 @@ setup_render_group(MemoryArena* arena, mat4 projection, Renderer* ren, Assets* a
     render_group->push_buffer_base = PushMemory(arena, u8, render_group->push_buffer_capacity);
     render_group->push_buffer_size = 0;
 
-    ASSERT(arena->temp_arena_count);
+    Assert(arena->temp_arena_count);
 
     return render_group;
 }
 
-internal void
-add_sprite_to_setup(RenderSetup* render_setup, SpriteHandle sprite_handle)
-{
-    for (u32 i = 0; i < render_setup->num_sprites; ++i)
-    {
-        if (render_setup->sprite_handles[i] == sprite_handle)
-            return;
-    }
-    ASSERT(render_setup->num_sprites < 32);
-    render_setup->sprite_handles[render_setup->num_sprites] = sprite_handle;
-    ++render_setup->num_sprites;
-}
+// internal void
+// AddSpriteToSetup(RenderSetup* render_setup, SpriteHandle sprite_handle)
+// {
+    // for (u32 i = 0; i < render_setup->num_sprites; ++i)
+    // {
+        // if (render_setup->sprite_handles[i] == sprite_handle)
+            // return;
+    // }
+    // Assert(render_setup->num_sprites < 32);
+    // render_setup->sprite_handles[render_setup->num_sprites] = sprite_handle;
+    // ++render_setup->num_sprites;
+// }
 
 
 internal void 
-push_back_sort_element(RenderGroup* group, u32 sort_key)
+PushBackSortElement(RenderGroup* group, u32 sort_key)
 {
     SortElement* end = (SortElement*)((group->push_buffer_base + group->push_buffer_capacity) - sizeof(SortElement));
     SortElement* next_element = (end - group->sort_element_count);
@@ -60,11 +60,11 @@ push_back_sort_element(RenderGroup* group, u32 sort_key)
     next_element->key = sort_key;
 
     ++group->sort_element_count;
-    ASSERT((u8*)next_element > (group->push_buffer_base + group->push_buffer_size));
+    Assert((u8*)next_element > (group->push_buffer_base + group->push_buffer_size));
 }
 
 internal SortElement*
-sort_element_start(RenderGroup* group)
+SortElementStart(RenderGroup* group)
 {
     SortElement* end = (SortElement*)((group->push_buffer_base + 
                                        group->push_buffer_capacity) - 
@@ -75,7 +75,7 @@ sort_element_start(RenderGroup* group)
 }
 
 internal void*
-push_render_entry(RenderGroup* group, u32 size, RenderEntryType type, u32 sort_key)
+PushRenderEntry_(RenderGroup* group, u32 size, RenderEntryType type, u32 sort_key)
 {
     RenderEntryHeader* header = 0;
     void* result = 0;
@@ -87,16 +87,16 @@ push_render_entry(RenderGroup* group, u32 size, RenderEntryType type, u32 sort_k
         header->entry_type = type;
 
         result = ((u8*)header) + sizeof(*header); 
-        memory_clear(result, size);
+        MemoryClear(result, size);
 
 
-        push_back_sort_element(group, sort_key);
+        PushBackSortElement(group, sort_key);
 
         group->push_buffer_size += (size + sizeof(*header));
     }
     else
     {
-       ASSERT(false);
+       Assert(false);
     }
 
 
@@ -106,7 +106,7 @@ push_render_entry(RenderGroup* group, u32 size, RenderEntryType type, u32 sort_k
 
 
 internal void
-push_quad(RenderGroup* group, 
+PushQuad(RenderGroup* group, 
           vec2 position, 
           vec2 size, 
           Color color, 
@@ -114,7 +114,6 @@ push_quad(RenderGroup* group,
           SpriteHandle sprite_handle = 0,
           ShaderId shader_id = SHADER_ID_NORMAL)
 {
-    add_sprite_to_setup(&group->setup, sprite_handle);
     u32 key = shader_id;
 
     if (color.a != 255)
@@ -135,35 +134,9 @@ push_quad(RenderGroup* group,
 
 
 
-internal void
-push_quad(RenderGroup* group, 
-          SubSprite* subsprite,
-          vec2 position, 
-          vec2 size, 
-          Color color, 
-          f32 layer,
-          ShaderId shader_id = SHADER_ID_NORMAL)
-{
-    ASSERT(subsprite);
-
-    add_sprite_to_setup(&group->setup, subsprite->sprite_sheet);
-    u32 key = shader_id;
-
-    if (color.a != 255)
-    {
-        key += 100 + layer;
-    }
-    QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
-
-    entry->position = V3(position, layer);
-    entry->size = size;
-    entry->color = color;
-    entry->subsprite = subsprite;
-
-}
 
 internal void
-push_triangle(RenderGroup* group, 
+PushTriangle(RenderGroup* group, 
               vec2 p1, 
               vec2 p2, 
               vec2 p3, 
@@ -172,7 +145,6 @@ push_triangle(RenderGroup* group,
               SpriteHandle sprite_handle = 0,
               ShaderId shader_id = SHADER_ID_NORMAL)
 {
-    add_sprite_to_setup(&group->setup, sprite_handle);
     u32 key = shader_id;
 
     if (color.a != 255)

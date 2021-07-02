@@ -24,7 +24,7 @@
 #include "platform.h"
 #include "headers/game.h"
 #include "render_group.cpp"
-#include "asset_loading.cpp"
+#include "asset.cpp"
 
 #include "generated_print.cpp"
 
@@ -37,7 +37,7 @@
 global_variable b8 global_is_edit_mode = 0;
 
 internal void
-game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
+GamePlaySound(GameSoundBuffer* game_sound, GameState* game_state)
 {
     i32 wave_period = game_sound->samples_per_sec / game_state->tone_hz;
 
@@ -61,18 +61,18 @@ game_play_sound(GameSoundBuffer* game_sound, GameState* game_state)
 }
 
 
-internal u32
-add_entity(WorldState* world)
+internal EntityId
+AddEntity(WorldState* world)
 {
     u32 id = world->num_entities++;
-    ASSERT(world->num_entities < ENTITY_MAX);
+    Assert(world->num_entities < ENTITY_MAX);
     return id;
 }
 
 
 
 internal b8
-is_colliding(vec2 p1, vec2 s1, vec2 p2, vec2 s2)
+IsColliding(vec2 p1, vec2 s1, vec2 p2, vec2 s2)
 {
     return (p1.x < p2.x + s2.x &&
             p1.x + s1.x > p1.x &&
@@ -82,7 +82,7 @@ is_colliding(vec2 p1, vec2 s1, vec2 p2, vec2 s2)
 }
 
 internal void
-add_force(Rigidbody* rigidbody, vec2 force)
+AddForce(Rigidbody* rigidbody, vec2 force)
 {
     rigidbody->acceleration += force;
 }
@@ -90,14 +90,14 @@ add_force(Rigidbody* rigidbody, vec2 force)
 
 // F = m*a
 internal void
-integrate(Rigidbody* rigidbody, vec2* position, f32 dt)
+Integrate(Rigidbody* rigidbody, vec2* position, f32 dt)
 {
     if (rigidbody->mass <= 0.0f)
         return;
 
 
     vec2 force = V2(0, -1) * 300;
-    add_force(rigidbody, force);
+    AddForce(rigidbody, force);
 
     *position += rigidbody->velocity * dt;
 
@@ -111,14 +111,14 @@ integrate(Rigidbody* rigidbody, vec2* position, f32 dt)
     rigidbody->acceleration = V2(0.0f);
 }
 
-#define get_component(world, id, type) \
-        (type*)get_component_using_flag(world, id, COMPONENT_##type)
+#define GetComponent(world, id, type) \
+        (type*)GetComponentUsingFrag(world, id, COMPONENT_##type)
 
 
 internal void*
-get_component_using_flag(WorldState* world, EntityId id, u32 component)
+GetComponentUsingFrag(WorldState* world, EntityId id, u32 component)
 {
-    ASSERT((world->entity_masks[id] & component) == component);
+    Assert((world->entity_masks[id] & component) == component);
 
     switch(component)
     {
@@ -143,19 +143,25 @@ get_component_using_flag(WorldState* world, EntityId id, u32 component)
 }
 
 
-#define add_component(world, id, type) \
-        (type*)add_component_using_flag(world, id, COMPONENT_##type)
+#define AddComponent(world, id, type) \
+        (type*)AddComponentUsingFlag(world, id, COMPONENT_##type)
 
 internal void*
-add_component_using_flag(WorldState* world, EntityId id, u32 component)
+AddComponentUsingFlag(WorldState* world, EntityId id, u32 component)
 {
     world->entity_masks[id] |= component;
-    return get_component_using_flag(world, id, component);
+    return GetComponentUsingFrag(world, id, component);
+}
+
+internal b8
+HasComponent(WorldState* world, EntityId id, u32 component)
+{
+    return ((world->entity_masks[id] & component) == component);
 }
 
 
 internal void
-integrate(Particle* particle, f32 dt)
+Integrate(Particle* particle, f32 dt)
 {
     if (particle->rigidbody.mass <= 0.0f)
         return;
@@ -164,7 +170,7 @@ integrate(Particle* particle, f32 dt)
 }
 
 internal EntityId
-create_particle_emitter(MemoryArena* arena,
+CreateParticleEmitter(MemoryArena* arena,
                         WorldState* world,
                         vec2 min_vel,
                         vec2 max_vel,
@@ -173,9 +179,9 @@ create_particle_emitter(MemoryArena* arena,
                         vec2 size,
                         u32 num_particles)
 {
-    EntityId result = add_entity(world);
+    EntityId result = AddEntity(world);
 
-    ParticleEmitter* pa = add_component(world, result, ParticleEmitter);
+    ParticleEmitter* pa = AddComponent(world, result, ParticleEmitter);
 
     pa->min_vel = min_vel;
     pa->max_vel = max_vel;
@@ -193,7 +199,7 @@ create_particle_emitter(MemoryArena* arena,
 }
 
 internal f32
-random_between_two_floats(f32 min, f32 max)
+RandomBetweenFloats(f32 min, f32 max)
 {
     f32 random = ((f32)rand()) / (f32)RAND_MAX;
     f32 diff = max - min;
@@ -202,19 +208,20 @@ random_between_two_floats(f32 min, f32 max)
 }
 
 internal vec2
-random_between_two_vectors(vec2 min, vec2 max)
+RandomBetweenVectors(vec2 min, vec2 max)
 {
-    return V2(random_between_two_floats(min.x, max.x),
-              random_between_two_floats(min.y, max.y));
+    return V2(RandomBetweenFloats(min.x, max.x),
+              RandomBetweenFloats(min.y, max.y));
 }
 
 internal Render
-RENDER(vec2 size, Color color, SpriteHandle sprite)
+CreateRender(vec2 size, Color color, f32 layer, SpriteHandle sprite)
 {
     Render result = {};
     result.size = size;
     result.color = color;
     result.sprite = sprite;
+    result.layer = layer;
 
     return result;
 }
@@ -222,7 +229,7 @@ RENDER(vec2 size, Color color, SpriteHandle sprite)
 
 
 extern "C" PLATFORM_API void
-game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
+GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
 {
     GameState* game_state = (GameState*)memory->permanent_storage;
     Renderer* ren = &game_state->renderer;
@@ -230,19 +237,19 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
     if (!memory->is_initialized)
     {
+
         memory->is_initialized = true;
 
 
-        init_arena(&game_state->arena, 
+        InitArena(&game_state->arena, 
                    (memory->permanent_storage_size - sizeof(GameState)),
                    (u8*)memory->permanent_storage + sizeof(GameState));
 
-        init_arena(&game_state->transient_arena, 
+        InitArena(&game_state->flush_arena, 
                    (memory->temporary_storage_size),
                    (u8*)memory->temporary_storage);
 
-        sub_arena(&game_state->transient_arena, &game_state->assets.arena, Megabytes(64));
-
+        AssetsInit(&game_state->assets, &game_state->flush_arena);
 
 
         Renderer* ren = &game_state->renderer;
@@ -255,55 +262,58 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         ren->assets = &game_state->assets;
 
         // NOTE: needs to be first image loaded
-        ASSERT(game_state->assets.num_sprites == 0);
-        ren->white_sprite = load_sprite(platform, &game_state->assets, "../assets/white.png");
+        Assert(game_state->assets.num_sprites == 0);
+        ren->white_sprite = LoadSprite(platform, &game_state->assets, "../assets/white.png");
 
 
         memory->debug = PushMemory(&game_state->arena, DebugState);
-        sub_arena(&game_state->arena, &memory->debug->arena, Megabytes(12));
+        SubArena(&game_state->arena, &memory->debug->arena, Megabytes(12));
 
-        ui_init(memory->debug, &memory->platform, &game_state->assets);
+        UiInit(memory->debug, &memory->platform, &game_state->assets);
 
 
-        game_state->minotaur_sprite = load_sprite(platform, &game_state->assets, "../assets/minotaur.png");
-        game_state->hero_sprite_sheet = load_sprite(platform, &game_state->assets, 
+        game_state->minotaur_sprite = LoadSprite(platform, &game_state->assets, "../assets/minotaur.png");
+        game_state->hero_sprite_sheet = LoadSprite(platform, &game_state->assets, 
         "../assets/platform_metroidvania asset pack v1.01/herochar sprites(new)/herochar_spritesheet(new).png");
-        game_state->hero_sprite = subsprite_from_spritesheet(&game_state->assets,
-                                                                    game_state->hero_sprite_sheet,
-                                                                    0, 11,
-                                                                    16, 16);
-        game_state->backgroud_sprite = load_sprite(platform, &game_state->assets,
+        game_state->hero_sprite = SubspriteFromSprite(&game_state->assets,
+                                                      game_state->hero_sprite_sheet,
+                                                      0, 11,
+                                                      16, 16);
+        game_state->backgroud_sprite = LoadSprite(platform, &game_state->assets,
                                                    "../assets/platform_metroidvania asset pack v1.01/tiles and background_foreground/background.png");
 
-        platform->init_renderer(&game_state->renderer);
-        game_state->world = PushMemory(&game_state->transient_arena, WorldState);
+        platform->InitRenderer(&game_state->renderer);
+        game_state->world = PushMemory(&game_state->flush_arena, WorldState);
 
 
 
 
         WorldState* world = game_state->world;
-        u32 player_entity_id = add_entity(world);
-        add_component(world, player_entity_id, Render);
-        add_component(world, player_entity_id, Transform);
-        add_component(world, player_entity_id, Rigidbody);
+        EntityId player_ent = AddEntity(world);
 
-        Render* player_render = get_component(world, player_entity_id, Render);
-        Transform* player_tran = get_component(world, player_entity_id, Transform);
-        Rigidbody* player_rigid = get_component(world, player_entity_id, Rigidbody);
+        Render* player_render = AddComponent(world, player_ent, Render);
+        Transform* player_tran = AddComponent(world, player_ent, Transform);
+        Rigidbody* player_rigid = AddComponent(world, player_ent, Rigidbody);
 
-        *player_render = RENDER(V2(60,60), COLOR(255), 0);
+        *player_render = CreateRender(V2(60,60), NewColor(255), LAYER_FRONT, game_state->hero_sprite);
         player_tran->position = V2(100, 300);
         player_rigid->mass = 1.0f;
 
-        game_state->particle_emitter = create_particle_emitter(&game_state->arena,
+        game_state->particle_emitter = CreateParticleEmitter(&game_state->arena,
                                                                world,
                                                                V2(-50, 50),
                                                                V2(80, 120),
                                                                4,
-                                                               COLOR(50, 100, 22, 255),
+                                                               NewColor(50, 100, 22, 255),
                                                                V2(10, 10),
                                                                128);
 
+        EntityId backgroud_ent = AddEntity(world);
+
+        Render* bg_ren = AddComponent(world, backgroud_ent, Render);
+        Transform* bg_tran = AddComponent(world, backgroud_ent, Transform);
+
+        *bg_ren = CreateRender(V2(500, 500), NewColor(255), LAYER_MID, game_state->backgroud_sprite);
 
 
         u32 tile_map[10][19] = {
@@ -331,11 +341,11 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         }
     }
 
-    TemporaryArena main_temp_arena = begin_temporary_memory(&game_state->transient_arena);
+    TemporaryArena main_temp_arena = BeginTemporaryMemory(&game_state->flush_arena);
 
 
-    RenderGroup* render_group = setup_render_group(&game_state->transient_arena,
-                                                   mat4_orthographic((f32)ren->screen_width,
+    RenderGroup* render_group = SetupRenderGroup(&game_state->flush_arena,
+                                                   Mat4Orthographic((f32)ren->screen_width,
                                                                     (f32)ren->screen_height),
                                                                      ren, 
                                                                      &game_state->assets);
@@ -347,41 +357,58 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         Render* player_render = game_state->world->renders + 0;
         Transform* player_tran = game_state->world->transforms + 0;
 
-        if (button_down(input->move_left))
+        if (ButtonDown(input->move_left))
         {
-            add_force(player_rigid, V2(-1000.0f, 0.0f));
+            AddForce(player_rigid, V2(-1000.0f, 0.0f));
         }
-        if (button_down(input->move_right))
+        if (ButtonDown(input->move_right))
         {
-            add_force(player_rigid, V2(1000.0f, 0.0f));
+            AddForce(player_rigid, V2(1000.0f, 0.0f));
         }
-        if (button_down(input->move_up))
+        if (ButtonDown(input->move_up))
         {
-            add_force(player_rigid, V2(0.0f, 1000.0f));
+            AddForce(player_rigid, V2(0.0f, 1000.0f));
         }
 
         if (player_tran->position.y <= 100.0f)
         {
-            add_force(player_rigid, V2(0.0f, 3000.0f));
+            AddForce(player_rigid, V2(0.0f, 3000.0f));
         }
 
-        push_quad(render_group, 
-                  &game_state->hero_sprite,
-                  player_tran->position,
-                  player_render->size,
-                  player_render->color,
-                  LAYER_MID);
+        PushQuad(render_group, 
+                 player_tran->position,
+                 player_render->size,
+                 player_render->color,
+                 game_state->hero_sprite,
+                 LAYER_MID);
 
 
-        integrate(player_rigid, &player_tran->position, delta_time);
+        Integrate(player_rigid, &player_tran->position, delta_time);
 
     }
 
-    if (button_pressed(input->f1))
+    if (ButtonPressed(input->f1))
     {
         global_is_edit_mode = !global_is_edit_mode;
     }
 
+    for (u32 i = 0; i < ENTITY_MAX; ++i)
+    {
+        if (HasComponent(game_state->world, i, COMPONENT_Render) &&
+            HasComponent(game_state->world, i, COMPONENT_Transform))
+        {
+            Transform* transform = GetComponent(game_state->world, i, Transform);
+            Render* render = GetComponent(game_state->world, i, Render);
+
+                PushQuad(render_group,
+                          transform->position,
+                          render->size,
+                          render->color,
+//                        TODO layer should be on Render struct
+                          render->layer,
+                          render->sprite);
+            }
+        }
 
     {
 
@@ -391,23 +418,23 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         {
             f32 scroll_amount = (f32)input->mouse.wheel_delta;
             cam->position.z -= scroll_amount;
-            PRINT("cam Z %f", cam->position.z);
-            PRINT("scroll  %f", scroll_amount);
+            Print("cam Z %f", cam->position.z);
+            Print("scroll  %f", scroll_amount);
         }
 
-        if (button_down(input->move_left))
+        if (ButtonDown(input->move_left))
         {
             cam->position.x -= 5.0f;
         }
-        if (button_down(input->move_right))
+        if (ButtonDown(input->move_right))
         {
             cam->position.x += 5.0f;
         }
-        if (button_down(input->move_up))
+        if (ButtonDown(input->move_up))
         {
             cam->position.y += 5.0f;
         }
-        if (button_down(input->move_down))
+        if (ButtonDown(input->move_down))
         {
             cam->position.y -= 5.0f;
         }
@@ -415,8 +442,7 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
     }
 
 
-    
-    ParticleEmitter* particle_emitter = get_component(game_state->world, 
+    ParticleEmitter* particle_emitter = GetComponent(game_state->world, 
                                                       game_state->particle_emitter,
                                                       ParticleEmitter);
     particle_emitter->position = V2(500, 500);
@@ -425,9 +451,9 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
          ++particle_index)
     {
         Particle* particle = particle_emitter->particles + particle_index;
-        integrate(particle, delta_time);
+        Integrate(particle, delta_time);
 
-        push_quad(render_group, 
+        PushQuad(render_group, 
                   particle->position,
                   particle_emitter->render.size,
                   particle_emitter->render.color,
@@ -443,7 +469,7 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
         Particle* particle = particle_emitter->particles + particle_emitter->particle_index;
         particle->position = particle_emitter->position;
-        particle->rigidbody.velocity = random_between_two_vectors(particle_emitter->min_vel,
+        particle->rigidbody.velocity = RandomBetweenVectors(particle_emitter->min_vel,
                                                                   particle_emitter->max_vel);
         particle->rigidbody.mass = 1;
 
@@ -456,16 +482,6 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
     ren->screen_height = memory->screen_height;
 
 
-    // push_quad(render_group,
-              // V2(0),
-              // V2((f32)ren->screen_width,
-                 // (f32)ren->screen_height),
-              // COLOR(255),
-              // LAYER_BACK,
-              // game_state->backgroud_sprite);
-
-
-
 
     for (u32 x = 0; x < 19; ++x)
     {
@@ -473,10 +489,10 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
         {
             if (game_state->tile_map[y][x])
             {
-                push_quad(render_group, 
+                PushQuad(render_group, 
                           V2((f32)x * game_state->tile_size, (f32)y * game_state->tile_size),
                           V2(game_state->tile_size - 4.0f, game_state->tile_size - 4.0f),
-                          COLOR(75, 75, 0, 255),
+                          NewColor(75, 75, 0, 255),
                           LAYER_BACKMID);
             }
         }
@@ -485,71 +501,58 @@ game_main_loop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, 
 
     if (global_is_edit_mode)
     {
-        imediate_ui(memory->debug, input, &game_state->assets, ren);
+        UiStart(memory->debug, input, &game_state->assets, ren);
 
-        ui_fps(memory->debug);
+        UiFps(memory->debug);
 
-        ui_window_begin(memory->debug, "Window");
+        UiWindowBegin(memory->debug, "Window");
 
-        if (ui_submenu(memory->debug, ("Particle Emitter")))
+        if (UiSubmenu(memory->debug, ("Particle Emitter")))
         {
-            ParticleEmitter* emitter = get_component(game_state->world,
+            ParticleEmitter* emitter = GetComponent(game_state->world,
                                                      game_state->particle_emitter,
                                                      ParticleEmitter);
 
-            UI_Float32Editbox(memory->debug, &emitter->min_vel, "min velocity");
-            UI_Float32Editbox(memory->debug, &emitter->max_vel, "max velocity");
-            UI_Int32Editbox(memory->debug, &emitter->particle_spawn_rate, "spawn rate");
-            UI_Float32Editbox(memory->debug, &emitter->render.size, "size");
-            ui_color_picker(memory->debug, &emitter->render.color, "color mhehe");
+            UiFloat32Editbox(memory->debug, &emitter->min_vel, "min velocity");
+            UiFloat32Editbox(memory->debug, &emitter->max_vel, "max velocity");
+            UiInt32Editbox(memory->debug, &emitter->particle_spawn_rate, "spawn rate");
+            UiFloat32Editbox(memory->debug, &emitter->render.size, "size");
+            UiColorpicker(memory->debug, &emitter->render.color, "color mhehe");
             local_persist f32 test = 0.5f;
-            ui_slider(memory->debug,
+            UiSilder(memory->debug,
                       0.1f, 
                       10.9f,
                       &test,
                       "Test slider");
         }
 
-        if (ui_submenu(memory->debug, "Player"))
+        if (UiSubmenu(memory->debug, "Player"))
         {
-            Rigidbody* rigid = get_component(game_state->world, 0, Rigidbody);
-            Transform* trans = get_component(game_state->world, 0, Transform);
-            Render* render = get_component(game_state->world, 0, Render);
+            Rigidbody* rigid = GetComponent(game_state->world, 0, Rigidbody);
+            Transform* trans = GetComponent(game_state->world, 0, Transform);
+            Render* render = GetComponent(game_state->world, 0, Render);
 
-            UI_Float32Editbox(memory->debug, &rigid->velocity, "velocity");
-            UI_Float32Editbox(memory->debug, &rigid->mass, "mass");
+            UiFloat32Editbox(memory->debug, &rigid->velocity, "velocity");
+            UiFloat32Editbox(memory->debug, &rigid->mass, "mass");
 
-            UI_Float32Editbox(memory->debug, &trans->position, "position");
-            UI_Float32Editbox(memory->debug, &trans->scale, "scale");
-            UI_Float32Editbox(memory->debug, &trans->rotation, "rotation");
+            UiFloat32Editbox(memory->debug, &trans->position, "position");
+            UiFloat32Editbox(memory->debug, &trans->scale, "scale");
+            UiFloat32Editbox(memory->debug, &trans->rotation, "rotation");
 
-            UI_Float32Editbox(memory->debug, &render->size, "size");
-            ui_color_picker(memory->debug, &render->color, "color");
+            UiFloat32Editbox(memory->debug, &render->size, "size");
+            UiColorpicker(memory->debug, &render->color, "color");
         }
 
-        ui_window_end(memory->debug);
+        UiWindowEnd(memory->debug);
 
-        end_temporary_memory(&memory->debug->temp_arena);
+        EndTemporaryMemory(&memory->debug->temp_arena);
     }
 
 
-    // push_triangle(render_group,
-                  // V2(100, 200),
-                  // V2(400, 300),
-                  // V2(200, 700),
-                  // COLOR(255),
-                  // 10.0f);
-// 
-    // push_triangle(render_group,
-                  // V2(300, 200),
-                  // V2(400, 300),
-                  // V2(500, 700),
-                  // COLOR(100, 0, 50, 255),
-                  // 9.0f);
 
-    platform->end_frame(ren);
+    platform->EndFrame(ren);
 
-    end_temporary_memory(&main_temp_arena);
+    EndTemporaryMemory(&main_temp_arena);
 }
 
 

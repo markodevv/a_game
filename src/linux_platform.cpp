@@ -39,7 +39,7 @@
 #include "headers/debug.h"
 #include "platform.h"
 #include "headers/game.h"
-#include "asset_loading.cpp"
+#include "asset.cpp"
 #include "render_group.cpp"
 #include "headers/opengl_renderer.h"
 #include "opengl_renderer.cpp"
@@ -109,7 +109,7 @@ OpenGLFunction(void, glXSwapIntervalEXT, Display* d, GLXDrawable drawable, const
 // #include "opengl_renderer.cpp"
 
 internal void
-free_file_memory(void* memory)
+FreeFileMemory(void* memory)
 {
     if (memory)
        free(memory);
@@ -117,7 +117,7 @@ free_file_memory(void* memory)
 
 
 internal FileResult
-read_entire_file(char* file_name)
+ReadEntireFile(char* file_name)
 {
     struct stat s;
     FileResult result = {};
@@ -143,7 +143,7 @@ read_entire_file(char* file_name)
             else
             {
                 // TODO: logging
-                free_file_memory(result.data);
+                FreeFileMemory(result.data);
                 result.data = NULL;
                 perror("read");
                 close(fd);
@@ -166,7 +166,7 @@ read_entire_file(char* file_name)
 }
 
 internal b8
-write_entire_file(char* file_name, u32 size, void* memory)
+WriteEntireFile(char* file_name, u32 size, void* memory)
 {
     i32 fd = open(file_name, O_CREAT | O_RDWR);
     b8 result = 0;
@@ -200,17 +200,17 @@ struct LinuxWindowInfo
 };
 
 internal void
-linux_init_opengl()
+LinuxInitOpengl()
 {
     void* lib_GL = dlopen("libGL.so", RTLD_NOW);
     if (!lib_GL) {
-        PRINT("libGL.so couldn't be loaded");
+        Print("libGL.so couldn't be loaded");
     }
 
     #define LinuxLoadOpenGLFunction(name) \
             name = (name##proc *) dlsym(lib_GL, #name); \
             if (!name) { \
-                PRINT("OpenGL function " #name " couldn't be loaded.\n"); \
+                Print("OpenGL function " #name " couldn't be loaded.\n"); \
             }
 
     LinuxLoadOpenGLFunction(glAttachShader);
@@ -278,16 +278,16 @@ linux_init_opengl()
 }
 
 internal int
-linux_error_handler(Display* display, XErrorEvent* event)
+LinuxErrorHandler(Display* display, XErrorEvent* event)
 {
-    PRINT("GLX ERROR CODE [%d]", event->error_code);
+    Print("GLX ERROR CODE [%d]", event->error_code);
     return 0;
 }
 
 internal LinuxWindowInfo
-linux_opengl_prep(Display* display)
+LinuxOpenglPrep(Display* display)
 {
-    // XSetErrorHandler(linux_error_handler);
+    // XSetErrorHandler(LinuxErrorHandler);
     LinuxWindowInfo result = {};
 
     i32 glx_major, glx_minor;
@@ -313,7 +313,7 @@ linux_opengl_prep(Display* display)
     if (!glXQueryVersion(display, &glx_major, &glx_minor) || 
          ((glx_major == 1) && (glx_minor < 3)) || (glx_major < 1 ))
     {
-        PRINT("Invalid GLX version");
+        Print("Invalid GLX version");
     }
     i32 fbcount;
     GLXFBConfig* fbc = 
@@ -321,7 +321,7 @@ linux_opengl_prep(Display* display)
 
     if (!fbc)
     {
-        PRINT("Failed to retrive a framebuffer config");
+        Print("Failed to retrive a framebuffer config");
     }
     i32 best_fbc = -1, worst_fbc = -1, best_num_samp = -1, worst_num_samp = 999;
 
@@ -401,33 +401,33 @@ linux_opengl_prep(Display* display)
 struct LinuxGameCode
 {
     void* lib_game_handle;
-    GameMainLoop main_loop;
+    GameMainLoop MainLoop;
 };
 
 internal LinuxGameCode
-linux_load_game_code()
+LinuxLoadGameCode()
 {
     LinuxGameCode result = {};
     result.lib_game_handle = dlopen("./libgame.so", RTLD_NOW | RTLD_LOCAL);
 
     if (result.lib_game_handle) 
     {
-        result.main_loop = (GameMainLoop)dlsym(result.lib_game_handle, "game_main_loop");
+        result.MainLoop = (GameMainLoop)dlsym(result.lib_game_handle, "GameMainLoop");
 
-        ASSERT(result.main_loop);
+        Assert(result.MainLoop);
     }
     else
     {
-        PRINT("Couldn't load game code");
-        PRINT("Error: %s", dlerror());
-        ASSERT(false);
+        Print("Couldn't load game code");
+        Print("Error: %s", dlerror());
+        Assert(false);
     }
 
     return result;
 }
 
 internal void
-linux_unload_game_code(LinuxGameCode game_code)
+LinuxUnloadGameCode(LinuxGameCode game_code)
 {
     if (game_code.lib_game_handle)
     {
@@ -437,7 +437,7 @@ linux_unload_game_code(LinuxGameCode game_code)
 }
 
 internal inline vec2
-linux_get_mouse_position(Display *display, Window window)
+LinuxGetMousePosition(Display *display, Window window)
 {
     Window ret_root, ret_win;
     i32 root_x, root_y;
@@ -457,7 +457,7 @@ linux_get_mouse_position(Display *display, Window window)
 }
 
 internal void
-linux_set_button_state(ButtonState* button_state, b8 is_down, b8 is_released)
+LinuxSetButtonState(ButtonState* button_state, b8 is_down, b8 is_released)
 {
     button_state->pressed = is_down && !(button_state->is_down);
     button_state->is_down = is_down;
@@ -480,12 +480,12 @@ main()
     }
     else
     {
-        PRINT("Couldn't open X11 window.");
+        Print("Couldn't open X11 window.");
         return 1;
     }
     
-    linux_init_opengl();
-    LinuxWindowInfo window_info = linux_opengl_prep(display);
+    LinuxInitOpengl();
+    LinuxWindowInfo window_info = LinuxOpenglPrep(display);
 
 
     window = XCreateWindow(display, RootWindow(display, window_info.visual_info->screen), 
@@ -497,7 +497,7 @@ main()
 
     if (!window)
     {
-        PRINT("Failed to create window");
+        Print("Failed to create window");
     }
 
     XFree(window_info.visual_info);
@@ -514,18 +514,18 @@ main()
     game_memory.permanent_storage = calloc(game_memory.permanent_storage_size, sizeof(u8));
     game_memory.temporary_storage = calloc(game_memory.temporary_storage_size, sizeof(u8));
 
-    ASSERT(game_memory.permanent_storage);
-    ASSERT(game_memory.temporary_storage);
+    Assert(game_memory.permanent_storage);
+    Assert(game_memory.temporary_storage);
 
-    game_memory.platform.read_entire_file = read_entire_file;
-    game_memory.platform.write_entire_file = write_entire_file;
-    game_memory.platform.free_file_memory = free_file_memory;
+    game_memory.platform.ReadEntireFile = ReadEntireFile;
+    game_memory.platform.WriteEntireFile = WriteEntireFile;
+    game_memory.platform.FreeFileMemory = FreeFileMemory;
 
 // TODO: should be able to change graphics API on runtime
-    game_memory.platform.init_renderer = opengl_init;
-    game_memory.platform.end_frame = opengl_end_frame;
+    game_memory.platform.InitRenderer = OpenglInit;
+    game_memory.platform.EndFrame = OpenglEndFrame;
 
-    LinuxGameCode linux_game_code = linux_load_game_code();
+    LinuxGameCode linux_game_code = LinuxLoadGameCode();
 
     GameInput game_input = {};
     f32 sec_per_frame = 1.0f/60.0f;
@@ -633,7 +633,7 @@ main()
 
                     if (x_event.xkey.keycode == KEYCODE_W)
                     {
-                        PRINT("W pressed");
+                        Print("W pressed");
                         b8 is_down = (x_event.xkey.type == KeyPress);
                         game_input.move_up.is_down = is_down;
                         game_input.move_up.released = (x_event.xkey.type == KeyRelease);
@@ -655,25 +655,25 @@ main()
                     }
                     else if (x_event.xkey.keycode == KEYCODE_ESCAPE)
                     {
-                        linux_set_button_state(&game_input.escape,
+                        LinuxSetButtonState(&game_input.escape,
                                                x_event.xkey.type == KeyPress,
                                                x_event.xkey.type == KeyRelease);
                     }
                     else if (x_event.xkey.keycode == KEYCODE_BACKSPACE)
                     {
-                        linux_set_button_state(&game_input.backspace,
+                        LinuxSetButtonState(&game_input.backspace,
                                                x_event.xkey.type == KeyPress,
                                                x_event.xkey.type == KeyRelease);
                     }
                     else if (x_event.xkey.keycode == KEYCODE_ENTER)
                     {
-                        linux_set_button_state(&game_input.enter,
+                        LinuxSetButtonState(&game_input.enter,
                                                x_event.xkey.type == KeyPress,
                                                x_event.xkey.type == KeyRelease);
                     }
                     else if (x_event.xkey.keycode == KEYCODE_F1)
                     {
-                        linux_set_button_state(&game_input.f1,
+                        LinuxSetButtonState(&game_input.f1,
                                                x_event.xkey.type == KeyPress,
                                                x_event.xkey.type == KeyRelease);
                     }
@@ -689,7 +689,7 @@ main()
                             b8 is_down = (x_event.type == ButtonPress);
 
                             game_input.left_mouse_button.pressed = (!was_down && is_down);
-                            // PRINT("was_down %d", (!was_down && is_down));
+                            // Print("was_down %d", (!was_down && is_down));
                             game_input.left_mouse_button.is_down = is_down;
                             game_input.left_mouse_button.released = (x_event.type == ButtonRelease);
                         } break;
@@ -705,19 +705,19 @@ main()
                         // NOTE: Mouse scroll
                         case Button4:
                         {
-                            PRINT("Scolled up");
+                            Print("Scolled up");
                             game_input.mouse.wheel_delta = 5.0f;
                         } break;
                         case Button5:
                         {
-                            PRINT("Scolled down");
+                            Print("Scolled down");
                             game_input.mouse.wheel_delta = -5.0f;
                         } break;
                     }
                 };
             }
         }
-        game_input.mouse.position = linux_get_mouse_position(display, window);
+        game_input.mouse.position = LinuxGetMousePosition(display, window);
 
 
         XWindowAttributes x_win_attribs;
@@ -728,7 +728,7 @@ main()
 
         if (linux_game_code.lib_game_handle)
         {
-            linux_game_code.main_loop(1.0f/60.0f, &game_memory, NULL, &game_input);
+            linux_game_code.MainLoop(1.0f/60.0f, &game_memory, NULL, &game_input);
         }
 
         glXSwapBuffers(display, window);

@@ -10,16 +10,16 @@
 #include <assert.h>
 
 #ifdef PLATFORM_WIN32
-#define ASSERT(condition) \
+#define Assert(condition) \
     if (!(condition)) *(int *)0 = 0 
 #elif PLATFORM_LINUX 
-#define ASSERT(condition) \
+#define Assert(condition) \
     assert(condition)
 #endif
 
 #else
 
-#define ASSERT(condition)
+#define Assert(condition)
 
 #endif
 

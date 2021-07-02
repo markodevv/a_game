@@ -7,7 +7,6 @@
 }
 
 
-
 @struct @printable VertexData:
 {
     position: vec3,
@@ -25,24 +24,38 @@
 }
 
 @typedef ("i32 SpriteHandle;")
+
+@enum SpriteType:
+{
+    TYPE_SPRITE,
+    TYPE_SUBSPRITE,
+}
+
+}
 @struct Sprite:
 {
-    name: *char,
-    data: *void,
-    width: i32,
-    height: i32,
-    channels: i32,
+    @union @anon
+    {
+        @struct @anon
+        {
+            name: *char,
+            data: *void,
+            width: i32,
+            height: i32,
+            channels: i32,
+        }
+        @struct @anon
+        {
+            main_sprite: SpriteHandle,
+            uvs: ([4]vec2),
+        }
+    }
+
     id: u32,
     slot: u32,
-
-    loaded_to_gpu: b8,
+    type: SpriteType,
 }
 
-@struct SubSprite:
-{
-    sprite_sheet: SpriteHandle,
-    uvs: ([4]vec2),
-}
 
 @struct CharMetric:
 {
@@ -57,7 +70,7 @@
 
 @struct Font:
 {
-    char_subsprites: *SubSprite,
+    sprite_handles: *SpriteHandle,
     char_metrics: *CharMetric,
     num_chars: u16,
     font_size: u32,
@@ -91,7 +104,6 @@
     size: vec2,
     color: Color,
     sprite_handle: SpriteHandle,
-    subsprite: *SubSprite,
     
     shader_id: ShaderId,
 }
@@ -101,7 +113,6 @@
     points: ([3]vec3),
     color: Color,
     sprite_handle: SpriteHandle,
-    subsprite: *SubSprite,
     
     shader_id: ShaderId,
 }
@@ -115,9 +126,6 @@
 @struct RenderSetup:
 {
     projection: mat4,
-
-    sprite_handles: ([32]SpriteHandle),
-    num_sprites: u32,
 }
 
 @enum UniformType:
@@ -160,9 +168,13 @@
 {
     arena: MemoryArena,
 
-    sprites: ([64]Sprite),
-    shaders: ([NUM_SHADERS]Shader),
+    loaded_sprite_queue: *SpriteHandle,
+    num_queued_sprites: u32,
+
+    sprites: *Sprite,
     num_sprites: u32,
+
+    shaders: ([NUM_SHADERS]Shader),
 }
 
 

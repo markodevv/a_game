@@ -31,7 +31,7 @@ wglCreateContextAttribsARB_type *wglCreateContextAttribsARB;
 #include "renderer.h"
 #include "renderer.cpp"
 #include "game.h"
-#include "asset_loading.cpp"
+#include "asset.cpp"
 #include "opengl_renderer.h"
 #include "opengl_renderer.cpp"
 
@@ -47,14 +47,14 @@ global_variable b8 global_running = true;
 inline internal u32
 safe_truncate_u64(u64 value)
 {
-    ASSERT(value <= 0xFFFFFFFF);
+    Assert(value <= 0xFFFFFFFF);
     u32 result = (u32)value;
     return result;
 }
 
 
 internal void
-free_file_memory(void* memory)
+FreeFileMemory(void* memory)
 {
     if (memory)
     {
@@ -63,7 +63,7 @@ free_file_memory(void* memory)
 }
 
 internal FileResult
-read_entire_file(char* file_name)
+ReadEntireFile(char* file_name)
 {
      FileResult result = {};
     
@@ -86,25 +86,25 @@ read_entire_file(char* file_name)
                 }
                 else
                 {                    
-                    free_file_memory(result.data);
+                    FreeFileMemory(result.data);
                     result.data = 0;
                 }
             }
             else
             {
-                PRINT("File malloc failed for file %s.\n", file_name);
+                Print("File malloc failed for file %s.\n", file_name);
             }
         }
         else
         {
-            PRINT("Trying to open invalid file %s.\n", file_name);
+            Print("Trying to open invalid file %s.\n", file_name);
         }
 
         CloseHandle(file_handle);
     }
     else
     {
-        PRINT("Trying to open invalid file %s.\n", file_name);
+        Print("Trying to open invalid file %s.\n", file_name);
     }
 
     return result;
@@ -112,7 +112,7 @@ read_entire_file(char* file_name)
 
 
 internal b8
-write_entire_file(char* file_name, i32 size, void* memory)
+WriteEntireFile(char* file_name, i32 size, void* memory)
 {
     b8 result = false;
     
@@ -126,14 +126,14 @@ write_entire_file(char* file_name, i32 size, void* memory)
         }
         else
         {
-            PRINT("Failed to write entire file: %s.\n", file_name);
+            Print("Failed to write entire file: %s.\n", file_name);
         }
 
         CloseHandle(file_handle);
     }
     else
     {
-        PRINT("Invalid file handle \n");
+        Print("Invalid file handle \n");
     }
 
     return result;
@@ -172,13 +172,13 @@ win32_init_dsound(HWND window, i32 samples_per_sec, i32 buffer_size)
 
             if (!FAILED(direct_sound->CreateSoundBuffer(&buffer_description, &global_sound_buffer, 0)))
             {
-                PRINT("Created sound buffer. \n");
+                Print("Created sound buffer. \n");
             }
         }
     }
     else
     {
-        PRINT("Failed to create sound buffer. \n");
+        Print("Failed to create sound buffer. \n");
     }
 }
 
@@ -324,11 +324,11 @@ win32_load_game_code()
     {
         game_code.update = (GameUpdate)GetProcAddress(game_code.game_code_dll, "game_update");
         game_code.render = (GameRender)GetProcAddress(game_code.game_code_dll, "game_render");
-        ASSERT(game_code.update && game_code.render);
+        Assert(game_code.update && game_code.render);
     }
     else
     {
-        ASSERT(false);
+        Assert(false);
     }
     return game_code;
 }
@@ -336,7 +336,7 @@ win32_load_game_code()
 internal void
 win32_unload_game_code(Win32GameCode* game_code)
 {
-    ASSERT(FreeLibrary(game_code->game_code_dll));
+    Assert(FreeLibrary(game_code->game_code_dll));
     game_code->update = 0;
     game_code->render = 0;
     game_code->game_code_dll = 0;
@@ -424,12 +424,12 @@ win32_init_opengl(HWND window_handle)
         }
         else
         {
-            ASSERT(false);
+            Assert(false);
         }
     }
     else
     {
-        ASSERT(false);
+        Assert(false);
     }
 
     wglCreateContextAttribsARB = 
@@ -443,12 +443,12 @@ win32_init_opengl(HWND window_handle)
         }
         else
         {
-            PRINT("Failed to set current 3.0+ OpenGL context!\n");
+            Print("Failed to set current 3.0+ OpenGL context!\n");
         }
     }
     else
     {
-        PRINT("Failed to create 3.0+ OpenGL context!\n");
+        Print("Failed to create 3.0+ OpenGL context!\n");
     }
 
     
@@ -460,7 +460,7 @@ win32_init_opengl(HWND window_handle)
         name = (name##proc *)GetProcAddress(module, #name); \
         if (!name) \
         { \
-            PRINT("OpenGL function " #name " couldn't be loaded.\n"); \
+            Print("OpenGL function " #name " couldn't be loaded.\n"); \
         } \
     } 
     // NOTE: Vsync
@@ -551,7 +551,7 @@ win32_process_input_messages(GameInput* game_input)
             } break;
             case WM_QUIT:
                 global_running= false;
-                PRINT("Closing game...\n");
+                Print("Closing game...\n");
             case WM_KEYUP:
             case WM_KEYDOWN:
             {
@@ -702,7 +702,7 @@ WinMain(HINSTANCE hinstance,
     }
     else
     {
-        ASSERT(false);
+        Assert(false);
     }
     BOOL result = SetWindowPos(window_handle,
                                HWND_TOP,
@@ -711,7 +711,7 @@ WinMain(HINSTANCE hinstance,
                                0,
                                0,
                                SWP_NOSIZE);
-    ASSERT(result);
+    Assert(result);
 
     Win32GameCode game = win32_load_game_code();
 
@@ -729,16 +729,16 @@ WinMain(HINSTANCE hinstance,
     game_memory.temporary_storage = calloc(game_memory.temporary_storage_size, sizeof(u8));
 
 
-    ASSERT(game_memory.permanent_storage);
-    ASSERT(game_memory.temporary_storage);
+    Assert(game_memory.permanent_storage);
+    Assert(game_memory.temporary_storage);
 
-    game_memory.platform.read_entire_file = read_entire_file;
-    game_memory.platform.write_entire_file = write_entire_file;
-    game_memory.platform.free_file_memory = free_file_memory;
+    game_memory.platform.ReadEntireFile = ReadEntireFile;
+    game_memory.platform.WriteEntireFile = WriteEntireFile;
+    game_memory.platform.FreeFileMemory = FreeFileMemory;
 
 // TODO: should be able to change graphics API on runtime
-    game_memory.platform.init_renderer = opengl_init;
-    game_memory.platform.end_frame = opengl_end_frame;
+    game_memory.platform.InitRenderer = OpenglInit;
+    game_memory.platform.end_frame = OpenglEndFrame;
 
 
     Win32SoundState sound_output = {};
@@ -780,7 +780,7 @@ WinMain(HINSTANCE hinstance,
 
         win32_process_input_messages(&game_input);
 
-        if (button_pressed(game_input.pause_button))
+        if (ButtonPressed(game_input.pause_button))
         {
             paused = !paused;
         }
@@ -840,7 +840,7 @@ WinMain(HINSTANCE hinstance,
         {
             // TODO: logging
             sound_is_valid = false;
-            PRINT("Could not get sound buffer cursor position! \n");
+            Print("Could not get sound buffer cursor position! \n");
         }
 
         GameSoundBuffer sound_buffer = {};
@@ -860,7 +860,7 @@ WinMain(HINSTANCE hinstance,
 
                 if (FAILED(hresult))
                 {
-                    PRINT("Failed to play sound. \n");
+                    Print("Failed to play sound. \n");
                 }
                 sound_is_playing = true;
             }

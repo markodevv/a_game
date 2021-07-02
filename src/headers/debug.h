@@ -1,10 +1,7 @@
-typedef struct SubMenu SubMenu;
 struct SubMenu
 {
 b8 is_active;
 };
-
-typedef struct UiWindow UiWindow;
 struct UiWindow
 {
 vec2 position;
@@ -12,15 +9,11 @@ vec2 size;
 u32 layer;
 UiWindow* next;
 };
-
-typedef struct StackedWindow StackedWindow;
 struct StackedWindow
 {
 UiWindow* window;
 vec2 previous_draw_cursor;
 };
-
-typedef struct Colorpicker Colorpicker;
 struct Colorpicker
 {
 Color color;
@@ -31,8 +24,6 @@ b8 is_active;
 void* key;
 Colorpicker* next;
 };
-
-typedef struct DebugState DebugState;
 struct DebugState
 {
 MemoryArena arena;
@@ -66,4 +57,3 @@ u32 sub_menu_index;
 i32 screen_height;
 i32 screen_width;
 };
-

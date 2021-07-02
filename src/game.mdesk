@@ -30,6 +30,7 @@
     sprite: SpriteHandle,
     size: vec2,
     color: Color,
+    layer: f32,
 }
 
 @struct Transform:
@@ -98,7 +99,7 @@
 @struct GameState:
 {
     arena: MemoryArena,
-    transient_arena: MemoryArena,
+    flush_arena: MemoryArena,
 
 
     assets: Assets,
@@ -107,7 +108,7 @@
     tone_hz: i32,
     tone_volume: i32,
 
-    hero_sprite: SubSprite,
+    hero_sprite: SpriteHandle,
     minotaur_sprite: SpriteHandle,
     hero_sprite_sheet: SpriteHandle,
     backgroud_sprite: SpriteHandle,

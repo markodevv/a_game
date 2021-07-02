@@ -9,24 +9,24 @@ const u32 LAYER_MIDFRONT = 3;
 const u32 LAYER_FRONT = 4;
 
 internal inline Color
-COLOR(u8 r, u8 b, u8 g, u8 a)
+NewColor(u8 r, u8 b, u8 g, u8 a)
 {
     return {r, b, g, a};
 }
 
 internal inline Color
-COLOR(u8 n)
+NewColor(u8 n)
 {
     return {n, n, n, n};
 }
 
 internal Uniform*
-get_uniform(Shader* shader, char* name)
+GetUnform(Shader* shader, char* name)
 {
     Uniform* uniform = shader->uniforms;
     while (uniform)
     {
-        if (string_match(name, uniform->name))
+        if (StringMatch(name, uniform->name))
         {
             return uniform;
         }
@@ -38,13 +38,13 @@ get_uniform(Shader* shader, char* name)
 }
 
 internal Uniform*
-add_uniform(Shader* shader, char* name, MemoryArena* arena)
+AddUniform(Shader* shader, char* name, MemoryArena* arena)
 {
     Uniform* uniform = shader->uniforms;
     if (!uniform)
     {
         shader->uniforms = PushMemory(arena, Uniform);
-        shader->uniforms->name = string_copy(arena, name);
+        shader->uniforms->name = StringCopy(arena, name);
         return shader->uniforms;
     }
 
@@ -54,17 +54,17 @@ add_uniform(Shader* shader, char* name, MemoryArena* arena)
     }
 
     uniform->next = PushMemory(arena, Uniform);
-    uniform->next->name = string_copy(arena, name);
+    uniform->next->name = StringCopy(arena, name);
 
     return uniform->next;
 }
 
 // 
 
-#define set_shader_uniform(shader, n, value, type) \
+#define SetShaderUniform(shader, n, value, type) \
 { \
     char* name = n; \
-    Uniform* uni = get_uniform(shader, name); \
+    Uniform* uni = GetUnform(shader, name); \
     if (uni) \
     { \
         *((type*)uni->data) = value; \
@@ -72,22 +72,22 @@ add_uniform(Shader* shader, char* name, MemoryArena* arena)
     } \
     else \
     { \
-        PRINT("No uniform named [%s]", name); \
+        Print("No uniform named [%s]", name); \
     } \
 } 
 
 internal Shader*
-get_shader(Assets* assets, ShaderId shader_id)
+GetShader(Assets* assets, ShaderId shader_id)
 {
     return &assets->shaders[shader_id];
 }
 
 internal mat4
-camera_transform(Camera* cam)
+CameraTransform(Camera* cam)
 {
-    vec3 f = vec3_normalized(cam->direction);
-    vec3 u = vec3_normalized(cam->up);
-    vec3 r = vec3_normalized(vec3_cross(cam->up, cam->direction));
+    vec3 f = Vec3Normalized(cam->direction);
+    vec3 u = Vec3Normalized(cam->up);
+    vec3 r = Vec3Normalized(Vec3Cross(cam->up, cam->direction));
     vec3 t = cam->position;
 
     mat4 out =

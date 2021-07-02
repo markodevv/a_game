@@ -3,7 +3,7 @@
 internal void*
 push_memory(MemoryArena* arena, sizet type_size, sizet count = 1)
 {
-    ASSERT((arena->size - arena->used) > (type_size * count));
+    Assert((arena->size - arena->used) > (type_size * count));
     u8* out = arena->base + arena->used;
     arena->used += type_size * count;
 
@@ -11,7 +11,7 @@ push_memory(MemoryArena* arena, sizet type_size, sizet count = 1)
 }
 
 internal void
-init_arena(MemoryArena* arena, sizet size, void* base)
+InitArena(MemoryArena* arena, sizet size, void* base)
 {
     arena->used = 0;
     arena->size = size;
@@ -19,14 +19,14 @@ init_arena(MemoryArena* arena, sizet size, void* base)
 }
 
 internal void
-sub_arena(MemoryArena* main, MemoryArena* sub, sizet size)
+SubArena(MemoryArena* main, MemoryArena* sub, sizet size)
 {
     u8* base = PushMemory(main, u8, size);
-    init_arena(sub, size, base);
+    InitArena(sub, size, base);
 }
 
 internal TemporaryArena
-begin_temporary_memory(MemoryArena* arena)
+BeginTemporaryMemory(MemoryArena* arena)
 {
     TemporaryArena out = {};
     out.arena = arena;
@@ -38,10 +38,10 @@ begin_temporary_memory(MemoryArena* arena)
 }
 
 internal void
-end_temporary_memory(TemporaryArena* temp_arena)
+EndTemporaryMemory(TemporaryArena* temp_arena)
 {
     MemoryArena *arena = temp_arena->arena;
-    ASSERT(arena->used >= temp_arena->used);
+    Assert(arena->used >= temp_arena->used);
     arena->used = temp_arena->used;
 
     *temp_arena = {};
@@ -50,7 +50,7 @@ end_temporary_memory(TemporaryArena* temp_arena)
 }
 
 internal void
-memory_clear(void* memory, u32 size)
+MemoryClear(void* memory, u32 size)
 {
     u8* next_to_clear = (u8*)memory;
 

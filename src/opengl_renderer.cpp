@@ -51,12 +51,12 @@ OpenGLFunction(void,     glGetActiveUniformName, GLuint program, GLuint uniformI
 
 
 internal inline i32
-opengl_get_uniform_location(i32 shader, char* uniform)
+OpenglGetUnifromLocation(i32 shader, char* uniform)
 {
     i32 loc = glGetUniformLocation(shader, uniform);
     if (loc == -1)
     {
-        PRINT("Failed to get uniform location: %s\n", uniform);
+        Print("Failed to get uniform location: %s\n", uniform);
     }
     return loc;
 
@@ -93,7 +93,7 @@ get_uniform_type_info(GLenum type)
         }break;
     }
 
-    ASSERT(false);
+    Assert(false);
 }
 
 
@@ -114,7 +114,7 @@ opengl_create_shader(MemoryArena* arena, const char* vertex_shader, const char* 
     if (!success)
     {
         glGetShaderInfoLog(vs, 5120, NULL, info_log);
-        PRINT("Failed to compile vertex shader: \n%s", info_log);
+        Print("Failed to compile vertex shader: \n%s", info_log);
     }
 
     u32 fs = glCreateShader(GL_FRAGMENT_SHADER);
@@ -126,7 +126,7 @@ opengl_create_shader(MemoryArena* arena, const char* vertex_shader, const char* 
     if (!success)
     {
         glGetShaderInfoLog(fs, 5120, NULL, info_log);
-        PRINT("Failed to compile fragment shader: \n%s", info_log);
+        Print("Failed to compile fragment shader: \n%s", info_log);
     }
 
     glAttachShader(shader_program, vs);
@@ -137,19 +137,19 @@ opengl_create_shader(MemoryArena* arena, const char* vertex_shader, const char* 
     if(!success)
     {
         glGetProgramInfoLog(shader_program, 5120, NULL, info_log);
-        PRINT("Failed to link shader \n%s", info_log);
+        Print("Failed to link shader \n%s", info_log);
     }
     glUseProgram(shader_program);
 
     char texture_uniform_name[] = {"u_textures[0]"};
-    i32 loc = opengl_get_uniform_location(shader_program, texture_uniform_name);
+    i32 loc = OpenglGetUnifromLocation(shader_program, texture_uniform_name);
 
     if (loc != -1)
     {
         for (u32 tex_id = 0; tex_id < 9; ++tex_id)
         {
             texture_uniform_name[11] = '0' + tex_id;
-            loc = opengl_get_uniform_location(shader_program, texture_uniform_name);
+            loc = OpenglGetUnifromLocation(shader_program, texture_uniform_name);
             glUniform1i(loc, tex_id);
         }
     }
@@ -181,7 +181,7 @@ opengl_create_shader(MemoryArena* arena, const char* vertex_shader, const char* 
         // u_viewproj should be set as global uniform shared between shaders
         // using UBOs..
 
-        Uniform* uniform = add_uniform(&shader, name, arena);
+        Uniform* uniform = AddUniform(&shader, name, arena);
         i32 size = 0;
         GLenum gl_type = 0;
 
@@ -202,8 +202,8 @@ opengl_create_shader(MemoryArena* arena, const char* vertex_shader, const char* 
 }
 
 
-internal u32
-opengl_load_texture(Sprite* sprite, u32 slot)
+internal void
+OpenglLoadTexture(Sprite* sprite, u32 slot)
 {
     u32 texture_id = 0;
 
@@ -234,7 +234,7 @@ opengl_load_texture(Sprite* sprite, u32 slot)
     }
     else
     {
-        ASSERT(false);
+        Assert(false);
     }
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -251,9 +251,7 @@ opengl_load_texture(Sprite* sprite, u32 slot)
                  GL_UNSIGNED_BYTE, 
                  sprite->data);
 
-    sprite->loaded_to_gpu = true;
-
-    return texture_id;
+    sprite->id = texture_id;
 }
 
 
@@ -261,7 +259,7 @@ opengl_load_texture(Sprite* sprite, u32 slot)
 
 
 internal void
-opengl_init(Renderer* ren)
+OpenglInit(Renderer* ren)
 {
     Shader* shaders = ren->assets->shaders;
     MemoryArena* arena = &ren->assets->arena;
@@ -316,7 +314,7 @@ opengl_init(Renderer* ren)
     for (u32 tex_id = 0; tex_id < 9; ++tex_id)
     {
         texture_uniform_name[11] = '0' + tex_id;
-        i32 loc = opengl_get_uniform_location(ren->shader_program_3D, texture_uniform_name);
+        i32 loc = OpenglGetUnifromLocation(ren->shader_program_3D, texture_uniform_name);
         glUniform1i(loc, tex_id);
     }
 
@@ -357,9 +355,9 @@ opengl_init(Renderer* ren)
 
 // NOTE: Dumb sort
 internal void
-sort_render_group(RenderGroup* render_group)
+SortRenderGroup(RenderGroup* render_group)
 {
-    SortElement* sort_entries = sort_element_start(render_group);
+    SortElement* sort_entries = SortElementStart(render_group);
 
     for(i32 i = 1; i < (i32)render_group->sort_element_count; ++i)
     {
@@ -377,10 +375,10 @@ sort_render_group(RenderGroup* render_group)
 
 
 internal void
-upload_shader_uniform(u32 shader_program, Uniform* uniform)
+UploadShaderUniform(u32 shader_program, Uniform* uniform)
 {
     // TODO: should cache this when we load shader
-    i32 location = opengl_get_uniform_location(shader_program, uniform->name);
+    i32 location = OpenglGetUnifromLocation(shader_program, uniform->name);
 
     switch (uniform->type_info.type)
     {
@@ -410,36 +408,19 @@ upload_shader_uniform(u32 shader_program, Uniform* uniform)
 
         default:
         {
-            ASSERT(false);
+            Assert(false);
         } break;
     }
 
 }
 
 internal void
-opengl_draw(Renderer* ren, RenderSetup* setup, ShaderId shader_id)
+OpenglDraw(Renderer* ren, RenderSetup* setup, ShaderId shader_id)
 {
-    Shader* shader = get_shader(ren->assets, shader_id);
+    Shader* shader = GetShader(ren->assets, shader_id);
     u32 shader_program = shader->bind_id;
 
     glUseProgram(shader_program);
-
-    for (u32 sprite_index = 0; sprite_index < setup->num_sprites; ++sprite_index)
-    {
-        // PRINT("sprite handle %d", setup->sprite_handles[sprite_index]);
-        Sprite* sprite = get_loaded_sprite(ren->assets, 
-                                           setup->sprite_handles[sprite_index]);
-
-        if (!sprite->loaded_to_gpu)
-        {
-            sprite->id = opengl_load_texture(sprite, ren->slot);
-            sprite->slot = ren->slot;
-            ++ren->slot;
-            ASSERT(ren->slot < 32);
-        }
-        glActiveTexture(GL_TEXTURE0 + sprite->slot);
-        glBindTexture(GL_TEXTURE_2D, sprite->id);
-    }
 
     u32 num_vertices = ren->vertex_count;
     u32 num_indices = ren->indices_count;
@@ -448,9 +429,9 @@ opengl_draw(Renderer* ren, RenderSetup* setup, ShaderId shader_id)
     u32 vertices_size = num_vertices * sizeof(VertexData);
     u32 indices_size = num_indices * sizeof(u32);
 
-    i32 vp_loc = opengl_get_uniform_location(shader_program, "u_viewproj");
+    i32 vp_loc = OpenglGetUnifromLocation(shader_program, "u_viewproj");
     // NOTE: For now we only have 1 main camera.
-    mat4 cam_mat = camera_transform(&ren->camera);
+    mat4 cam_mat = CameraTransform(&ren->camera);
     mat4 viewproj = setup->projection * cam_mat;
     glUniformMatrix4fv(vp_loc, 1, true, &viewproj.rows[0].x);
 
@@ -458,9 +439,9 @@ opengl_draw(Renderer* ren, RenderSetup* setup, ShaderId shader_id)
     Uniform* uniform = shader->uniforms;
     while (uniform)
     {
-        if (!string_match(uniform->name, "u_viewproj"))
+        if (!StringMatch(uniform->name, "u_viewproj"))
         {
-            upload_shader_uniform(shader_program, uniform);
+            UploadShaderUniform(shader_program, uniform);
         }
         uniform = uniform->next;
     }
@@ -473,13 +454,12 @@ opengl_draw(Renderer* ren, RenderSetup* setup, ShaderId shader_id)
 
     glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, 0);
 
-
     ren->vertex_count = 0;
     ren->indices_count = 0;
 }
 
 internal void
-opengl_end_frame(Renderer* ren)
+OpenglEndFrame(Renderer* ren)
 {
     glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -493,18 +473,33 @@ opengl_end_frame(Renderer* ren)
     }
 
 
-    //NOTE: this is a default white texture 
-    Sprite* white_sprite = get_loaded_sprite(ren->assets, ren->white_sprite);
-    if (!white_sprite->loaded_to_gpu)
-    {
-        ASSERT(ren->slot == 0);
-        white_sprite->id = opengl_load_texture(white_sprite, ren->slot);
-        white_sprite->slot = ren->slot;
-        ++ren->slot;
-    }
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, white_sprite->id);
+    // NOTE: this is a default white texture 
+    // Sprite* white_sprite = GetLoadedSprite(ren->assets, ren->white_sprite);
+    // if (!white_sprite->loaded_to_gpu)
+    // {
+        // Assert(ren->slot == 0);
+        // white_sprite->id = OpenglLoadTexture(white_sprite, ren->slot);
+        // white_sprite->slot = ren->slot;
+        // ++ren->slot;
+    // }
+    // glActiveTexture(GL_TEXTURE0);
+    // glBindTexture(GL_TEXTURE_2D, white_sprite->id);
 
+    if (ren->assets->num_queued_sprites)
+    {
+        for (u32 i = 0; i < ren->assets->num_queued_sprites; ++i)
+        {
+            SpriteHandle handle = ren->assets->loaded_sprite_queue[i];
+            Sprite* sprite = GetLoadedSprite(ren->assets, handle);
+            OpenglLoadTexture(sprite, ren->slot);
+            sprite->slot = ren->slot;
+            ++ren->slot;
+
+            glActiveTexture(GL_TEXTURE0 + sprite->slot);
+            glBindTexture(GL_TEXTURE_2D, sprite->id);
+        }
+        ren->assets->num_queued_sprites = 0;
+    }
 
     u32 header_size = sizeof(RenderEntryHeader);
 
@@ -514,9 +509,9 @@ opengl_end_frame(Renderer* ren)
 
     while(render_group)
     {
-        sort_render_group(render_group);
+        SortRenderGroup(render_group);
 
-        SortElement* sort_element = sort_element_start(render_group);
+        SortElement* sort_element = SortElementStart(render_group);
 
         for (u32 element_index = 0; 
             element_index < render_group->sort_element_count;
@@ -533,7 +528,7 @@ opengl_end_frame(Renderer* ren)
                     // NOTE: we flush draw everything on shader change
                     if (quad->shader_id != current_shader)
                     {
-                        opengl_draw(ren, &render_group->setup, current_shader);
+                        OpenglDraw(ren, &render_group->setup, current_shader);
                         current_shader = quad->shader_id;
                     }
                     u32 sprite_slot = 0;
@@ -545,17 +540,21 @@ opengl_end_frame(Renderer* ren)
                         V2(0.0f, 1.0f),
                     };
 
-                    if (quad->subsprite)
+                    if (quad->sprite_handle)
                     {
-                        uvs[0] = quad->subsprite->uvs[0];
-                        uvs[1] = quad->subsprite->uvs[1];
-                        uvs[2] = quad->subsprite->uvs[2];
-                        uvs[3] = quad->subsprite->uvs[3];
-                        sprite_slot = get_loaded_sprite(ren->assets, quad->subsprite->sprite_sheet)->slot;
-                    }
-                    else if (quad->sprite_handle)
-                    {
-                        sprite_slot = get_loaded_sprite(ren->assets, quad->sprite_handle)->slot;
+                        Sprite* sprite = GetLoadedSprite(ren->assets, quad->sprite_handle);
+                        if (sprite->type == TYPE_SPRITE)
+                        {
+                            sprite_slot = sprite->slot;
+                        }
+                        else if (sprite->type == TYPE_SUBSPRITE)
+                        {
+                            sprite_slot = GetLoadedSprite(ren->assets, sprite->main_sprite)->slot;
+                            uvs[0] = sprite->uvs[0];
+                            uvs[1] = sprite->uvs[1];
+                            uvs[2] = sprite->uvs[2];
+                            uvs[3] = sprite->uvs[3];
+                        }
                     }
 
 
@@ -602,7 +601,7 @@ opengl_end_frame(Renderer* ren)
 
                     ren->vertex_count += VERTICES_PER_QUAD;
                     ren->indices_count += INDICES_PER_QUAD;
-                    ASSERT(ren->vertex_count < MAX_VERTICES &&
+                    Assert(ren->vertex_count < MAX_VERTICES &&
                            ren->indices_count < MAX_INDICES);
                 } break;
                 case RENDER_ENTRY_TriangleEntry:
@@ -612,13 +611,13 @@ opengl_end_frame(Renderer* ren)
 
                     if (triangle->shader_id != current_shader)
                     {
-                        opengl_draw(ren, &render_group->setup, current_shader);
+                        OpenglDraw(ren, &render_group->setup, current_shader);
                         current_shader = triangle->shader_id;
                     }
 
                     if (triangle->sprite_handle)
                     {
-                        sprite_slot = get_loaded_sprite(ren->assets, triangle->sprite_handle)->slot;
+                        sprite_slot = GetLoadedSprite(ren->assets, triangle->sprite_handle)->slot;
                     }
 
 
@@ -649,11 +648,11 @@ opengl_end_frame(Renderer* ren)
                 } break;
                 default:
                 {
-                    ASSERT(false);
+                    Assert(false);
                 } break;
             }
         }
-        opengl_draw(ren, &render_group->setup, current_shader);
+        OpenglDraw(ren, &render_group->setup, current_shader);
         render_group = render_group->next;
 
     }
