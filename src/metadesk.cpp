@@ -152,6 +152,10 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
         {
             fprintf(header_file, "typedef %.*s\n", MD_StringExpand(node->first_child->string));
         }
+        else if (MD_NodeHasTag(node, MD_S8Lit("var")))
+        {
+            fprintf(header_file, "%.*s\n", MD_StringExpand(node->first_child->string));
+        }
     }
 
     fclose(header_file);
@@ -163,17 +167,17 @@ main(int argc, char* argv[])
 {
     for (int i = 1; i < argc; ++i)
     {
-        if (MD_StringMatch(MD_S8CString(argv[i]), MD_S8Lit("-generate_print"), 0))
+        if (MD_StringMatch(MD_S8CString(argv[i]), MD_S8Lit("-p"), 0))
         {
             generate_print_functions = true;
         }
-        else if (MD_StringMatch(MD_S8CString(argv[i]), MD_S8Lit("-update_syntax"), 0))
+        else if (MD_StringMatch(MD_S8CString(argv[i]), MD_S8Lit("-s"), 0))
         {
             update_syntax_file = true;
         }
         else if (MD_StringMatch(MD_S8CString(argv[i]), MD_S8Lit("-help"), 0))
         {
-            printf("Available flags: -generate_print, -update_syntax\n");
+            printf("Available flags: -p, -s\n");
             return 0;
         }
         else
@@ -190,7 +194,7 @@ main(int argc, char* argv[])
     if (update_syntax_file)
     {
 
-        syntax_file = fopen("/home/marko/.vim/syntax/c.vim", "a+");
+        syntax_file = fopen("C:\\Users\\marko\\vimfiles\\syntax\\c.vim", "a+");
         if (!syntax_file)
         {
             printf("Failed to open syntax file!\n");

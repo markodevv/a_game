@@ -1,4 +1,3 @@
-
 OpenGLFunction(void,     glAttachShader,            GLuint program, GLuint shader);
 OpenGLFunction(void,     glBindBuffer,              GLenum target, GLuint buffer);
 OpenGLFunction(void,     glBindFramebuffer,         GLenum target, GLuint framebuffer);
@@ -44,7 +43,23 @@ OpenGLFunction(void,     glGetProgramInfoLog,       GLuint program, GLsizei bufS
 OpenGLFunction(void,     glGetProgramiv,            GLuint program, GLenum pname, GLint *params);
 OpenGLFunction(void,     glGetActiveUniform,	    GLuint program, GLuint index, GLsizei bufSize, GLsizei *length, GLint *size, GLenum *type, GLchar *name);
 OpenGLFunction(void,     glGetActiveUniformBlockiv,	GLuint program, GLuint uniformBlockIndex, GLenum pname, GLint *params);
-OpenGLFunction(void,     glGetActiveUniformName, GLuint program, GLuint uniformIndex, GLsizei bufSize, GLsizei *length, GLchar *uniformName);
+OpenGLFunction(void,     glGetActiveUniformName,    GLuint program, GLuint uniformIndex, GLsizei bufSize, GLsizei *length, GLchar *uniformName);
+OpenGLFunction(void,     glActiveTexture,           GLenum texture);
+OpenGLFunction(void,     glGenTextures,             GLsizei n, GLuint *textures);
+OpenGLFunction(void,     glBindTexture,         	GLenum target, GLuint texture);
+OpenGLFunction(void,     glPixelStorei,	            GLenum pname, GLint param);
+OpenGLFunction(void,     glTexParameteri,	        GLenum target, GLenum pname, GLint param);
+OpenGLFunction(void,     glTexImage2D,              GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid * data);
+OpenGLFunction(void,     glEnable,                  GLenum cap);
+OpenGLFunction(void,     glDisable,                 GLenum cap);
+OpenGLFunction(void,     glBlendFunc,               GLenum sfactor, GLenum dfactor);
+OpenGLFunction(void,     glDepthFunc,               GLenum func);
+OpenGLFunction(void,     glDrawElements,            GLenum  	mode, GLsizei  	count, GLenum  	type, const GLvoid *  	indices);
+OpenGLFunction(void,     glClearColor,              GLclampf  	red, GLclampf  	green, GLclampf  	blue, GLclampf  	alpha);
+OpenGLFunction(void,     glClear,                   GLbitfield mask);
+OpenGLFunction(void,     glViewport,             	GLint x, GLint y, GLsizei width, GLsizei height);
+OpenGLFunction(void,     glDrawArrays,          	GLenum  	mode, GLint  	first, GLsizei  	count);
+
 
 
 #include "shaders.h"
@@ -63,37 +78,43 @@ OpenglGetUnifromLocation(i32 shader, char* uniform)
 }
 
 internal UniformTypeInfo
-get_uniform_type_info(GLenum type)
+GetUniformTypeInfo(GLenum type)
 {
+    UniformTypeInfo result = {};
     switch(type)
     {
         case GL_FLOAT:
         {
-            return {UNIFORM_F32, sizeof(f32)};
+            result = {UNIFORM_F32, sizeof(f32)};
         }break;
         case GL_FLOAT_VEC2:
         {
-            return {UNIFORM_VEC2, sizeof(vec2)};
+            result = {UNIFORM_VEC2, sizeof(vec2)};
         }break;
         case GL_FLOAT_VEC3:
         {
-            return {UNIFORM_VEC3, sizeof(vec3)};
+            result = {UNIFORM_VEC3, sizeof(vec3)};
         }break;
         case GL_FLOAT_VEC4:
         {
-            return {UNIFORM_VEC4, sizeof(vec4)};
+            result = {UNIFORM_VEC4, sizeof(vec4)};
         }break;
         case GL_SAMPLER_2D:
         {
-            return {UNIFORM_TEXTURE2D, 0};
+            result = {UNIFORM_TEXTURE2D, 0};
         }break;
         case GL_FLOAT_MAT4:
         {
-            return {UNIFORM_MAT4, sizeof(mat4)};
+            result = {UNIFORM_MAT4, sizeof(mat4)};
         }break;
+        default:
+        {
+            Assert(false);
+        } break;
     }
 
-    Assert(false);
+    return result;
+
 }
 
 
@@ -169,32 +190,25 @@ opengl_create_shader(MemoryArena* arena, const char* vertex_shader, const char* 
     for (i32 uniform_id= 0; uniform_id < shader.num_uniforms; ++uniform_id)
     {
         char name[128];
-
-        glGetActiveUniformName(shader.bind_id,
-                               uniform_id,
-                               ArrayCount(name),
-                               NULL,
-                               name);
-
-
         // TODO: 
         // u_viewproj should be set as global uniform shared between shaders
         // using UBOs..
 
-        Uniform* uniform = AddUniform(&shader, name, arena);
-        i32 size = 0;
         GLenum gl_type = 0;
-
+        i32 length;
+        i32 type_size;
 
         glGetActiveUniform(shader_program,
                            uniform_id,
-                           0,
-                           0,
-                           0,
+                           ArrayCount(name),
+                           &length,
+                           &type_size,
                            &gl_type,
-                           0);
+                           name);
 
-        uniform->type_info = get_uniform_type_info(gl_type);
+        Uniform* uniform = AddUniform(&shader, name, arena);
+
+        uniform->type_info = GetUniformTypeInfo(gl_type);
         uniform->data = PushMemory(arena, u8, uniform->type_info.size);
     }
 

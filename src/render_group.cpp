@@ -118,7 +118,7 @@ PushQuad(RenderGroup* group,
 
     if (color.a != 255)
     {
-        key += 100 + layer;
+        key += 100 + (u32)layer;
     }
 
     QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
@@ -149,7 +149,7 @@ PushTriangle(RenderGroup* group,
 
     if (color.a != 255)
     {
-        key += 50 + layer;
+        key += 50 + (u32)layer;
     }
 
     TriangleEntry* entry = PushRenderEntry(group, TriangleEntry, key);

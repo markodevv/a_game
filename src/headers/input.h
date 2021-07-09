@@ -3,15 +3,17 @@ struct ButtonState
 b8 is_down;
 b8 released;
 b8 pressed;
-u8 repeat_count;
 };
 struct MouseInput
 {
 vec2 position;
 i32 wheel_delta;
-b8 moved;
 };
 struct GameInput
+{
+union 
+{
+struct 
 {
 ButtonState move_left;
 ButtonState move_right;
@@ -26,6 +28,9 @@ ButtonState backspace;
 ButtonState escape;
 ButtonState enter;
 ButtonState f1;
+};
+    ButtonState buttons[13];
+};
 u32 modifiers;
 MouseInput mouse;
 char character;

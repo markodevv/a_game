@@ -148,6 +148,14 @@ typedef int GLclampx;
 #define GL_UNSIGNED_INT	                  0x1405
 #define GL_FLOAT                          0x1406
 #define GL_FIXED                          0x140C
+#define GL_FLOAT_VEC2                     0x8B50
+#define GL_FLOAT_VEC3                     0x8B51
+#define GL_FLOAT_VEC4                     0x8B52
+#define GL_INT_VEC2                       0x8B53
+#define GL_INT_VEC3                       0x8B54
+#define GL_INT_VEC4                       0x8B55
+#define GL_FLOAT_MAT4                     0x8B5C
+#define GL_SAMPLER_2D                     0x8B5E
 #define GL_CLEAR                          0x1500
 #define GL_AND                            0x1501
 #define GL_AND_REVERSE                    0x1502
@@ -290,6 +298,8 @@ typedef int GLclampx;
 #define GL_STREAM_DRAW                    0x88E0
 #define GL_TEXTURE0                       0x84C0
 #define GL_VERTEX_SHADER                  0x8B31
+#define GL_ACTIVE_UNIFORMS                0x8B86
+#define GL_ACTIVE_UNIFORM_MAX_LENGTH      0x8B87
 typedef char GLchar;
 typedef ptrdiff_t GLintptr;
 typedef ptrdiff_t GLsizeiptr;

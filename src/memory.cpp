@@ -1,5 +1,6 @@
 #define PushMemory(arena, type, ...)  (type *)push_memory(arena, sizeof(type), ##__VA_ARGS__)
 
+
 internal void*
 push_memory(MemoryArena* arena, sizet type_size, sizet count = 1)
 {

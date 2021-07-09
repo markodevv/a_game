@@ -8,12 +8,6 @@ ButtonDown(ButtonState button)
 }
 
 internal b8
-ButtonRepeat(ButtonState button)
-{
-    return (button.repeat_count > 0);
-}
-
-internal b8
 ButtonPressed(ButtonState button)
 {
     return button.pressed;

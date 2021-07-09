@@ -44,7 +44,6 @@
 #include "headers/opengl_renderer.h"
 #include "opengl_renderer.cpp"
 
-typedef void (*GameMainLoop)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
 
 
 // typedef XID GLXContextID;
@@ -401,7 +400,7 @@ LinuxOpenglPrep(Display* display)
 struct LinuxGameCode
 {
     void* lib_game_handle;
-    GameMainLoop MainLoop;
+    GameMainLoopProc MainLoop;
 };
 
 internal LinuxGameCode
@@ -412,7 +411,7 @@ LinuxLoadGameCode()
 
     if (result.lib_game_handle) 
     {
-        result.MainLoop = (GameMainLoop)dlsym(result.lib_game_handle, "GameMainLoop");
+        result.MainLoop = (GameMainLoopProc)dlsym(result.lib_game_handle, "GameMainLoop");
 
         Assert(result.MainLoop);
     }

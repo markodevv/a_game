@@ -324,7 +324,7 @@ internal char*
 GetTextToDraw(MemoryArena* arena, u64 value)
 {
     char* result = PushMemory(arena, char, 128);
-    snprintf(result, 128, "%lu", value);
+    snprintf(result, 128, "%llu", value);
 
     return result;
 }
@@ -342,7 +342,7 @@ internal char*
 GetTextToDraw(MemoryArena* arena, i64 value)
 {
     char* result = PushMemory(arena, char, 128);
-    snprintf(result, 128, "%li", value);
+    snprintf(result, 128, "%lli", value);
 
     return result;
 }
@@ -418,7 +418,7 @@ FillTextBuffer(DebugState* debug, i64 value)
 {
     snprintf(debug->text_input_buffer, 
              ArrayCount(debug->text_input_buffer), 
-             "%li",
+             "%lli",
              value);
     debug->text_insert_index = StringLength(debug->text_input_buffer);
     debug->text_input_buffer[debug->text_insert_index] = '\0';
@@ -429,7 +429,7 @@ FillTextBuffer(DebugState* debug, u64 value)
 {
     snprintf(debug->text_input_buffer, 
              ArrayCount(debug->text_input_buffer), 
-             "%lu",
+             "%llu",
              value);
     debug->text_insert_index = StringLength(debug->text_input_buffer);
     debug->text_input_buffer[debug->text_insert_index] = '\0';
@@ -1127,17 +1127,12 @@ HsbPicker(DebugState* debug, Colorpicker* cp)
     {
         if (ButtonDown(debug->input.left_mouse_button))
         {
-            if (PointInsideRect(debug->input.mouse.position,
-                                     pos,
-                                     size))
-            {
-                cursor_color.a = 180;
-                cp->saturation = (debug->input.mouse.position.x - pos.x) / size.x;
-                cp->brightness = (debug->input.mouse.position.y - pos.y) / size.y;
+            cursor_color.a = 180;
+            cp->saturation = (debug->input.mouse.position.x - pos.x) / size.x;
+            cp->brightness = (debug->input.mouse.position.y - pos.y) / size.y;
 
-                cp->saturation = Clamp(cp->saturation, 0.0f, 1.0f);
-                cp->brightness = Clamp(cp->brightness, 0.0f, 1.0f);
-            }
+            cp->saturation = Clamp(cp->saturation, 0.0f, 1.0f);
+            cp->brightness = Clamp(cp->brightness, 0.0f, 1.0f);
         }
         else
         {

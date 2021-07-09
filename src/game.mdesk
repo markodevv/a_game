@@ -72,29 +72,38 @@
     particle_index: u32,
     max_particles :u32,
 }
-
-@define ("COMPONENT_Render 1<<0")
-@define ("COMPONENT_Rigidbody 1<<1")
-@define ("COMPONENT_Transform 1<<2")
-@define ("COMPONENT_ParticleEmitter 1<<3")
 @define ("ENTITY_MAX 10000")
 
-@typedef ("u32 EntityId;")
+@typedef ("u64 EntityId;")
 
+
+@struct ArcheType:
+{
+    type: *Array,
+    components: **Array,
+}
+
+@struct Record:
+{
+    archetype: *ArcheType,
+    row: u32,
+}
+
+@struct MapData:
+{
+    array: *Array,
+    key: EntityId,
+}
 
 @struct WorldState:
 {
-    renders: ([ENTITY_MAX]Render),
-    rigidbodys: ([ENTITY_MAX]Rigidbody),
-    transforms: ([ENTITY_MAX]Transform),
-    entity_masks: ([ENTITY_MAX]u32),
-    particle_emitters: ([ENTITY_MAX]ParticleEmitter),
+    entity_map: *Record,
+    entity_index_map: *MapData,
+    removed_ids: *Array,
+    archetypes: *Array,
 
-    num_entities: u32,
+    component_id: u32,
 }
-
-
-
 
 @struct GameState:
 {
@@ -112,6 +121,8 @@
     minotaur_sprite: SpriteHandle,
     hero_sprite_sheet: SpriteHandle,
     backgroud_sprite: SpriteHandle,
+    goblin_sprite_sheet: SpriteHandle,
+    goblin_sprite: SpriteHandle,
 
     tile_map: ([19][10]u32),
     tile_size: u32,
@@ -120,8 +131,9 @@
 
     particle_emitter: EntityId,
 
-    world: *WorldState,
+    world: WorldState,
 
     renderer: Renderer,
 }
 
+@typedef ("void (*GameMainLoopProc)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);")

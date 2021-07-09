@@ -23,16 +23,26 @@ wglCreateContextAttribsARB_type *wglCreateContextAttribsARB;
 #include <stb_image.h>
 
 #include "common.h"
-#include "memory.h"
+#include "platform.h"
+
+extern Platform* g_Platform;
+
+#include "array.cpp"
+#include "headers/memory.h"
+#include "memory.cpp"
 #include "string.cpp"
 #include "log.h"
-#include "math.h"
-#include "debug.h"
-#include "renderer.h"
+#include "headers/math.h"
+#include "math.cpp"
+#include "headers/input.h"
+#include "input.cpp"
+#include "headers/renderer.h"
 #include "renderer.cpp"
-#include "game.h"
+#include "headers/debug.h"
+#include "headers/game.h"
 #include "asset.cpp"
-#include "opengl_renderer.h"
+#include "render_group.cpp"
+#include "headers/opengl_renderer.h"
 #include "opengl_renderer.cpp"
 
 
@@ -112,7 +122,7 @@ ReadEntireFile(char* file_name)
 
 
 internal b8
-WriteEntireFile(char* file_name, i32 size, void* memory)
+WriteEntireFile(char* file_name, u32 size, void* memory)
 {
     b8 result = false;
     
@@ -307,11 +317,10 @@ win32_get_preformance_counter()
 struct Win32GameCode
 {
     HINSTANCE game_code_dll;
-    GameUpdate update;
-    GameRender render;
+    GameMainLoopProc main_loop;
 };
 
-Model load_3D_model(MemoryArena* arena, char* path);
+// Model load_3D_model(MemoryArena* arena, char* path);
 
 internal Win32GameCode
 win32_load_game_code()
@@ -322,9 +331,8 @@ win32_load_game_code()
     game_code.game_code_dll = LoadLibrary("game_temp.dll");
     if (game_code.game_code_dll != NULL)
     {
-        game_code.update = (GameUpdate)GetProcAddress(game_code.game_code_dll, "game_update");
-        game_code.render = (GameRender)GetProcAddress(game_code.game_code_dll, "game_render");
-        Assert(game_code.update && game_code.render);
+        game_code.main_loop = (GameMainLoopProc)GetProcAddress(game_code.game_code_dll, "GameMainLoop");
+        Assert(game_code.main_loop);
     }
     else
     {
@@ -337,8 +345,7 @@ internal void
 win32_unload_game_code(Win32GameCode* game_code)
 {
     Assert(FreeLibrary(game_code->game_code_dll));
-    game_code->update = 0;
-    game_code->render = 0;
+    game_code->main_loop = 0;
     game_code->game_code_dll = 0;
 }
 
@@ -444,11 +451,13 @@ win32_init_opengl(HWND window_handle)
         else
         {
             Print("Failed to set current 3.0+ OpenGL context!\n");
+            Assert(false);
         }
     }
     else
     {
         Print("Failed to create 3.0+ OpenGL context!\n");
+        Assert(false);
     }
 
     
@@ -510,6 +519,9 @@ win32_init_opengl(HWND window_handle)
     Win32LoadOpenGLFunction(glGetProgramInfoLog);
     Win32LoadOpenGLFunction(glGetProgramiv);
     Win32LoadOpenGLFunction(glActiveTexture);
+    Win32LoadOpenGLFunction(glGetActiveUniform);
+    Win32LoadOpenGLFunction(glGetActiveUniformBlockiv);
+    Win32LoadOpenGLFunction(glGetActiveUniformName);
     Win32LoadOpenGLFunction(glGenTextures);
     Win32LoadOpenGLFunction(glBindTexture);
     Win32LoadOpenGLFunction(glPixelStorei);
@@ -518,6 +530,7 @@ win32_init_opengl(HWND window_handle)
     Win32LoadOpenGLFunction(glEnable);
     Win32LoadOpenGLFunction(glDisable);
     Win32LoadOpenGLFunction(glBlendFunc);
+    Win32LoadOpenGLFunction(glDepthFunc);
     Win32LoadOpenGLFunction(glClearColor);
     Win32LoadOpenGLFunction(glClear);
     Win32LoadOpenGLFunction(glViewport);
@@ -592,6 +605,14 @@ win32_process_input_messages(GameInput* game_input)
                     {
                         set_button_state(&game_input->escape, is_down, was_down);
                     } break;
+                    case VK_RETURN:
+                    {
+                        set_button_state(&game_input->enter, is_down, was_down);
+                    } break;
+                    case VK_F1:
+                    {
+                        set_button_state(&game_input->f1, is_down, was_down);
+                    } break;
                 }
                 TranslateMessage(&message);
                 DispatchMessageA(&message);
@@ -603,8 +624,6 @@ win32_process_input_messages(GameInput* game_input)
             } break;
             case WM_MOUSEMOVE:
             {
-
-                game_input->mouse.moved = true;
                 if ((message.wParam & MK_LBUTTON) == MK_LBUTTON)
                 {
                     game_input->right_mouse_button.is_down = true;
@@ -642,16 +661,16 @@ win32_process_input_messages(GameInput* game_input)
 }
 
 
-internal b8 
-sprite_is_loaded(Assets* assets, char* sprite_name)
-{
-    for (u32 i = 0; i < assets->num_sprites; ++i)
-    {
-        if (string_equals(assets->sprites[i].name, sprite_name))
-            return true;
-    }
-    return false;
-}
+// internal b8 
+// sprite_is_loaded(Assets* assets, char* sprite_name)
+// {
+    // for (u32 i = 0; i < assets->num_sprites; ++i)
+    // {
+        // if (string_equals(assets->sprites[i].name, sprite_name))
+            // return true;
+    // }
+    // return false;
+// }
 
 i32
 WinMain(HINSTANCE hinstance,
@@ -736,9 +755,14 @@ WinMain(HINSTANCE hinstance,
     game_memory.platform.WriteEntireFile = WriteEntireFile;
     game_memory.platform.FreeFileMemory = FreeFileMemory;
 
+    game_memory.platform.Allocate = DefaultAllocate;
+    game_memory.platform.Reallocate = DefaultReallocate;
+    game_memory.platform.Free = DefaultFree;
+    game_memory.platform.MemCopy = DefaultMemCopy;
+
 // TODO: should be able to change graphics API on runtime
     game_memory.platform.InitRenderer = OpenglInit;
-    game_memory.platform.end_frame = OpenglEndFrame;
+    game_memory.platform.EndFrame = OpenglEndFrame;
 
 
     Win32SoundState sound_output = {};
@@ -772,11 +796,9 @@ WinMain(HINSTANCE hinstance,
         {
             game_input.buttons[i].released = 0;
             game_input.buttons[i].pressed = 0;
-            game_input.buttons[i].repeat_count = 0;
         }
         game_input.character = -1;
         game_input.mouse.wheel_delta = 0;
-        game_input.mouse.moved = false;
 
         win32_process_input_messages(&game_input);
 
@@ -869,8 +891,7 @@ WinMain(HINSTANCE hinstance,
 
         if (!paused)
         {
-            game.update(delta_time, &game_memory, NULL, &game_input);
-            game.render(&game_memory);
+            game.main_loop(delta_time, &game_memory, NULL, &game_input);
         }
 
 

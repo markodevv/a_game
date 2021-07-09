@@ -52,20 +52,24 @@ Particle* particles;
 u32 particle_index;
 u32 max_particles;
 };
-#define COMPONENT_Render 1<<0
-#define COMPONENT_Rigidbody 1<<1
-#define COMPONENT_Transform 1<<2
-#define COMPONENT_ParticleEmitter 1<<3
 #define ENTITY_MAX 10000
-typedef u32 EntityId;
+typedef u64 EntityId;
+struct ArchType
+{
+Array* type;
+Array** components;
+};
+struct MapBucket
+{
+Array* components;
+EntityId id;
+char* name;
+};
 struct WorldState
 {
-Render renders[ENTITY_MAX];
-Rigidbody rigidbodys[ENTITY_MAX];
-Transform transforms[ENTITY_MAX];
-u32 entity_masks[ENTITY_MAX];
-ParticleEmitter particle_emitters[ENTITY_MAX];
-u32 num_entities;
+MapBucket* entity_map;
+Array* removed_ids;
+u32 component_id;
 };
 struct GameState
 {
@@ -79,10 +83,13 @@ SpriteHandle hero_sprite;
 SpriteHandle minotaur_sprite;
 SpriteHandle hero_sprite_sheet;
 SpriteHandle backgroud_sprite;
+SpriteHandle goblin_sprite_sheet;
+SpriteHandle goblin_sprite;
 u32 tile_map[19][10];
 u32 tile_size;
 b8 is_free_camera;
 EntityId particle_emitter;
-WorldState* world;
+WorldState world;
 Renderer renderer;
 };
+typedef void (*GameMainLoopProc)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);

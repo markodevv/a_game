@@ -1,9 +1,9 @@
 @echo off
 
-set win32_compiler_flags=-I ..\third_party\assimp\include -I ..\third_party\stb\ -DEBUG -Gm- -GR- -EHa- -Od -Oi -WX -W3 -wd4996 -wd4311 -wd4302 -wd4201 -wd4100 -wd4189 -wd4129 -DPLATFORM_WIN32=1 -DGAME_DEBUG=1 -FC -Z7 -MTd -nologo
+set win32_compiler_flags= -I ..\third_party\stb\ -DEBUG -Gm- -GR- -EHa- -Od -Oi -WX -W3 -wd4996 -wd4311 -wd4302 -wd4201 -wd4100 -wd4189 -wd4129 -wd4244 -DPLATFORM_WIN32=1 -DGAME_DEBUG=1 -FC -Z7 -MTd -nologo
 set lib_paths= /LIBPATH:..\third_party\stb\build
-set win32_linker_flags=/INCREMENTAL:NO /OPT:REF %lib_paths% opengl32.lib winmm.lib user32.lib gdi32.lib shell32.lib dsound.lib assimp-vc142-mt.lib 
-set game_linker_flags=/INCREMENTAL:NO /OPT:REF /PDB:game_%random%.pdb %lib_paths% stb_truetype.lib stb_image.lib
+set win32_linker_flags=/OPT:REF %lib_paths% opengl32.lib winmm.lib user32.lib gdi32.lib shell32.lib dsound.lib 
+set game_linker_flags=/OPT:REF /PDB:game_%random%.pdb %lib_paths% stb_truetype.lib stb_image.lib
 
 
 IF NOT EXIST ..\build mkdir ..\build
@@ -15,3 +15,4 @@ cl  %win32_compiler_flags% /LD ..\src\game.cpp /link %game_linker_flags%
 cl  %win32_compiler_flags% ..\src\windows_platform.cpp /link %win32_linker_flags%  
 
 popd
+

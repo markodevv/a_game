@@ -7,8 +7,12 @@ IF NOT EXIST build mkdir build
 pushd build
 
 REM 64-bit build
-cl  %compiler_flags% /LD ..\stb_image.cpp
-cl  %compiler_flags% /LD ..\stb_image_write.cpp
-cl  %compiler_flags% /LD ..\stb_truetype.cpp
+cl  %compiler_flags% /c /EHsc ..\stb_image.cpp
+cl  %compiler_flags% /c /EHsc ..\stb_image_write.cpp
+cl  %compiler_flags% /c /EHsc ..\stb_truetype.cpp
+
+lib stb_image.obj
+lib stb_image_write.obj
+lib stb_truetype.obj
 
 popd
