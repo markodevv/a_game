@@ -54,22 +54,31 @@ u32 max_particles;
 };
 #define ENTITY_MAX 10000
 typedef u64 EntityId;
-struct ArchType
+struct ArcheType
 {
 Array* type;
 Array** components;
+u32 count;
 };
-struct MapBucket
+struct ComponentInfo
 {
-Array* components;
-EntityId id;
 char* name;
+u64 id;
+u32 size;
+};
+struct Record
+{
+ArcheType* archetype;
+u32 row;
 };
 struct WorldState
 {
-MapBucket* entity_map;
+HashMap* entity_map;
+HashMap* archetype_map;
+HashMap* record_map;
+HashMap* component_info_map;
 Array* removed_ids;
-u32 component_id;
+u32 component_key;
 };
 struct GameState
 {

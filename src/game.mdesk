@@ -79,8 +79,16 @@
 
 @struct ArcheType:
 {
-    type: *Array,
+    type: *Array;
     components: **Array,
+    count: u32,
+}
+
+@struct ComponentInfo:
+{
+    name: *char,
+    id: u64,
+    size: u32,
 }
 
 @struct Record:
@@ -89,20 +97,16 @@
     row: u32,
 }
 
-@struct MapData:
-{
-    array: *Array,
-    key: EntityId,
-}
-
 @struct WorldState:
 {
-    entity_map: *Record,
-    entity_index_map: *MapData,
-    removed_ids: *Array,
-    archetypes: *Array,
+    entity_map: *HashMap,
+    archetype_map: *HashMap,
+    record_map: *HashMap,
+    component_info_map: *HashMap,
 
-    component_id: u32,
+    removed_ids: *Array,
+
+    component_key: u32,
 }
 
 @struct GameState:

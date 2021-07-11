@@ -18,7 +18,7 @@ typedef void RenderProc(Renderer* ren);
 typedef void* Allocate(sizet size);
 typedef void* Reallocate(void* ptr, sizet size);
 typedef void Free(void* ptr);
-typedef void MemCopy(void *dest, void *src, sizet n);
+typedef void MemCopy(void *dest, const void *src, sizet n);
 
 
 struct Platform
@@ -61,7 +61,7 @@ DefaultReallocate(void* ptr, sizet size)
 }
 
 internal void
-DefaultMemCopy(void *dest, void *src, sizet n)
+DefaultMemCopy(void *dest, const void *src, sizet n)
 {
     memcpy(dest, src, n);
 }

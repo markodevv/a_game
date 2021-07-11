@@ -27,9 +27,10 @@ wglCreateContextAttribsARB_type *wglCreateContextAttribsARB;
 
 extern Platform* g_Platform;
 
-#include "array.cpp"
 #include "headers/memory.h"
 #include "memory.cpp"
+#include "array.cpp"
+#include "hashmap.cpp"
 #include "string.cpp"
 #include "log.h"
 #include "headers/math.h"

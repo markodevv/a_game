@@ -16,6 +16,7 @@ Platform* g_Platform;
 #include "headers/memory.h"
 #include "memory.cpp"
 #include "array.cpp"
+#include "hashmap.cpp"
 #include "string.cpp"
 #include "log.h"
 #include "headers/math.h"
@@ -119,13 +120,13 @@ Integrate(Particle* particle, f32 dt)
 
 internal EntityId
 CreateParticleEmitter(MemoryArena* arena,
-                        WorldState* world,
-                        vec2 min_vel,
-                        vec2 max_vel,
-                        u32 particle_spawn_rate,
-                        Color color,
-                        vec2 size,
-                        u32 num_particles)
+                      WorldState* world,
+                      vec2 min_vel,
+                      vec2 max_vel,
+                      u32 particle_spawn_rate,
+                      Color color,
+                      vec2 size,
+                      u32 num_particles)
 {
     // TODO:
     EntityId result; //= AddEntity(world);
@@ -200,6 +201,7 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         AssetsInit(&game_state->assets, &game_state->flush_arena);
 
 
+
         Renderer* ren = &game_state->renderer;
 
 
@@ -242,6 +244,16 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
 
         WorldState* world = &game_state->world;
         EcsInit(world);
+
+        RegisterComponent(world, Transform);
+        RegisterComponent(world, Render);
+        RegisterComponent(world, Rigidbody);
+        EntityId player = NewEntity(world);
+        AddComponent(world, player, Transform);
+        AddComponent(world, player, Rigidbody);
+
+        Transform* transform = GetComponent(world, player, Transform);
+        Rigidbody* rigidbody = GetComponent(world, player, Rigidbody);
 
         // EntityId player_ent = AddEntity(world);
         // EntityId goblin_ent = AddEntity(world, COMPONENT_Render | COMPONENT_Rigidbody);

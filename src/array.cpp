@@ -1,9 +1,9 @@
 struct Array
 {
-    sizet size;
-    sizet count;
+    u32 size;
+    u32 count;
 #ifdef GAME_DEBUG
-    sizet elem_size;
+    u32 elem_size;
 #endif
 };
 
@@ -22,6 +22,12 @@ struct Array
 #define ArrayGet(array, type, index) \
     (type*)_ArrayGet(array, sizeof(Array), sizeof(type), index);
 
+#define ArraySet(array, type, index, data) \
+    (type*)_ArraySet(array, sizeof(Array), sizeof(type), index, data);
+
+#define ArrayFirst(array, type) \
+    (type*)_ArrayFirst(array, sizeof(Array), sizeof(type));
+
 #ifdef GAME_DEBUG
 
 #define DebugCheckArray(array, elem_size) \
@@ -33,8 +39,9 @@ struct Array
 
 #endif
 
+
 internal Array* 
-Resize(Array* array, sizet header, sizet size)
+Resize(Array* array, u32 header, u32 size)
 {
     Array* result = (Array*)Reallocate(array, header + size);
     Assert(result);
@@ -42,7 +49,7 @@ Resize(Array* array, sizet header, sizet size)
 }
 
 internal void
-_CheckArray(Array** array_inout, sizet elem_size)
+_CheckArray(Array** array_inout, u32 elem_size)
 {
     Array* array = *array_inout;
     Assert(array && array->elem_size == elem_size);
@@ -50,13 +57,13 @@ _CheckArray(Array** array_inout, sizet elem_size)
 
 
 internal void
-_ResizeArray(Array** array_inout, sizet header, sizet elem_size)
+_ResizeArray(Array** array_inout, u32 header, u32 elem_size)
 {
     DebugCheckArray(array_inout, elem_size);
     Array* array = *array_inout;
     Assert(array);
 
-    sizet new_size = 2*array->size;
+    u32 new_size = 2*array->size;
     array = Resize(array, header, new_size * elem_size);
     array->size = new_size;
 
@@ -64,7 +71,7 @@ _ResizeArray(Array** array_inout, sizet header, sizet elem_size)
 }
 
 internal Array* 
-_CreateArray(sizet elem_count, sizet header, sizet elem_size)
+_CreateArray(u32 elem_count, u32 header, u32 elem_size)
 {
     Array* array = (Array*)Allocate(header + elem_size * elem_count);
     array->size = elem_count;
@@ -79,9 +86,8 @@ _CreateArray(sizet elem_count, sizet header, sizet elem_size)
 
 
 internal void*
-_ArrayAdd(Array** array_inout, sizet header, sizet elem_size)
+_ArrayAdd(Array** array_inout, u32 header, u32 elem_size)
 {
-    DebugCheckArray(array_inout, elem_size);
     Array* array = *array_inout;
 
     if (!array)
@@ -91,11 +97,13 @@ _ArrayAdd(Array** array_inout, sizet header, sizet elem_size)
 
     if (array->count >= array->size)
     {
-        sizet new_size = 2*array->size;
+        u32 new_size = 2*array->size;
         array = Resize(array, header, new_size * elem_size);
         array->size = new_size;
     }
     *array_inout = array;
+
+    DebugCheckArray(array_inout, elem_size);
 
     void* result = (u8*)((u8*)array + header) + (array->count * elem_size);
     array->count++;
@@ -103,8 +111,15 @@ _ArrayAdd(Array** array_inout, sizet header, sizet elem_size)
     return result;
 }
 
+internal void*
+_ArrayFirst(Array** array_inout, u32 header, u32 elem_size)
+{
+    Array* array = *array_inout;
+    return ((u8*)array + header);
+}
+
 internal void
-_ArrayRemove(Array** array_inout, sizet header, sizet elem_size, sizet index)
+_ArrayRemove(Array** array_inout, u32 header, u32 elem_size, u32 index)
 {
     DebugCheckArray(array_inout, elem_size);
     Array* array = *array_inout;
@@ -114,7 +129,7 @@ _ArrayRemove(Array** array_inout, sizet header, sizet elem_size, sizet index)
     {
         void* dest = ((u8*)array + header) + (elem_size * index);
         void* src = ((u8*)array + header) + (elem_size * (index + 1));
-        sizet size = (array->count - index) * elem_size;
+        u32 size = (array->count - index) * elem_size;
         MemCopy(dest, src, size);
     }
 
@@ -123,13 +138,30 @@ _ArrayRemove(Array** array_inout, sizet header, sizet elem_size, sizet index)
 }
 
 internal void*
-_ArrayGet(Array** array_inout, sizet header, sizet elem_size, sizet index)
+_ArrayGet(Array** array_inout, u32 header, u32 elem_size, u32 index)
+{
+    void* result = 0;
+    if (*array_inout)
+    {
+        DebugCheckArray(array_inout, elem_size);
+        Array* array = *array_inout;
+        Assert(index < array->count && index >= 0);
+        result = (u8*)((u8*)array + header) + (index * elem_size);
+    }
+
+    return result;
+}
+
+internal void
+_ArraySet(Array** array_inout, u32 header, u32 elem_size, u32 index, const void* data)
 {
     DebugCheckArray(array_inout, elem_size);
     Array* array = *array_inout;
     Assert(index < array->count && index >= 0);
 
-    return (u8*)((u8*)array + header) + (index * elem_size);
+    void* dest = (u8*)((u8*)array + header) + (index * elem_size);
+
+    MemCopy(dest, data, elem_size);
 }
 
 internal void
