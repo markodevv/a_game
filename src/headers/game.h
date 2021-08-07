@@ -53,32 +53,26 @@ u32 particle_index;
 u32 max_particles;
 };
 #define ENTITY_MAX 10000
+#define NUM_COMPONENTS 3
 typedef u64 EntityId;
-struct ArcheType
-{
-Array* type;
-Array** components;
-u32 count;
-};
 struct ComponentInfo
 {
-char* name;
-u64 id;
 u32 size;
+char* name;
 };
-struct Record
+struct Component
 {
-ArcheType* archetype;
-u32 row;
+void* data;
 };
 struct WorldState
 {
-HashMap* entity_map;
-HashMap* archetype_map;
-HashMap* record_map;
-HashMap* component_info_map;
+Component components[NUM_COMPONENTS];
+ComponentInfo component_infos[NUM_COMPONENTS];
+HashMap query_components_map;
+u64 entity_masks[ENTITY_MAX];
+u32 entity_count;
+u32 component_count;
 Array* removed_ids;
-u32 component_key;
 };
 struct GameState
 {
@@ -101,4 +95,4 @@ EntityId particle_emitter;
 WorldState world;
 Renderer renderer;
 };
-typedef void (*GameMainLoopProc)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
+typedef void (*GameMainLoopProc)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);;

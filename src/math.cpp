@@ -16,7 +16,7 @@ fmod_vec3(vec3 v, f32 x)
     result.x = (f32)fmod((double)v.x, (double)x);
     result.y = (f32)fmod((double)v.y, (double)x);
     result.z = (f32)fmod((double)v.z, (double)x);
-
+    
     return result;
 }
 
@@ -26,7 +26,7 @@ abs_vec3(vec3 v)
     v.x = Abs(v.x);
     v.y = Abs(v.y);
     v.z = Abs(v.z);
-
+    
     return v;
 }
 
@@ -36,7 +36,7 @@ clamp_vec3(vec3 v, f32 min, f32 max)
     v.x = Clamp(v.x, min, max);
     v.y = Clamp(v.y, min, max);
     v.z = Clamp(v.z, min, max);
-
+    
     return v;
 }
 
@@ -47,8 +47,14 @@ vec3_mix(vec3 v1, vec3 v2, f32 s)
     result.x =  v1.x*(1.0f - s)+v2.x*s;
     result.y =  v1.y*(1.0f - s)+v2.y*s;
     result.z =  v1.z*(1.0f - s)+v2.z*s;
-
+    
     return result;
+}
+
+internal u64
+Log2(u64 n)
+{
+    return log2(n);
 }
 
 internal vec2
@@ -314,11 +320,11 @@ vec3
 Vec3Normalized(vec3 v)
 {
     f32 len = Vec3Length(v);
-
+    
     v.x = v.x / len;
     v.y = v.y / len;
     v.z = v.z / len;
-
+    
     return v;
 }
 
@@ -348,7 +354,7 @@ operator+(vec4& v1, vec4 v2)
     out.y = v1.y + v2.y;
     out.z = v1.z + v2.z;
     out.w = v1.w + v2.w;
-
+    
     return out;
 }
 
@@ -369,7 +375,7 @@ operator-(vec4& v1, vec4 v2)
     out.y = v1.y - v2.y;
     out.z = v1.z - v2.z;
     out.w = v1.w - v2.w;
-
+    
     return out;
 }
 
@@ -420,7 +426,7 @@ Mat4Identity()
     out[1][1] = 1.0f;
     out[2][2] = 1.0f;
     out[3][3] = 1.0f;
-
+    
     return out;
 }
 
@@ -431,7 +437,7 @@ Mat4Scale(vec3 v)
     out[0][0] = v.x;
     out[1][1] = v.y;
     out[2][2] = v.z;
-
+    
     return out;
 }
 
@@ -439,11 +445,11 @@ mat4
 Mat4Translate(vec3 v)
 {
     mat4 out = Mat4Identity();
-
+    
     out[0][3] = v.x;
     out[1][3] = v.y;
     out[2][3] = v.z;
-
+    
     return out;
 }
 
@@ -453,7 +459,7 @@ Mat4Rotate(f32 angle, vec3 v)
     f32 radians = angle * PI_F / 180;
     f32 cos = cosf(radians);
     f32 sin = sinf(radians);
-
+    
     mat4 out = 
     {
         cos + v.x*v.x * (1-cos),       v.x*v.y * (1-cos) - v.z*sin,  v.x*v.z * (1-cos) + v.y*sin, 0.0f,
@@ -461,7 +467,7 @@ Mat4Rotate(f32 angle, vec3 v)
         v.z*v.x * (1-cos) - v.y*sin,  v.z*v.y * (1-cos) + v.x*sin,  cos + v.z*v.z * (1-cos),      0.0f,
         0.0f,                            0.0f,                            0.0f,                           1.0f
     };
-
+    
     return out;
 }
 
@@ -487,15 +493,15 @@ Mat4Inverse(mat4 m)
     f32 A0212 = m[1][0] * m[2][2] - m[1][2] * m[2][0];
     f32 A0113 = m[1][0] * m[3][1] - m[1][1] * m[3][0];
     f32 A0112 = m[1][0] * m[2][1] - m[1][1] * m[2][0];
-
+    
     mat4 out;
-
+    
     f32 det = m[0][0] * ( m[1][1] * A2323 - m[1][2] * A1323 + m[1][3] * A1223 )
         - m[0][1] * ( m[1][0] * A2323 - m[1][2] * A0323 + m[1][3] * A0223 )
         + m[0][2] * ( m[1][0] * A1323 - m[1][1] * A0323 + m[1][3] * A0123 )
         - m[0][3] * ( m[1][0] * A1223 - m[1][1] * A0223 + m[1][2] * A0123 );
     det = 1 / det;
-
+    
     out[0][0] = det *   ( m[1][1] * A2323 - m[1][2] * A1323 + m[1][3] * A1223 );
     out[0][1] = det * - ( m[0][1] * A2323 - m[0][2] * A1323 + m[0][3] * A1223 );
     out[0][2] = det *   ( m[0][1] * A2313 - m[0][2] * A1313 + m[0][3] * A1213 );
@@ -512,7 +518,7 @@ Mat4Inverse(mat4 m)
     out[3][1] = det *   ( m[0][0] * A1223 - m[0][1] * A0223 + m[0][2] * A0123 );
     out[3][2] = det * - ( m[0][0] * A1213 - m[0][1] * A0213 + m[0][2] * A0113 );
     out[3][3] = det *   ( m[0][0] * A1212 - m[0][1] * A0212 + m[0][2] * A0112 );
-
+    
     return out;
 }
 
@@ -528,7 +534,7 @@ Mat4Transpose(mat4 matrix)
             out[i][k] = matrix[k][i];
         }
     }
-
+    
     return out;
 }
 
@@ -542,17 +548,17 @@ ToRadians(f32 d)
 internal mat4
 Mat4Orthographic(f32 w, f32 h)
 {
-
+    
     f32 f = 10000.0f;
     f32 n = 0.0f;
-
+    
     mat4 out = {
         2/w,  0.0f, 0.0f, -1.0f, 
         0.0f, 2/h,  0.0f, -1.0f,
         0.0f, 0.0f, -2/(f-n),  -(f-n)/(f+n),
         0.0f, 0.0f, 0.0f,  1.0f
     };
-
+    
     return out;
 }
 
@@ -561,7 +567,7 @@ Mat4Perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
 {
     f32 t = tanf(ToRadians(fov/2.0f));
     f32 a = w/h;
-
+    
     mat4 out =
     {
         1/t,    0.0f, 0.0f,  0.0f,

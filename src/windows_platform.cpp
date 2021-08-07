@@ -17,22 +17,20 @@
 #define WGL_CONTEXT_CORE_PROFILE_BIT_ARB          0x00000001
 
 
-typedef HGLRC WINAPI wglCreateContextAttribsARB_type(HDC hdc, HGLRC hShareContext, const int *attribList);
-wglCreateContextAttribsARB_type *wglCreateContextAttribsARB;
-
 #include <stb_image.h>
 
 #include "common.h"
 #include "platform.h"
-
 extern Platform* g_Platform;
 
+#define WIN32_EXE_FILE
+
+#include "log.h"
 #include "headers/memory.h"
 #include "memory.cpp"
 #include "array.cpp"
 #include "hashmap.cpp"
 #include "string.cpp"
-#include "log.h"
 #include "headers/math.h"
 #include "math.cpp"
 #include "headers/input.h"
@@ -45,6 +43,21 @@ extern Platform* g_Platform;
 #include "render_group.cpp"
 #include "headers/opengl_renderer.h"
 #include "opengl_renderer.cpp"
+
+OpenGLFunction(HGLRC, wglCreateContextAttribsARB, HDC hdc, HGLRC hShareContext, const int* attribs);
+
+
+#define Win32LoadOpenGLFunction(name) \
+name = (name##proc *)wglGetProcAddress(#name); \
+if (!name) \
+{ \
+HMODULE module = LoadLibraryA("opengl32.dll"); \
+name = (name##proc *)GetProcAddress(module, #name); \
+if (!name) \
+{ \
+Print("OpenGL function " #name " couldn't be loaded.\n"); \
+} \
+} 
 
 
 
@@ -76,7 +89,7 @@ FreeFileMemory(void* memory)
 internal FileResult
 ReadEntireFile(char* file_name)
 {
-     FileResult result = {};
+    FileResult result = {};
     
     HANDLE file_handle = CreateFile(file_name, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
     if(file_handle != INVALID_HANDLE_VALUE)
@@ -110,14 +123,14 @@ ReadEntireFile(char* file_name)
         {
             Print("Trying to open invalid file %s.\n", file_name);
         }
-
+        
         CloseHandle(file_handle);
     }
     else
     {
         Print("Trying to open invalid file %s.\n", file_name);
     }
-
+    
     return result;
 }
 
@@ -139,14 +152,14 @@ WriteEntireFile(char* file_name, u32 size, void* memory)
         {
             Print("Failed to write entire file: %s.\n", file_name);
         }
-
+        
         CloseHandle(file_handle);
     }
     else
     {
         Print("Invalid file handle \n");
     }
-
+    
     return result;
 }
 
@@ -157,15 +170,15 @@ WriteEntireFile(char* file_name, u32 size, void* memory)
 internal void
 win32_init_dsound(HWND window, i32 samples_per_sec, i32 buffer_size)
 {
-
-   LPDIRECTSOUND8 direct_sound;
-   HRESULT status = DirectSoundCreate8(0, &direct_sound, 0);
-
-   if (!FAILED(status))
-   {
+    
+    LPDIRECTSOUND8 direct_sound;
+    HRESULT status = DirectSoundCreate8(0, &direct_sound, 0);
+    
+    if (!FAILED(status))
+    {
         if (!FAILED(direct_sound->SetCooperativeLevel(window, DSSCL_PRIORITY)))
         {
-
+            
             WAVEFORMATEX wave_format = {};
             wave_format.wFormatTag = WAVE_FORMAT_PCM;
             wave_format.nChannels = 2;
@@ -174,13 +187,13 @@ win32_init_dsound(HWND window, i32 samples_per_sec, i32 buffer_size)
             wave_format.nBlockAlign = (wave_format.nChannels * wave_format.wBitsPerSample) / 8;
             wave_format.nAvgBytesPerSec = wave_format.nSamplesPerSec * wave_format.nBlockAlign;
             wave_format.cbSize = 0;
-
+            
             DSBUFFERDESC buffer_description = {};
             buffer_description.dwSize = sizeof(buffer_description);
             buffer_description.dwFlags = DSBCAPS_GETCURRENTPOSITION2;
             buffer_description.dwBufferBytes = buffer_size;
             buffer_description.lpwfxFormat = &wave_format;
-
+            
             if (!FAILED(direct_sound->CreateSoundBuffer(&buffer_description, &global_sound_buffer, 0)))
             {
                 Print("Created sound buffer. \n");
@@ -219,24 +232,24 @@ win32_clear_sound_buffer(Win32SoundState* sound_output)
                                             0)))
     {
         u8* dest_sample = (u8*)region_1;
-
+        
         for (sizet sample_index = 0;
-            sample_index < region_1_size;
-            ++sample_index)
+             sample_index < region_1_size;
+             ++sample_index)
         {
             *dest_sample = 0;
             dest_sample++;
         }
-
+        
         dest_sample = (u8*)region_2;
         for (sizet sample_index = 0;
-            sample_index < region_2_size;
-            ++sample_index)
+             sample_index < region_2_size;
+             ++sample_index)
         {
             *dest_sample = 0;
             dest_sample++;
         }
-
+        
         global_sound_buffer->Unlock(region_1, region_1_size, region_2, region_2_size);
         return true;
     }
@@ -250,7 +263,7 @@ win32_fill_sound_buffer(Win32SoundState* sound_output, GameSoundBuffer* sound_bu
     DWORD region_1_size;
     VOID* region_2;
     DWORD region_2_size;
-
+    
     if (SUCCEEDED(global_sound_buffer->Lock(byte_offset, 
                                             bytes_to_write,
                                             &region_1, 
@@ -262,31 +275,31 @@ win32_fill_sound_buffer(Win32SoundState* sound_output, GameSoundBuffer* sound_bu
         DWORD region_1_sample_count = region_1_size / sound_output->bytes_per_sample;
         i16* sample_out = (i16*)region_1;
         i16* buffer_samples = sound_buffer->samples;
-
+        
         for (sizet sample_index = 0;
-            sample_index < region_1_sample_count;
-            ++sample_index)
+             sample_index < region_1_sample_count;
+             ++sample_index)
         {
             *sample_out = *buffer_samples; sample_out++; buffer_samples++;
             *sample_out = *buffer_samples; sample_out++; buffer_samples++;
             (sound_output->running_sample_count)++;
         }
-
-
+        
+        
         DWORD region_2_sample_count = region_2_size / sound_output->bytes_per_sample;
         sample_out = (i16*)region_2;
-
+        
         for (sizet sample_index = 0;
-            sample_index < region_2_sample_count;
-            ++sample_index)
+             sample_index < region_2_sample_count;
+             ++sample_index)
         {
             *sample_out = *buffer_samples; sample_out++; buffer_samples++;
             *sample_out = *buffer_samples; sample_out++; buffer_samples++;
             (sound_output->running_sample_count)++;
         }
-
+        
         global_sound_buffer->Unlock(region_1, region_1_size, region_2, region_2_size);
-
+        
     }
 }
 
@@ -298,7 +311,7 @@ win32_get_elapsed_seconds(LARGE_INTEGER start, LARGE_INTEGER end)
 {
     i64 elapsed_sec = end.QuadPart - start.QuadPart;
     f32 out = (f32)elapsed_sec / (f32)global_pref_count_freq.QuadPart;
-
+    
     return out;
 }
 
@@ -307,7 +320,7 @@ win32_get_preformance_counter()
 {
     LARGE_INTEGER out = {};
     QueryPerformanceCounter(&out);
-
+    
     return out;
 }
 
@@ -326,7 +339,7 @@ struct Win32GameCode
 internal Win32GameCode
 win32_load_game_code()
 {
-
+    
     Win32GameCode game_code;
     CopyFile("game.dll", "game_temp.dll", FALSE);
     game_code.game_code_dll = LoadLibrary("game_temp.dll");
@@ -355,27 +368,27 @@ win32_get_last_write_time(char* file_name)
 {
     FILETIME last_write_time = {};
     WIN32_FIND_DATA find_data = {};
-
+    
     HANDLE find_handle = FindFirstFileA("game.dll", &find_data);
     if (find_handle != INVALID_HANDLE_VALUE)
     {
         last_write_time = find_data.ftLastWriteTime;
         FindClose(find_handle);
     }
-
+    
     return (i32)last_write_time.dwLowDateTime;
 }
 
 LRESULT CALLBACK 
 win32_window_callback(
-  _In_ HWND   window,
-  _In_ UINT   message,
-  _In_ WPARAM w_param,
-  _In_ LPARAM l_param
-) 
+                      _In_ HWND   window,
+                      _In_ UINT   message,
+                      _In_ WPARAM w_param,
+                      _In_ LPARAM l_param
+                      ) 
 {
     LRESULT result = 0;
-
+    
     switch(message)
     {
         case WM_SIZE:
@@ -399,23 +412,24 @@ win32_window_callback(
 internal void
 win32_init_opengl(HWND window_handle)
 {
-    PIXELFORMATDESCRIPTOR pixel_format = {};
-
+    
     HDC window_dc = GetDC(window_handle);
-
+    
+    PIXELFORMATDESCRIPTOR pixel_format = {};
     pixel_format.nSize = sizeof(PIXELFORMATDESCRIPTOR);
     pixel_format.nVersion = 1;
+    pixel_format.iPixelType = PFD_TYPE_RGBA;
     pixel_format.dwFlags = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
     pixel_format.cColorBits = 32;
     pixel_format.cAlphaBits = 8;
     pixel_format.iLayerType = PFD_MAIN_PLANE;
-
+    
     i32 suggest_pf_index = ChoosePixelFormat(window_dc, &pixel_format);
-
+    
     PIXELFORMATDESCRIPTOR suggested_pixel_format = {};
     DescribePixelFormat(window_dc, suggest_pf_index, sizeof(suggested_pixel_format), &pixel_format);
     SetPixelFormat(window_dc, suggest_pf_index, &suggested_pixel_format);
-
+    
     i32 attrib_list[] =
     {
         WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
@@ -424,13 +438,9 @@ win32_init_opengl(HWND window_handle)
         0,
     };
     HGLRC opengl_rc = wglCreateContext(window_dc);
-
     if (opengl_rc)
     {
-        if (wglMakeCurrent(window_dc, opengl_rc))
-        {
-        }
-        else
+        if (!wglMakeCurrent(window_dc, opengl_rc))
         {
             Assert(false);
         }
@@ -439,11 +449,11 @@ win32_init_opengl(HWND window_handle)
     {
         Assert(false);
     }
-
-    wglCreateContextAttribsARB = 
-       (wglCreateContextAttribsARB_type*)wglGetProcAddress( "wglCreateContextAttribsARB");
+    
+    Win32LoadOpenGLFunction(wglCreateContextAttribsARB);
+    
     opengl_rc = wglCreateContextAttribsARB(window_dc, 0, attrib_list);
-
+    
     if (opengl_rc)
     {
         if (wglMakeCurrent(window_dc, opengl_rc))
@@ -460,22 +470,11 @@ win32_init_opengl(HWND window_handle)
         Print("Failed to create 3.0+ OpenGL context!\n");
         Assert(false);
     }
-
     
-#define Win32LoadOpenGLFunction(name) \
-    name = (name##proc *)wglGetProcAddress(#name); \
-    if (!name) \
-    { \
-        HMODULE module = LoadLibraryA("opengl32.dll"); \
-        name = (name##proc *)GetProcAddress(module, #name); \
-        if (!name) \
-        { \
-            Print("OpenGL function " #name " couldn't be loaded.\n"); \
-        } \
-    } 
+    
     // NOTE: Vsync
     ((BOOL(WINAPI*)(int))wglGetProcAddress("wglSwapIntervalEXT"))(1);
-
+    
     Win32LoadOpenGLFunction(glAttachShader);
     Win32LoadOpenGLFunction(glBindBuffer);
     Win32LoadOpenGLFunction(glBindFramebuffer);
@@ -538,7 +537,7 @@ win32_init_opengl(HWND window_handle)
     Win32LoadOpenGLFunction(glDrawArrays);
     Win32LoadOpenGLFunction(glDrawElements);
     
-
+    
     ReleaseDC(window_handle, window_dc);
 }
 
@@ -553,7 +552,7 @@ set_button_state(ButtonState* button, b8 is_down, b8 was_down)
 internal void
 win32_process_input_messages(GameInput* game_input)
 {
-
+    
     MSG message;
     while(PeekMessage(&message, 0, 0, 0, PM_REMOVE)) 
     {
@@ -564,18 +563,18 @@ win32_process_input_messages(GameInput* game_input)
                 game_input->character = (char)message.wParam;
             } break;
             case WM_QUIT:
-                global_running= false;
-                Print("Closing game...\n");
+            global_running= false;
+            Print("Closing game...\n");
             case WM_KEYUP:
             case WM_KEYDOWN:
             {
                 b8 is_down = ((message.lParam & (1 << 31)) == 0);
                 b8 was_down = ((message.lParam & (1 << 30)) != 0);
                 u32 vk_code = (u32)message.wParam;
-
+                
                 if (is_down == was_down)
                     break;
-
+                
                 switch(vk_code)
                 {
                     case 'A':
@@ -655,67 +654,67 @@ win32_process_input_messages(GameInput* game_input)
                 TranslateMessage(&message);
                 DispatchMessageA(&message);
             } break;
-
+            
         }
     }
-
+    
 }
 
 
 // internal b8 
 // sprite_is_loaded(Assets* assets, char* sprite_name)
 // {
-    // for (u32 i = 0; i < assets->num_sprites; ++i)
-    // {
-        // if (string_equals(assets->sprites[i].name, sprite_name))
-            // return true;
-    // }
-    // return false;
+// for (u32 i = 0; i < assets->num_sprites; ++i)
+// {
+// if (string_equals(assets->sprites[i].name, sprite_name))
+// return true;
+// }
+// return false;
 // }
 
 i32
 WinMain(HINSTANCE hinstance,
-            HINSTANCE prev_hinstance,
-            LPSTR cmd_line,
-            i32 show_code)
+        HINSTANCE prev_hinstance,
+        LPSTR cmd_line,
+        i32 show_code)
 {
     AllocConsole();
-
+    
     HANDLE handle_out = GetStdHandle(STD_OUTPUT_HANDLE);
     int hCrt = _open_osfhandle((long)handle_out, _O_TEXT);
     FILE* hf_out = _fdopen(hCrt, "w");
     setvbuf(hf_out, NULL, _IONBF, 1);
     *stdout = *hf_out;
-
+    
     HANDLE handle_in = GetStdHandle(STD_INPUT_HANDLE);
     hCrt = _open_osfhandle((long) handle_in, _O_TEXT);
     FILE* hf_in = _fdopen(hCrt, "r");
     setvbuf(hf_in, NULL, _IONBF, 128);
     *stdin = *hf_in;
     freopen("CONOUT$", "w+", stdout);
-
-
-
+    
+    
+    
     WNDCLASS window_class = {};
     window_class.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
     window_class.lpfnWndProc = win32_window_callback;
     window_class.hInstance = hinstance;
     window_class.lpszClassName = "Win32WindowClass";
-
+    
     RegisterClass(&window_class);
     HWND window_handle = CreateWindowEx(
-            0,
-            window_class.lpszClassName,
-            "Game",
-            WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            0,
-            0,
-            hinstance, 
-            0); 
+                                        0,
+                                        window_class.lpszClassName,
+                                        "Game",
+                                        WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                                        CW_USEDEFAULT,
+                                        CW_USEDEFAULT,
+                                        CW_USEDEFAULT,
+                                        CW_USEDEFAULT,
+                                        0,
+                                        0,
+                                        hinstance, 
+                                        0); 
     if (window_handle)
     {
         win32_init_opengl(window_handle);
@@ -732,67 +731,67 @@ WinMain(HINSTANCE hinstance,
                                0,
                                SWP_NOSIZE);
     Assert(result);
-
+    
     Win32GameCode game = win32_load_game_code();
-
+    
     QueryPerformanceFrequency(&global_pref_count_freq);
     f32 target_fps = 60.0f;
     f32 target_sec_per_frame = 1.0f / target_fps;
-
-
+    
+    
     GameMemory game_memory = {};
     game_memory.permanent_storage_size = Megabytes(64);
     game_memory.temporary_storage_size = Megabytes(128);
-
+    
     game_memory.is_initialized = false;
     game_memory.permanent_storage = calloc(game_memory.permanent_storage_size, sizeof(u8));
     game_memory.temporary_storage = calloc(game_memory.temporary_storage_size, sizeof(u8));
-
-
+    
+    
     Assert(game_memory.permanent_storage);
     Assert(game_memory.temporary_storage);
-
+    
     game_memory.platform.ReadEntireFile = ReadEntireFile;
     game_memory.platform.WriteEntireFile = WriteEntireFile;
     game_memory.platform.FreeFileMemory = FreeFileMemory;
-
+    
     game_memory.platform.Allocate = DefaultAllocate;
     game_memory.platform.Reallocate = DefaultReallocate;
     game_memory.platform.Free = DefaultFree;
-    game_memory.platform.MemCopy = DefaultMemCopy;
-
-// TODO: should be able to change graphics API on runtime
+    
+    // TODO: should be able to change graphics API on runtime
     game_memory.platform.InitRenderer = OpenglInit;
     game_memory.platform.EndFrame = OpenglEndFrame;
-
-
+    
+    game_memory.platform.Win32Print = OutputDebugString;
+    
     Win32SoundState sound_output = {};
     sound_output.bytes_per_sample = sizeof(i16) * 2;
     sound_output.samples_per_sec = AUDIO_SAMPLE_RATE;
     sound_output.buffer_size = sound_output.samples_per_sec * sound_output.bytes_per_sample;
     sound_output.running_sample_count = 0;
     sound_output.latency_sample_count = (i32)(sound_output.samples_per_sec / target_fps) * 3;
-
+    
     GameInput game_input = {};
     win32_init_dsound(window_handle, sound_output.samples_per_sec, sound_output.buffer_size);
-
+    
     
     LARGE_INTEGER last_counter = win32_get_preformance_counter();
-
+    
     i16* samples = (i16*)calloc(sound_output.buffer_size, sizeof(i16));
     b8 sound_is_valid = false;
     b8 sound_is_playing = false;
-
+    
     i32 last_game_dll_write_time = win32_get_last_write_time("game.dll");
-
+    
     b8 paused = false;
     // ASSIMP 
-
-
-
+    
+    
+    
     while(global_running)
     {
-
+        
         for (sizet i = 0; i < ArrayCount(game_input.buttons); ++i)
         {
             game_input.buttons[i].released = 0;
@@ -800,30 +799,30 @@ WinMain(HINSTANCE hinstance,
         }
         game_input.character = -1;
         game_input.mouse.wheel_delta = 0;
-
+        
         win32_process_input_messages(&game_input);
-
+        
         if (ButtonPressed(game_input.pause_button))
         {
             paused = !paused;
         }
-
+        
         POINT p; 
         GetCursorPos(&p);
         ScreenToClient(window_handle, &p);
         game_input.mouse.position.x = (f32)p.x;
         game_input.mouse.position.y = (f32)p.y;
-
-
+        
+        
         LARGE_INTEGER end_count = win32_get_preformance_counter();
         f32 delta_time = win32_get_elapsed_seconds(last_counter, end_count);
         last_counter = win32_get_preformance_counter();
-
+        
         if (game_memory.is_initialized)
         {
             game_memory.debug->game_fps = 1.0f/delta_time;
         }
-
+        
         i32 game_dll_write_time = win32_get_last_write_time("game.dll");
         if (last_game_dll_write_time != game_dll_write_time)
         {
@@ -831,7 +830,7 @@ WinMain(HINSTANCE hinstance,
             game = win32_load_game_code();
             last_game_dll_write_time = game_dll_write_time;
         }
-
+        
 #if 0
         DWORD bytes_to_write = 0;
         DWORD play_cursor;
@@ -841,12 +840,12 @@ WinMain(HINSTANCE hinstance,
         if (global_sound_buffer->GetCurrentPosition(&play_cursor, &write_cursor) == DS_OK)
         {
             byte_offset = (sound_output.running_sample_count * sound_output.bytes_per_sample) %
-                          sound_output.buffer_size;
+                sound_output.buffer_size;
             target_cursor = ((play_cursor + 
-                             (sound_output.latency_sample_count * sound_output.bytes_per_sample)) %
+                              (sound_output.latency_sample_count * sound_output.bytes_per_sample)) %
                              sound_output.buffer_size);
-
-
+            
+            
             if (byte_offset > target_cursor)
             {
                 bytes_to_write = (sound_output.buffer_size - byte_offset);
@@ -856,7 +855,7 @@ WinMain(HINSTANCE hinstance,
             {
                 bytes_to_write = target_cursor - byte_offset;
             }
-
+            
             sound_is_valid = true;
         }
         else
@@ -865,22 +864,22 @@ WinMain(HINSTANCE hinstance,
             sound_is_valid = false;
             Print("Could not get sound buffer cursor position! \n");
         }
-
+        
         GameSoundBuffer sound_buffer = {};
         sound_buffer.samples_per_sec = sound_output.samples_per_sec;
         sound_buffer.sample_count = bytes_to_write / sound_output.bytes_per_sample;
         sound_buffer.samples = samples;
-
-
-
-
+        
+        
+        
+        
         if (sound_is_valid)
         {
             win32_fill_sound_buffer(&sound_output, &sound_buffer, byte_offset, bytes_to_write);
             if (!sound_is_playing)
             {
                 HRESULT hresult = global_sound_buffer->Play(0, 0, DSBPLAY_LOOPING);
-
+                
                 if (FAILED(hresult))
                 {
                     Print("Failed to play sound. \n");
@@ -889,28 +888,28 @@ WinMain(HINSTANCE hinstance,
             }
         }
 #endif
-
+        
         if (!paused)
         {
             game.main_loop(delta_time, &game_memory, NULL, &game_input);
         }
-
-
+        
+        
         HDC window_dc = GetDC(window_handle);
         SwapBuffers(window_dc);
-
+        
         RECT screen_rect;
         GetClientRect(window_handle, &screen_rect);
         i32 w = screen_rect.right - screen_rect.left;
         i32 h = screen_rect.bottom - screen_rect.top;
         game_memory.screen_width = w;
         game_memory.screen_height = h;
-
-     }
-
+        
+    }
+    
 #ifdef GAME_DEBUG
-     system("pause");
+    system("pause");
 #endif
-
-     return 0;
+    
+    return 0;
 }

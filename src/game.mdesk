@@ -1,16 +1,16 @@
 @struct GameMemory:
 {
     is_initialized: b8,
-
+    
     permanent_storage: *void,
     permanent_storage_size: sizet,
-
+    
     temporary_storage: *void,
     temporary_storage_size: sizet,
-
+    
     debug: *DebugState,
     platform: Platform,
-
+    
     screen_width: i32,
     screen_height: i32,
 }
@@ -44,7 +44,7 @@
 {
     velocity: vec2,
     acceleration: vec2,
-
+    
     mass: f32,
 }
 
@@ -59,84 +59,76 @@
 {
     min_vel: vec2,
     max_vel: vec2,
-
+    
     drag: f32,
-
+    
     render: Render,
-
+    
     particle_spawn_rate: u32,
-
+    
     position: vec2,
-
+    
     particles: *Particle,
     particle_index: u32,
     max_particles :u32,
 }
+
 @define ("ENTITY_MAX 10000")
+@define ("NUM_COMPONENTS 3")
 
-@typedef ("u64 EntityId;")
-
-
-@struct ArcheType:
-{
-    type: *Array;
-    components: **Array,
-    count: u32,
-}
+@typedef ("u64 EntityId")
 
 @struct ComponentInfo:
 {
-    name: *char,
-    id: u64,
     size: u32,
+    name: *char,
 }
 
-@struct Record:
+@struct Component:
 {
-    archetype: *ArcheType,
-    row: u32,
+    data: *void,
 }
 
 @struct WorldState:
 {
-    entity_map: *HashMap,
-    archetype_map: *HashMap,
-    record_map: *HashMap,
-    component_info_map: *HashMap,
-
+    components: ([NUM_COMPONENTS]Component),
+    component_infos: ([NUM_COMPONENTS]ComponentInfo),
+    query_components_map: HashMap,
+    entity_masks: ([ENTITY_MAX]u64),
+    
+    entity_count: u32,
+    component_count: u32,
     removed_ids: *Array,
-
-    component_key: u32,
 }
 
 @struct GameState:
 {
     arena: MemoryArena,
     flush_arena: MemoryArena,
-
-
+    
+    
     assets: Assets,
-
+    
     t_sine: f32,
     tone_hz: i32,
     tone_volume: i32,
-
+    
     hero_sprite: SpriteHandle,
     minotaur_sprite: SpriteHandle,
     hero_sprite_sheet: SpriteHandle,
     backgroud_sprite: SpriteHandle,
     goblin_sprite_sheet: SpriteHandle,
     goblin_sprite: SpriteHandle,
-
+    
     tile_map: ([19][10]u32),
     tile_size: u32,
-
+    
     is_free_camera: b8,
-
+    
     particle_emitter: EntityId,
-
+    
     world: WorldState,
-
+    
     renderer: Renderer,
 }
 

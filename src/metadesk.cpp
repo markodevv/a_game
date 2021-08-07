@@ -17,7 +17,7 @@ GetHeaderStringFromMdesk(MD_String8 string)
     MD_String8 result = MD_PushStringCopy(string);
     result = MD_StringChop(result, 4);
     result.str[result.size-1] = 'h';
-
+    
     return result;
 }
 
@@ -25,9 +25,9 @@ void
 GeneratePrintFunction(MD_Node* node)
 {
     fprintf(print_file, "void DEBUG_LOG(char* name, %.*s var)\n{\n", MD_StringExpand(node->string),
-                                                       MD_StringExpand(node->string));
+            MD_StringExpand(node->string));
     fprintf(print_file, "printf(\"@%%s\\n\", name);\n");
-
+    
     for(MD_EachNode(child, node->first_child))
     {
         if (MD_StringMatch(child->first_child->string, MD_S8Lit("f32"), 0) ||
@@ -58,7 +58,7 @@ GeneratePrintFunction(MD_Node* node)
             if (!MD_StringMatch(child->string, MD_S8Lit(""), 0))
             {
                 fprintf(print_file, "DEBUG_LOG(\"%.*s\", var.%.*s);\n", MD_StringExpand(child->string),
-                                                                        MD_StringExpand(child->string));
+                        MD_StringExpand(child->string));
             }
         }
     }
@@ -66,49 +66,26 @@ GeneratePrintFunction(MD_Node* node)
     fprintf(print_file, "\n}\n\n");
 }
 
-// bool
-// SloppyStringContains(MD_String8 s1, MD_String8 s2)
-// {
-    // for (u32 i = 0; i < MD_CalculateCStringLength(s1); ++i)
-    // {
-        // if (s1[i] == ' ')
-            // continue;
-        // S2 is shorter string
-        // for (u32 j = 0; j < s2.size; ++j)
-        // {
-            // if (s2.str[i + j] != s1[j])
-            // {
-                // i += j;
-                // break;
-            // }
-            // else if (j == (s2.size - 1))
-            // {
-                // return true;
-            // }
-        // }
-    // }
-// 
-    // return false;
-// }
+
 
 void 
 GenerateHeaderFromMdesk(MD_String8 file_path)
 {
     MD_String8 file = MD_LoadEntireFile(file_path);
     MD_Node *code = MD_ParseWholeString(MD_S8Lit("Generated Test Code"), file).node;
-
+    
     MD_String8 header_file_name = GetHeaderStringFromMdesk(file_path);
-
+    
     char str[256];
     sprintf(str, "headers/%.*s", MD_StringExpand(header_file_name));
     FILE* header_file = fopen(str, "w+");
-
+    
     for(MD_EachNode(node, code->first_child))
     {
         if(MD_NodeHasTag(node, MD_S8Lit("struct")))
         {
             MD_C_Generate_Struct(header_file, node);
-
+            
             // Check if struct isn't already added to syntax_file
             if (update_syntax_file)
             {
@@ -116,7 +93,7 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
                     == syntax_file_last_line.size)
                 {
                     static bool is_first = true;
-
+                    
                     // NOTE: this is a hack
                     if (is_first)
                     {
@@ -150,14 +127,20 @@ GenerateHeaderFromMdesk(MD_String8 file_path)
         }
         else if (MD_NodeHasTag(node, MD_S8Lit("typedef")))
         {
-            fprintf(header_file, "typedef %.*s\n", MD_StringExpand(node->first_child->string));
+            fprintf(header_file, "typedef %.*s;\n", MD_StringExpand(node->first_child->string));
         }
         else if (MD_NodeHasTag(node, MD_S8Lit("var")))
         {
             fprintf(header_file, "%.*s\n", MD_StringExpand(node->first_child->string));
         }
+        else if (MD_NodeHasTag(node, MD_S8Lit("forward_decl")))
+        {
+            fprintf(header_file, "struct %.*s;\n", MD_StringExpand(node->first_child->string));
+        }
     }
-
+    
+    printf("Generated header file %.*s\n", MD_StringExpand(header_file_name));
+    
     fclose(header_file);
 }
 
@@ -186,14 +169,14 @@ main(int argc, char* argv[])
             return 0;
         }
     }
-
+    
     char buffer[2048];
-
+    
     if (generate_print_functions)
         print_file = fopen("generated_print.cpp", "w+");
     if (update_syntax_file)
     {
-
+        
         syntax_file = fopen("C:\\Users\\marko\\vimfiles\\syntax\\c.vim", "a+");
         if (!syntax_file)
         {
@@ -204,10 +187,10 @@ main(int argc, char* argv[])
         {
             fgets(buffer, 2048, syntax_file);
         }
-
+        
         syntax_file_last_line = MD_S8CString(buffer);
     }
-
+    
     GenerateHeaderFromMdesk(MD_S8Lit("memory.mdesk"));
     GenerateHeaderFromMdesk(MD_S8Lit("math.mdesk"));
     GenerateHeaderFromMdesk(MD_S8Lit("input.mdesk"));
@@ -215,11 +198,11 @@ main(int argc, char* argv[])
     GenerateHeaderFromMdesk(MD_S8Lit("debug.mdesk"));
     GenerateHeaderFromMdesk(MD_S8Lit("game.mdesk"));
     GenerateHeaderFromMdesk(MD_S8Lit("opengl_renderer.mdesk"));
-
+    
     if (generate_print_functions)
         fclose(print_file);
     if (update_syntax_file)
         fclose(syntax_file);
-
+    
     return 0;
 }

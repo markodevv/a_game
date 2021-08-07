@@ -18,7 +18,7 @@ vec3 position;
 vec3 direction;
 vec3 up;
 };
-typedef i32 SpriteHandle;
+typedef i32 SpriteHandle;;
 enum SpriteType 
 {
 TYPE_SPRITE,
@@ -177,4 +177,4 @@ Assets* assets;
 RenderGroup* render_groups;
 SpriteHandle white_sprite;
 };
-typedef void RendererProc(Renderer* ren);
+typedef void RendererProc(Renderer* ren);;

@@ -1,18 +1,18 @@
-typedef unsigned int GLenum;
-typedef unsigned char GLboolean;
-typedef unsigned int GLbitfield;
-typedef signed char GLbyte;
-typedef short GLshort;
-typedef int GLint;
-typedef int GLsizei;
-typedef unsigned char GLubyte;
-typedef unsigned short GLushort;
-typedef unsigned int GLuint;
-typedef float GLfloat;
-typedef float GLclampf;
-typedef void GLvoid;
-typedef int GLfixed;
-typedef int GLclampx;
+typedef unsigned int GLenum;;
+typedef unsigned char GLboolean;;
+typedef unsigned int GLbitfield;;
+typedef signed char GLbyte;;
+typedef short GLshort;;
+typedef int GLint;;
+typedef int GLsizei;;
+typedef unsigned char GLubyte;;
+typedef unsigned short GLushort;;
+typedef unsigned int GLuint;;
+typedef float GLfloat;;
+typedef float GLclampf;;
+typedef void GLvoid;;
+typedef int GLfixed;;
+typedef int GLclampx;;
 #define GL_TEXTURE_SWIZZLE_R              0x8E42
 #define GL_TEXTURE_SWIZZLE_G              0x8E43
 #define GL_TEXTURE_SWIZZLE_B              0x8E44
@@ -300,8 +300,8 @@ typedef int GLclampx;
 #define GL_VERTEX_SHADER                  0x8B31
 #define GL_ACTIVE_UNIFORMS                0x8B86
 #define GL_ACTIVE_UNIFORM_MAX_LENGTH      0x8B87
-typedef char GLchar;
-typedef ptrdiff_t GLintptr;
-typedef ptrdiff_t GLsizeiptr;
+typedef char GLchar;;
+typedef ptrdiff_t GLintptr;;
+typedef ptrdiff_t GLsizeiptr;;
 #define GLDECL
 #define OpenGLFunction(ret, name, ...) typedef ret GLDECL name##proc(__VA_ARGS__); name##proc*  name
