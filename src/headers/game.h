@@ -64,15 +64,27 @@ struct Component
 {
 void* data;
 };
+struct WorldState;
+typedef void (*SystemFunc)(WorldState* world, Array* entities);
+struct System
+{
+u32 id;
+Array* entities;
+u64 signature;
+SystemFunc Update;
+HashMap entity_id_to_array_id;
+};
 struct WorldState
 {
 Component components[NUM_COMPONENTS];
 ComponentInfo component_infos[NUM_COMPONENTS];
-HashMap query_components_map;
 u64 entity_masks[ENTITY_MAX];
+Array* removed_ids;
+System systems[32];
+u32 num_systems;
 u32 entity_count;
 u32 component_count;
-Array* removed_ids;
+RenderGroup* render_group;
 };
 struct GameState
 {
@@ -95,4 +107,4 @@ EntityId particle_emitter;
 WorldState world;
 Renderer renderer;
 };
-typedef void (*GameMainLoopProc)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);;
+typedef void (*GameMainLoopProc)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);

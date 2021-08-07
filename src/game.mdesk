@@ -89,16 +89,32 @@
     data: *void,
 }
 
+@forward_decl ("WorldState")
+@typedef ("void (*SystemFunc)(WorldState* world, Array* entities)");
+
+@struct System:
+{
+    id: u32,
+    entities: *Array,
+    signature: u64,
+    Update: SystemFunc,
+    entity_id_to_array_id: HashMap,
+}
+
 @struct WorldState:
 {
     components: ([NUM_COMPONENTS]Component),
     component_infos: ([NUM_COMPONENTS]ComponentInfo),
-    query_components_map: HashMap,
     entity_masks: ([ENTITY_MAX]u64),
+    removed_ids: *Array,
+    
+    systems: ([32]System),
+    num_systems: u32,
     
     entity_count: u32,
     component_count: u32,
-    removed_ids: *Array,
+    
+    render_group: *RenderGroup,
 }
 
 @struct GameState:
@@ -132,4 +148,4 @@
     renderer: Renderer,
 }
 
-@typedef ("void (*GameMainLoopProc)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);")
+@typedef ("void (*GameMainLoopProc)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)")

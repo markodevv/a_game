@@ -173,6 +173,24 @@ NewRender(vec2 size, Color color, f32 layer, SpriteHandle sprite)
     return result;
 }
 
+internal void 
+RenderUpdate(WorldState* world, Array* entities)
+{
+    for (u32 i = 0; i < entities->count; ++i)
+    {
+        EntityId entity = *ArrayGet(entities, i, EntityId);
+        Transform* transform = (Transform*)GetComponent(world, entity, ComponentTransform);
+        Render* render = (Render*)GetComponent(world, entity, ComponentRender);
+        
+        PushQuad(world->render_group,
+                 transform->position,
+                 render->size,
+                 render->color,
+                 render->layer,
+                 render->sprite);
+        
+    }
+}
 
 extern "C" PLATFORM_API void
 GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
@@ -241,11 +259,19 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         WorldState* world = &game_state->world;
         
         InitWorld(&game_state->arena, world);
+        ComponentType components[] = 
+        {
+            ComponentTransform,
+            ComponentRender,
+        };
+        RegisterSystem(world, components, ArrayCount(components), RenderUpdate);
         
         EntityId player = NewEntity(world);
         AddComponent(world, player, ComponentTransform);
         AddComponent(world, player, ComponentRender);
         
+        Transform* player_transform = (Transform*)GetComponent(world, player, ComponentTransform);
+        player_transform->position = V2(200, 200);
         Render* player_render = (Render*)GetComponent(world, player, ComponentRender);
         *player_render = NewRender(V2(60,60), NewColor(255), LAYER_FRONT, game_state->hero_sprite);
         
@@ -309,7 +335,10 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
                                                                   (f32)ren->screen_height),
                                                  ren, 
                                                  &game_state->assets);
+    // TODO(Marko): Temporary
+    game_state->world.render_group = render_group;
     
+    UpdateSystems(&game_state->world);
     
     {
         // Rigidbody* player_rigid = GetComponent(&game_state->world, 0, Rigidbody);
@@ -341,26 +370,6 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         global_is_edit_mode = !global_is_edit_mode;
     }
     
-    {
-        WorldState* world = &game_state->world;
-        u64 key = ComponentRender | ComponentTransform;
-        Array* entities = *HashMapGet(world->query_components_map,
-                                      &key,
-                                      Array*);
-        for (u32 i = 0; i < entities->count; ++i)
-        {
-            EntityId entity = *ArrayGet(entities, i, EntityId);
-            Transform* transform = (Transform*)GetComponent(world, entity, ComponentTransform);
-            Render* render = (Render*)GetComponent(world, entity, ComponentRender);
-            PushQuad(render_group,
-                     transform->position,
-                     render->size,
-                     render->color,
-                     render->layer,
-                     render->sprite);
-            
-        }
-    }
     // for (u32 i = 0; i < ENTITY_MAX; ++i)
     // {
     // if (HasComponent(&game_state->world, i, COMPONENT_Render))

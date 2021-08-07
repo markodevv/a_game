@@ -14,7 +14,7 @@ _CreateArray(size, sizeof(Array), sizeof(type));
 #define ArrayAdd(array, type) \
 ((type*)_ArrayAdd(&array, sizeof(Array), sizeof(type)));
 
-#define ArrayRemove(array, type, index) \
+#define ArrayRemove(array, index, type) \
 _ArrayRemove(&array, sizeof(Array), sizeof(type), index);
 
 #define ArrayGet(array, index, type) \
