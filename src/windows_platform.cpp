@@ -894,16 +894,16 @@ WinMain(HINSTANCE hinstance,
             game.main_loop(delta_time, &game_memory, NULL, &game_input);
         }
         
-        
-        HDC window_dc = GetDC(window_handle);
-        SwapBuffers(window_dc);
-        
         RECT screen_rect;
         GetClientRect(window_handle, &screen_rect);
         i32 w = screen_rect.right - screen_rect.left;
         i32 h = screen_rect.bottom - screen_rect.top;
         game_memory.screen_width = w;
         game_memory.screen_height = h;
+        
+        HDC window_dc = GetDC(window_handle);
+        SwapBuffers(window_dc);
+        
         
     }
     

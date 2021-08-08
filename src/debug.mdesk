@@ -1,6 +1,6 @@
 @struct SubMenu:
 {
-     is_active: b8,
+    is_active: b8,
 }
 
 @struct UiWindow:
@@ -8,7 +8,7 @@
     position: vec2,
     size: vec2,
     layer: u32,
-
+    
     next: *UiWindow,
 }
 
@@ -21,12 +21,12 @@
 @struct Colorpicker:
 {
     color: Color,
-
+    
     hue: f32,
     saturation: f32,
     brightness: f32,
     is_active: b8,
-
+    
     key: *void,
     next: *Colorpicker,
 }
@@ -35,46 +35,46 @@
 {
     arena: MemoryArena,
     temp_arena: TemporaryArena,
-
+    
     render_group: *RenderGroup,
-
+    
     hot_item: *void,
     next_hot_item: *void,
     active_item: *void,
-
+    
     input: GameInput,
-
+    
     font: Font,
-
+    
     colorpickers: ([64]Colorpicker),
-
+    
     text_input_buffer: ([256]char),
     text_insert_index: u32,
-
+    
     editbox_value_to_set_size: u8,
     editbox_value_is_int: b8,
     editbox_value_to_set: *void,
-
+    
     game_fps: f32,
     mouse_pos: vec2,
     prev_mouse_pos: vec2,
-
+    
     window_table: ([64]UiWindow),
     current_window: *UiWindow, 
     focused_window: *UiWindow,
-
+    
     window_stack: ([32]StackedWindow),
     num_stacked_windows: u32,
     do_pop_window: b8,
-
+    
     draw_cursor: vec2,
     top_layer: u32,
     is_newline: b8,
-
+    
     // TODO: this storage is trash
     sub_menus: ([64]SubMenu),
     sub_menu_index: u32,
-
+    
     screen_height: i32,
     screen_width: i32,
 }

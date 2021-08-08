@@ -28,7 +28,6 @@
 @struct Render:
 {
     sprite: SpriteHandle,
-    size: vec2,
     color: Color,
     layer: f32,
 }
@@ -51,7 +50,9 @@
 @struct Particle:
 {
     position: vec2,
-    rigidbody: Rigidbody,
+    velocity: vec2,
+    acceleration: vec2,
+    size: vec2,
 }
 
 
@@ -62,7 +63,8 @@
     
     drag: f32,
     
-    render: Render,
+    color: Color,
+    size: vec2,
     
     particle_spawn_rate: u32,
     
@@ -74,9 +76,9 @@
 }
 
 @define ("ENTITY_MAX 10000")
-@define ("NUM_COMPONENTS 3")
+@define ("NUM_COMPONENTS 4")
 
-@typedef ("u64 EntityId")
+@typedef ("u16 EntityId")
 
 @struct ComponentInfo:
 {
@@ -89,8 +91,8 @@
     data: *void,
 }
 
-@forward_decl ("WorldState")
-@typedef ("void (*SystemFunc)(WorldState* world, Array* entities)");
+@forward_decl ("GameState")
+@typedef ("void (*SystemFunc)(GameState* game_state, Array* entities)");
 
 @struct System:
 {
@@ -99,6 +101,7 @@
     signature: u64,
     Update: SystemFunc,
     entity_id_to_array_id: HashMap,
+    name: *char,
 }
 
 @struct WorldState:
@@ -114,6 +117,9 @@
     entity_count: u32,
     component_count: u32,
     
+    grid_width: u16,
+    grid_height: u16,
+    
     render_group: *RenderGroup,
 }
 
@@ -122,6 +128,7 @@
     arena: MemoryArena,
     flush_arena: MemoryArena,
     
+    delta_time: f32,
     
     assets: Assets,
     
@@ -136,16 +143,14 @@
     goblin_sprite_sheet: SpriteHandle,
     goblin_sprite: SpriteHandle,
     
-    tile_map: ([19][10]u32),
     tile_size: u32,
     
     is_free_camera: b8,
     
-    particle_emitter: EntityId,
-    
     world: WorldState,
     
     renderer: Renderer,
+    render_group: *RenderGroup,
 }
 
 @typedef ("void (*GameMainLoopProc)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)")

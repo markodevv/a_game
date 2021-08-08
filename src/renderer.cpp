@@ -30,10 +30,10 @@ GetUnform(Shader* shader, char* name)
         {
             return uniform;
         }
-
+        
         uniform = uniform->next;
     }
-
+    
     return uniform;
 }
 
@@ -47,15 +47,15 @@ AddUniform(Shader* shader, char* name, MemoryArena* arena)
         shader->uniforms->name = StringCopy(arena, name);
         return shader->uniforms;
     }
-
+    
     while (uniform->next)
     {
         uniform = uniform->next;
     }
-
+    
     uniform->next = PushMemory(arena, Uniform);
     uniform->next->name = StringCopy(arena, name);
-
+    
     return uniform->next;
 }
 
@@ -63,23 +63,33 @@ AddUniform(Shader* shader, char* name, MemoryArena* arena)
 
 #define SetShaderUniform(shader, n, value, type) \
 { \
-    char* name = n; \
-    Uniform* uni = GetUnform(shader, name); \
-    if (uni) \
-    { \
-        *((type*)uni->data) = value; \
-        type test = *((type*)uni->data); \
-    } \
-    else \
-    { \
-        Print("No uniform named [%s]", name); \
-    } \
+char* name = n; \
+Uniform* uni = GetUnform(shader, name); \
+if (uni) \
+{ \
+*((type*)uni->data) = value; \
+type test = *((type*)uni->data); \
+} \
+else \
+{ \
+Print("No uniform named [%s]", name); \
+} \
 } 
 
 internal Shader*
 GetShader(Assets* assets, ShaderId shader_id)
 {
     return &assets->shaders[shader_id];
+}
+
+internal Camera
+CreateCamera(vec3 up, vec3 direction, vec3 position)
+{
+    Camera result;
+    result.up = up;
+    result.direction = direction;
+    result.position = position;
+    return result;
 }
 
 internal mat4
@@ -89,7 +99,7 @@ CameraTransform(Camera* cam)
     vec3 u = Vec3Normalized(cam->up);
     vec3 r = Vec3Normalized(Vec3Cross(cam->up, cam->direction));
     vec3 t = cam->position;
-
+    
     mat4 out =
     {
         r.x,  r.y,  r.z,  -t.x,
@@ -97,7 +107,7 @@ CameraTransform(Camera* cam)
         f.x,  f.y,  f.z,  -t.z,
         0.0f, 0.0f, 0.0f,  1.0f
     };
-
+    
     return out;
 }
 

@@ -35,6 +35,9 @@ struct HashMap
 #define CreateHashMap(size, hash, type) \
 _CreateHashMap(size, sizeof(type), hash);
 
+#define HashMapRemove(map, key, type) \
+_HashMapRemove(&map, key, sizeof(*key), sizeof(type));
+
 
 internal b8
 CompareU32(const void* key1, void* key2)
@@ -113,6 +116,34 @@ _CreateHashMap(u32 elem_count,
     return result;
 }
 
+internal void
+_HashMapRemove(HashMap* map, const void* key, u32 key_size, u32 value_size)
+{
+    Assert(map->elem_size == value_size);
+    
+    void* result = 0;
+    sizet hash = map->Hash(key);
+    sizet index = hash % (map->size-1);
+    
+    HashEntry* entry = map->entries + index;
+    
+    Assert(entry);
+    
+    if (entry->keys)
+    {
+        for (u32 i = 0; i < entry->keys->count; ++i)
+        {
+            void* key_cmp = _ArrayGet(&entry->keys, sizeof(Array), key_size, i);
+            if (MemCompare(key, key_cmp, key_size))
+            {
+                _ArrayRemove(&entry->keys, sizeof(Array), key_size, i);
+                _ArrayRemove(&entry->values, sizeof(Array), value_size, i);
+            }
+        }
+    }
+    
+}
+
 internal void*
 _HashMapPut(HashMap* map, const void* key, u32 key_size, u32 value_size)
 {
@@ -181,9 +212,9 @@ _HashMapSet(map, key, sizeof(*key), value, sizeof(*value));
 
 
 internal void
-_HashMapSet(HashMap map, const void* key, u32 key_size, void* value, u32 value_size)
+_HashMapSet(HashMap* map, const void* key, u32 key_size, void* value, u32 value_size)
 {
-    void* to_set = _HashMapGet(&map, key, key_size, value_size);
+    void* to_set = _HashMapGet(map, key, key_size, value_size);
     MemCopy(to_set, value, value_size);
 }
 

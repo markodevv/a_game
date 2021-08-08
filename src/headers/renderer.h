@@ -106,6 +106,7 @@ u32 key;
 struct RenderSetup
 {
 mat4 projection;
+Camera camera;
 };
 enum UniformType 
 {
@@ -155,7 +156,6 @@ u8* push_buffer_base;
 u32 push_buffer_size;
 u32 push_buffer_capacity;
 u32 sort_element_count;
-RenderGroup* next;
 };
 #define MAX_VERTICES 100000
 #define MAX_INDICES 150000
@@ -168,13 +168,13 @@ u32 indices_count;
 u32 VBO;
 u32 EBO;
 u32 VAO;
-Camera camera;
 u32 slot;
 vec3 light_pos;
 i32 screen_width;
 i32 screen_height;
 Assets* assets;
-RenderGroup* render_groups;
+RenderGroup render_groups[10];
+u32 render_group_count;
 SpriteHandle white_sprite;
 };
 typedef void RendererProc(Renderer* ren);;

@@ -50,7 +50,7 @@
             uvs: ([4]vec2),
         }
     }
-
+    
     id: u32,
     slot: u32,
     type: SpriteType,
@@ -59,13 +59,13 @@
 
 @struct CharMetric:
 {
-   x0: u16,
-   y0: u16,
-   x1: u16,
-   y1: u16,
-   xoff: f32,
-   yoff: f32,
-   xadvance: f32,
+    x0: u16,
+    y0: u16,
+    x1: u16,
+    y1: u16,
+    xoff: f32,
+    yoff: f32,
+    xadvance: f32,
 }
 
 @struct Font:
@@ -126,6 +126,7 @@
 @struct RenderSetup:
 {
     projection: mat4,
+    camera: Camera,
 }
 
 @enum UniformType:
@@ -152,7 +153,7 @@
     type_info: UniformTypeInfo,
     data: *void,
     name: *char,
-
+    
     next: *Uniform;
 }
 
@@ -167,13 +168,13 @@
 @struct Assets:
 {
     arena: MemoryArena,
-
+    
     loaded_sprite_queue: *SpriteHandle,
     num_queued_sprites: u32,
-
+    
     sprites: *Sprite,
     num_sprites: u32,
-
+    
     shaders: ([NUM_SHADERS]Shader),
 }
 
@@ -182,14 +183,12 @@
 {
     setup: RenderSetup,
     assets: *Assets,
-
+    
     push_buffer_base: *u8,
     push_buffer_size: u32,
     push_buffer_capacity: u32,
-
+    
     sort_element_count: u32,
-
-    next: *RenderGroup,
 }
 
 @define ("MAX_VERTICES 100000")
@@ -202,24 +201,23 @@
     vertex_count: u32,
     indices: ([MAX_INDICES]u32),
     indices_count: u32,
-
+    
     VBO: u32,
     EBO: u32,
     VAO: u32,
-
-    camera: Camera,
-
+    
     slot: u32,
-
+    
     light_pos: vec3,
-
+    
     screen_width: i32,
     screen_height: i32,
-
+    
     assets: *Assets,
-
-    render_groups: *RenderGroup,
-
+    
+    render_groups: ([10]RenderGroup),
+    render_group_count: u32,
+    
     white_sprite: SpriteHandle,
 }
 

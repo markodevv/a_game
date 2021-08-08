@@ -19,7 +19,6 @@ i16* samples;
 struct Render
 {
 SpriteHandle sprite;
-vec2 size;
 Color color;
 f32 layer;
 };
@@ -38,14 +37,17 @@ f32 mass;
 struct Particle
 {
 vec2 position;
-Rigidbody rigidbody;
+vec2 velocity;
+vec2 acceleration;
+vec2 size;
 };
 struct ParticleEmitter
 {
 vec2 min_vel;
 vec2 max_vel;
 f32 drag;
-Render render;
+Color color;
+vec2 size;
 u32 particle_spawn_rate;
 vec2 position;
 Particle* particles;
@@ -53,8 +55,8 @@ u32 particle_index;
 u32 max_particles;
 };
 #define ENTITY_MAX 10000
-#define NUM_COMPONENTS 3
-typedef u64 EntityId;
+#define NUM_COMPONENTS 4
+typedef u16 EntityId;
 struct ComponentInfo
 {
 u32 size;
@@ -64,8 +66,8 @@ struct Component
 {
 void* data;
 };
-struct WorldState;
-typedef void (*SystemFunc)(WorldState* world, Array* entities);
+struct GameState;
+typedef void (*SystemFunc)(GameState* game_state, Array* entities);
 struct System
 {
 u32 id;
@@ -73,6 +75,7 @@ Array* entities;
 u64 signature;
 SystemFunc Update;
 HashMap entity_id_to_array_id;
+char* name;
 };
 struct WorldState
 {
@@ -84,12 +87,15 @@ System systems[32];
 u32 num_systems;
 u32 entity_count;
 u32 component_count;
+u16 grid_width;
+u16 grid_height;
 RenderGroup* render_group;
 };
 struct GameState
 {
 MemoryArena arena;
 MemoryArena flush_arena;
+f32 delta_time;
 Assets assets;
 f32 t_sine;
 i32 tone_hz;
@@ -100,11 +106,10 @@ SpriteHandle hero_sprite_sheet;
 SpriteHandle backgroud_sprite;
 SpriteHandle goblin_sprite_sheet;
 SpriteHandle goblin_sprite;
-u32 tile_map[19][10];
 u32 tile_size;
 b8 is_free_camera;
-EntityId particle_emitter;
 WorldState world;
 Renderer renderer;
+RenderGroup* render_group;
 };
 typedef void (*GameMainLoopProc)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);

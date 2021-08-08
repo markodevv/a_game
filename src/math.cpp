@@ -57,6 +57,7 @@ Log2(u64 n)
     return log2(n);
 }
 
+
 internal vec2
 V2(f32 x, f32 y)
 {
@@ -98,6 +99,19 @@ V3(f32 n)
 {
     return {n, n, n};
 }
+
+internal vec3 
+Vec3Up()
+{
+    return V3(0.0f, 1.0f, 0.0f);
+}
+
+internal vec3 
+Vec3Forward()
+{
+    return V3(0.0f, 0.0f, 1.0f);
+}
+
 
 internal vec4
 V4(f32 x, f32 y, f32 z, f32 w)
