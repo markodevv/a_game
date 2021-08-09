@@ -1,0 +1,44 @@
+EntryType :: enum
+{
+	EntryType_A,
+	EntryType_B,
+	EntryType_B2,
+	EntryType_C,
+}
+
+EntryFlags :: flags
+{
+	EntryFlags_Value2,
+	EntryFlags_Value3,
+	EntryFlags_Value4,
+}
+
+Color :: union
+{
+    /* NOTE(mal): In the general case, it's impossible to decide automatically which union member should be used to 
+                  port data across versions of a union. That's why I've introduced @AuthoritativeUnionMember here
+     */
+    @AuthoritativeUnionMember components : struct
+    {
+        b : uint8_t;
+        g : uint8_t;
+        r : uint8_t;
+        a : uint8_t;
+    };
+
+    raw : [4]uint8_t;
+}
+
+Entry :: struct
+{
+    type : EntryType;
+    color : Color;
+    p : struct
+    {
+        x : float;
+        y : float;
+        z : float;
+    };
+    flags : EntryFlags;
+}
+
