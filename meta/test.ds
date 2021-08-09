@@ -1,0 +1,24 @@
+Foo :: struct
+{
+	a : int,
+	b : float,
+	c : *char,
+	d : *void,
+	
+	e : struct
+	{
+		a : int,
+		b : float,
+		c : *char,
+	},
+	
+	f : Bar,
+}
+
+Bar :: struct
+{
+	g : int,
+	h : float,
+	@NoPrint
+		i : *void,
+}

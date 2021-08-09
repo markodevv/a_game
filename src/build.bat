@@ -5,7 +5,10 @@ set lib_paths= /LIBPATH:..\third_party\stb\build
 set win32_linker_flags=/OPT:REF %lib_paths% opengl32.lib winmm.lib user32.lib gdi32.lib shell32.lib dsound.lib 
 set game_linker_flags=/OPT:REF /PDB:game_%random%.pdb %lib_paths% stb_truetype.lib stb_image.lib
 
-.\metadesk.exe
+@RD /S /Q ".\generated"
+mkdir .\generated
+
+data_desk --custom ../meta/datadesk_layer.dll memory.mdesk math.mdesk input.mdesk renderer.mdesk debug.mdesk game.mdesk
 
 IF NOT EXIST ..\build mkdir ..\build
 pushd ..\build

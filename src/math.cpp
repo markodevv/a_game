@@ -360,6 +360,12 @@ Vec3Dot(vec3 a, vec3 b)
 }
 
 
+internal inline f32& 
+Vec4At(vec4 &v, sizet i)
+{
+    return *(&v.x + i);
+}
+
 vec4 
 operator+(vec4& v1, vec4 v2)
 {
@@ -393,11 +399,30 @@ operator-(vec4& v1, vec4 v2)
     return out;
 }
 
+internal inline f32&
+Mat4At(mat4& mat, sizet x, sizet y)
+{
+    Assert(x < 4 && y < 4);
+    return *(&mat.rows[x].x + y);
+}
+
+internal inline mat4
+Mat4Identity()
+{
+    mat4 out = {};
+    Mat4At(out, 0, 0) = 1.0f;
+    Mat4At(out, 1, 1) = 1.0f;
+    Mat4At(out, 2, 2) = 1.0f;
+    Mat4At(out, 3, 3) = 1.0f;
+    
+    return out;
+}
+
 
 mat4 
 operator*(mat4& m1, mat4 m2)
 {
-    mat4 out;
+    mat4 out = Mat4Identity();
     for (sizet x = 0; x < 4; ++x)
     {
         for (sizet y = 0; y < 4; ++y)
@@ -405,9 +430,9 @@ operator*(mat4& m1, mat4 m2)
             f32 sum = 0.0f;
             for (sizet m = 0; m < 4; ++m)
             {
-                sum += m1[x][m] * m2[m][y];
+                sum += Mat4At(m1, x, m) * Mat4At(m2, m, y);
             }
-            out[x][y] = sum;
+            Mat4At(out, x, y) = sum;
         }
     }
     return out;
@@ -424,23 +449,11 @@ operator*(mat4 mat, vec4 other)
             f32 sum = 0.0f;
             for (sizet m = 0; m < 4; ++m)
             {
-                sum += mat[x][m] * other[m];
+                sum += Mat4At(mat, x, m) * Vec4At(other, m);
             }
-            out[x] = sum;
+            Vec4At(out, x) = sum;
         }
     }
-    return out;
-}
-
-mat4
-Mat4Identity()
-{
-    mat4 out = {};
-    out[0][0] = 1.0f;
-    out[1][1] = 1.0f;
-    out[2][2] = 1.0f;
-    out[3][3] = 1.0f;
-    
     return out;
 }
 
@@ -448,9 +461,9 @@ mat4
 Mat4Scale(vec3 v)
 {
     mat4 out = Mat4Identity();
-    out[0][0] = v.x;
-    out[1][1] = v.y;
-    out[2][2] = v.z;
+    Mat4At(out, 0, 0) = v.x;
+    Mat4At(out, 1, 1) = v.y;
+    Mat4At(out, 2, 2) = v.z;
     
     return out;
 }
@@ -460,9 +473,9 @@ Mat4Translate(vec3 v)
 {
     mat4 out = Mat4Identity();
     
-    out[0][3] = v.x;
-    out[1][3] = v.y;
-    out[2][3] = v.z;
+    Mat4At(out, 0, 3) = v.x;
+    Mat4At(out, 1, 3) = v.y;
+    Mat4At(out, 2, 3) = v.z;
     
     return out;
 }
@@ -489,49 +502,49 @@ Mat4Rotate(f32 angle, vec3 v)
 internal mat4
 Mat4Inverse(mat4 m)
 {
-    f32 A2323 = m[2][2] * m[3][3] - m[2][3] * m[3][2];
-    f32 A1323 = m[2][1] * m[3][3] - m[2][3] * m[3][1];
-    f32 A1223 = m[2][1] * m[3][2] - m[2][2] * m[3][1];
-    f32 A0323 = m[2][0] * m[3][3] - m[2][3] * m[3][0];
-    f32 A0223 = m[2][0] * m[3][2] - m[2][2] * m[3][0];
-    f32 A0123 = m[2][0] * m[3][1] - m[2][1] * m[3][0];
-    f32 A2313 = m[1][2] * m[3][3] - m[1][3] * m[3][2];
-    f32 A1313 = m[1][1] * m[3][3] - m[1][3] * m[3][1];
-    f32 A1213 = m[1][1] * m[3][2] - m[1][2] * m[3][1];
-    f32 A2312 = m[1][2] * m[2][3] - m[1][3] * m[2][2];
-    f32 A1312 = m[1][1] * m[2][3] - m[1][3] * m[2][1];
-    f32 A1212 = m[1][1] * m[2][2] - m[1][2] * m[2][1];
-    f32 A0313 = m[1][0] * m[3][3] - m[1][3] * m[3][0];
-    f32 A0213 = m[1][0] * m[3][2] - m[1][2] * m[3][0];
-    f32 A0312 = m[1][0] * m[2][3] - m[1][3] * m[2][0];
-    f32 A0212 = m[1][0] * m[2][2] - m[1][2] * m[2][0];
-    f32 A0113 = m[1][0] * m[3][1] - m[1][1] * m[3][0];
-    f32 A0112 = m[1][0] * m[2][1] - m[1][1] * m[2][0];
+    f32 A2323 = Mat4At(m, 2,2) * Mat4At(m, 3,3) - Mat4At(m, 2,3) * Mat4At(m, 3,2);
+    f32 A1323 = Mat4At(m, 2,1) * Mat4At(m, 3,3) - Mat4At(m, 2,3) * Mat4At(m, 3,1);
+    f32 A1223 = Mat4At(m, 2,1) * Mat4At(m, 3,2) - Mat4At(m, 2,2) * Mat4At(m, 3,1);
+    f32 A0323 = Mat4At(m, 2,0) * Mat4At(m, 3,3) - Mat4At(m, 2,3) * Mat4At(m, 3,0);
+    f32 A0223 = Mat4At(m, 2,0) * Mat4At(m, 3,2) - Mat4At(m, 2,2) * Mat4At(m, 3,0);
+    f32 A0123 = Mat4At(m, 2,0) * Mat4At(m, 3,1) - Mat4At(m, 2,1) * Mat4At(m, 3,0);
+    f32 A2313 = Mat4At(m, 1,2) * Mat4At(m, 3,3) - Mat4At(m, 1,3) * Mat4At(m, 3,2);
+    f32 A1313 = Mat4At(m, 1,1) * Mat4At(m, 3,3) - Mat4At(m, 1,3) * Mat4At(m, 3,1);
+    f32 A1213 = Mat4At(m, 1,1) * Mat4At(m, 3,2) - Mat4At(m, 1,2) * Mat4At(m, 3,1);
+    f32 A2312 = Mat4At(m, 1,2) * Mat4At(m, 2,3) - Mat4At(m, 1,3) * Mat4At(m, 2,2);
+    f32 A1312 = Mat4At(m, 1,1) * Mat4At(m, 2,3) - Mat4At(m, 1,3) * Mat4At(m, 2,1);
+    f32 A1212 = Mat4At(m, 1,1) * Mat4At(m, 2,2) - Mat4At(m, 1,2) * Mat4At(m, 2,1);
+    f32 A0313 = Mat4At(m, 1,0) * Mat4At(m, 3,3) - Mat4At(m, 1,3) * Mat4At(m, 3,0);
+    f32 A0213 = Mat4At(m, 1,0) * Mat4At(m, 3,2) - Mat4At(m, 1,2) * Mat4At(m, 3,0);
+    f32 A0312 = Mat4At(m, 1,0) * Mat4At(m, 2,3) - Mat4At(m, 1,3) * Mat4At(m, 2,0);
+    f32 A0212 = Mat4At(m, 1,0) * Mat4At(m, 2,2) - Mat4At(m, 1,2) * Mat4At(m, 2,0);
+    f32 A0113 = Mat4At(m, 1,0) * Mat4At(m, 3,1) - Mat4At(m, 1,1) * Mat4At(m, 3,0);
+    f32 A0112 = Mat4At(m, 1,0) * Mat4At(m, 2,1) - Mat4At(m, 1,1) * Mat4At(m, 2,0);
     
     mat4 out;
     
-    f32 det = m[0][0] * ( m[1][1] * A2323 - m[1][2] * A1323 + m[1][3] * A1223 )
-        - m[0][1] * ( m[1][0] * A2323 - m[1][2] * A0323 + m[1][3] * A0223 )
-        + m[0][2] * ( m[1][0] * A1323 - m[1][1] * A0323 + m[1][3] * A0123 )
-        - m[0][3] * ( m[1][0] * A1223 - m[1][1] * A0223 + m[1][2] * A0123 );
+    f32 det = Mat4At(m, 0,0) * ( Mat4At(m, 1,1) * A2323 - Mat4At(m, 1,2) * A1323 + Mat4At(m, 1,3) * A1223 )
+        - Mat4At(m, 0,1) * ( Mat4At(m, 1,0) * A2323 - Mat4At(m, 1,2) * A0323 + Mat4At(m, 1,3) * A0223 )
+        + Mat4At(m, 0,2) * ( Mat4At(m, 1,0) * A1323 - Mat4At(m, 1,1) * A0323 + Mat4At(m, 1,3) * A0123 )
+        - Mat4At(m, 0,3) * ( Mat4At(m, 1,0) * A1223 - Mat4At(m, 1,1) * A0223 + Mat4At(m, 1,2) * A0123 );
     det = 1 / det;
     
-    out[0][0] = det *   ( m[1][1] * A2323 - m[1][2] * A1323 + m[1][3] * A1223 );
-    out[0][1] = det * - ( m[0][1] * A2323 - m[0][2] * A1323 + m[0][3] * A1223 );
-    out[0][2] = det *   ( m[0][1] * A2313 - m[0][2] * A1313 + m[0][3] * A1213 );
-    out[0][3] = det * - ( m[0][1] * A2312 - m[0][2] * A1312 + m[0][3] * A1212 );
-    out[1][0] = det * - ( m[1][0] * A2323 - m[1][2] * A0323 + m[1][3] * A0223 );
-    out[1][1] = det *   ( m[0][0] * A2323 - m[0][2] * A0323 + m[0][3] * A0223 );
-    out[1][2] = det * - ( m[0][0] * A2313 - m[0][2] * A0313 + m[0][3] * A0213 );
-    out[1][3] = det *   ( m[0][0] * A2312 - m[0][2] * A0312 + m[0][3] * A0212 );
-    out[2][0] = det *   ( m[1][0] * A1323 - m[1][1] * A0323 + m[1][3] * A0123 );
-    out[2][1] = det * - ( m[0][0] * A1323 - m[0][1] * A0323 + m[0][3] * A0123 );
-    out[2][2] = det *   ( m[0][0] * A1313 - m[0][1] * A0313 + m[0][3] * A0113 );
-    out[2][3] = det * - ( m[0][0] * A1312 - m[0][1] * A0312 + m[0][3] * A0112 );
-    out[3][0] = det * - ( m[1][0] * A1223 - m[1][1] * A0223 + m[1][2] * A0123 );
-    out[3][1] = det *   ( m[0][0] * A1223 - m[0][1] * A0223 + m[0][2] * A0123 );
-    out[3][2] = det * - ( m[0][0] * A1213 - m[0][1] * A0213 + m[0][2] * A0113 );
-    out[3][3] = det *   ( m[0][0] * A1212 - m[0][1] * A0212 + m[0][2] * A0112 );
+    Mat4At(out, 0,0) = det *   ( Mat4At(m, 1,1) * A2323 - Mat4At(m, 1,2) * A1323 + Mat4At(m, 1,3) * A1223 );
+    Mat4At(out, 0,1) = det * - ( Mat4At(m, 0,1) * A2323 - Mat4At(m, 0,2) * A1323 + Mat4At(m, 0,3) * A1223 );
+    Mat4At(out, 0,2) = det *   ( Mat4At(m, 0,1) * A2313 - Mat4At(m, 0,2) * A1313 + Mat4At(m, 0,3) * A1213 );
+    Mat4At(out, 0,3) = det * - ( Mat4At(m, 0,1) * A2312 - Mat4At(m, 0,2) * A1312 + Mat4At(m, 0,3) * A1212 );
+    Mat4At(out, 1,0) = det * - ( Mat4At(m, 1,0) * A2323 - Mat4At(m, 1,2) * A0323 + Mat4At(m, 1,3) * A0223 );
+    Mat4At(out, 1,1) = det *   ( Mat4At(m, 0,0) * A2323 - Mat4At(m, 0,2) * A0323 + Mat4At(m, 0,3) * A0223 );
+    Mat4At(out, 1,2) = det * - ( Mat4At(m, 0,0) * A2313 - Mat4At(m, 0,2) * A0313 + Mat4At(m, 0,3) * A0213 );
+    Mat4At(out, 1,3) = det *   ( Mat4At(m, 0,0) * A2312 - Mat4At(m, 0,2) * A0312 + Mat4At(m, 0,3) * A0212 );
+    Mat4At(out, 2,0) = det *   ( Mat4At(m, 1,0) * A1323 - Mat4At(m, 1,1) * A0323 + Mat4At(m, 1,3) * A0123 );
+    Mat4At(out, 2,1) = det * - ( Mat4At(m, 0,0) * A1323 - Mat4At(m, 0,1) * A0323 + Mat4At(m, 0,3) * A0123 );
+    Mat4At(out, 2,2) = det *   ( Mat4At(m, 0,0) * A1313 - Mat4At(m, 0,1) * A0313 + Mat4At(m, 0,3) * A0113 );
+    Mat4At(out, 2,3) = det * - ( Mat4At(m, 0,0) * A1312 - Mat4At(m, 0,1) * A0312 + Mat4At(m, 0,3) * A0112 );
+    Mat4At(out, 3,0) = det * - ( Mat4At(m, 1,0) * A1223 - Mat4At(m, 1,1) * A0223 + Mat4At(m, 1,2) * A0123 );
+    Mat4At(out, 3,1) = det *   ( Mat4At(m, 0,0) * A1223 - Mat4At(m, 0,1) * A0223 + Mat4At(m, 0,2) * A0123 );
+    Mat4At(out, 3,2) = det * - ( Mat4At(m, 0,0) * A1213 - Mat4At(m, 0,1) * A0213 + Mat4At(m, 0,2) * A0113 );
+    Mat4At(out, 3,3) = det *   ( Mat4At(m, 0,0) * A1212 - Mat4At(m, 0,1) * A0212 + Mat4At(m, 0,2) * A0112 );
     
     return out;
 }
@@ -545,7 +558,7 @@ Mat4Transpose(mat4 matrix)
     {
         for (sizet k = 0; k < 4; ++k)
         {
-            out[i][k] = matrix[k][i];
+            Mat4At(out, i, k) = Mat4At(matrix, k, i);
         }
     }
     
@@ -599,27 +612,4 @@ PointInsideRect(vec2 p, vec2 pos, vec2 scale)
             p.x <= (pos.x + scale.x) &&
             p.y >= pos.y &&
             p.y <= (pos.y + scale.y));
-}
-
-f32&
-vec2::operator[](sizet i)
-{
-    return (&(x))[i];
-}
-
-f32&
-vec3::operator[](sizet i)
-{
-    return (&(x))[i];
-}
-f32&
-vec4::operator[](sizet i)
-{
-    return (&(x))[i];
-}
-
-vec4&
-mat4::operator[](sizet i)
-{
-    return rows[i];
 }

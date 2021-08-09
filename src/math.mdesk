@@ -1,47 +1,49 @@
-@struct @printable vec2:
+vec2 :: struct
 {
     x: f32,
     y: f32,
-    @function ("f32& operator[](sizet i)"),
+    //@function ("f32& operator[](sizet i)"),
 }
 
-@struct @printable vec2i:
+vec2i :: struct
 {
     x: i32,
     y: i32,
 }
 
-@struct @printable vec3:
+vec3 :: struct
 {
     x: f32, 
     y: f32,
     z: f32,
-    @function ("f32& operator[](sizet i)"),
+    //@function ("f32& operator[](sizet i)"),
 }
 
-@struct @printable vec3i:
+vec3i :: struct
 {
     x: i32,
     y: i32,
     z: i32,
 }
 
-@struct @printable vec4:
+vec4 :: struct
 {
     x: f32,
     y: f32,
     z: f32,
     w: f32,
-    @function ("f32& operator[](sizet i)"),
+    //@function ("f32& operator[](sizet i)"),
 }
 
-@struct mat4:
+
+mat4 :: struct
 {
-    rows: ([4]vec4);
-    @function ("vec4& operator[](sizet i)"),
+    rows: [4]vec4,
+    //operator[](sizet i) : &vec4,
+    //@function ("vec4& operator[](sizet i)"),
 }
 
-@struct @printable vec4i:
+vec4i :: struct
 {
     x: i32,
     y: i32,

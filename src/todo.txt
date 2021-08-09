@@ -1,0 +1,4 @@
+[ ] Ui cleanup pass
+[ ] Switch to data_desk for metaprogramming
+  [ ] generate print functions
+  [ ] generate ui

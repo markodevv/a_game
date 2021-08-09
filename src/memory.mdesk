@@ -1,4 +1,4 @@
-@struct MemoryArena:
+MemoryArena :: struct
 {
     used: sizet,
     size: sizet,
@@ -6,7 +6,7 @@
     temp_arena_count: u32,
 }
 
-@struct TemporaryArena:
+TemporaryArena :: struct
 {
     arena: *MemoryArena,
     used: sizet,

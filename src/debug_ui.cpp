@@ -81,13 +81,13 @@ char* text = GetTextToDraw(&debug->arena, value); \
 \
 if (IsActive(debug, pointer)) \
 { \
-if (ButtonPressed(debug->input.escape)) \
+if (ButtonPressed(&debug->input, BUTTON_ESCAPE)) \
 { \
 debug->active_item = 0; \
 } \
 UiProcessTextInput(debug); \
 \
-if (ButtonPressed(debug->input.enter)) \
+if (ButtonPressed(&debug->input, BUTTON_ENTER)) \
 { \
 i8 sign = 1; \
 if (debug->text_input_buffer[0] == '-') \
@@ -126,7 +126,7 @@ if (IsHot(debug, pointer)) \
 color.r *= 2; \
 color.g *= 2; \
 color.b *= 2; \
-if (ButtonPressed(debug->input.left_mouse_button)) \
+if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT)) \
 { \
 SetActive(debug, pointer); \
 FillTextBuffer(debug, value); \
@@ -174,13 +174,13 @@ UiProcessTextInput(DebugState* debug)
             ++debug->text_insert_index;
         }
     }
-    if (ButtonPressed(input->backspace) && 
+    if (ButtonPressed(input, BUTTON_BACKSPACE) && 
         ModifierPressed(input, SHIFT_MODIF))
     {
         debug->text_insert_index = 0;
         debug->text_input_buffer[0] = '\0';
     }
-    else if (ButtonPressed(input->backspace) &&
+    else if (ButtonPressed(input, BUTTON_BACKSPACE) &&
              debug->text_insert_index)
     {
         --debug->text_insert_index;
@@ -598,7 +598,7 @@ UiSubmenuTitlebar(DebugState* debug, vec2 position, vec2 size, char* title)
     if (IsHot(debug, title))
     {
         color = faint_red_color;
-        if (ButtonPressed(debug->input.left_mouse_button))
+        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
         {
             color = faint_redblue_color;
             b8* active = &debug->sub_menus[debug->sub_menu_index].is_active;
@@ -645,7 +645,7 @@ UiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
     debug->hot_item = 0;
     
     
-    if (ButtonPressed(input->left_mouse_button))
+    if (ButtonPressed(input, BUTTON_MOUSE_LEFT))
     {
         UiWindow** windows =  PushMemory(&debug->arena, 
                                          UiWindow*, 
@@ -748,7 +748,7 @@ UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(4
     
     if (IsActive(debug, window))
     {
-        if (ButtonDown(debug->input.left_mouse_button))
+        if (ButtonDown(&debug->input, BUTTON_MOUSE_LEFT))
         {
             color = faint_red_color;
             vec2 mouse_delta = (debug->input.mouse.position - debug->prev_mouse_pos);
@@ -762,8 +762,8 @@ UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(4
     else if (IsHot(debug, window))
     {
         color = red_color;
-        if (ButtonPressed(debug->input.left_mouse_button) ||
-            ButtonDown(debug->input.left_mouse_button))
+        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT), 
+            ButtonDown(&debug->input, BUTTON_MOUSE_LEFT))
         {
             SetActive(debug, window);
         }
@@ -878,7 +878,7 @@ UiCheckbox(DebugState* debug, b8* toggle_var, char* var_name)
     else if (IsHot(debug, toggle_var))
     {
         check_color = faint_red_color;
-        if (ButtonPressed(debug->input.left_mouse_button))
+        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
         {
             SetActive(debug, toggle_var);
             *toggle_var = !(*toggle_var);
@@ -925,7 +925,7 @@ UiButton(DebugState* debug, char* name, vec2 pos = V2(0), vec2 size = V2(80, 40)
     
     if (IsActive(debug, name))
     {
-        if (ButtonReleased(debug->input.left_mouse_button))
+        if (ButtonReleased(&debug->input, BUTTON_MOUSE_LEFT))
         {
             result = true;
             debug->active_item = 0;
@@ -934,7 +934,7 @@ UiButton(DebugState* debug, char* name, vec2 pos = V2(0), vec2 size = V2(80, 40)
     }
     else if (IsHot(debug, name))
     {
-        if (ButtonPressed(debug->input.left_mouse_button))
+        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
         {
             SetActive(debug, name);
         }
@@ -1001,7 +1001,7 @@ UiSilder(DebugState* debug,
     
     if (IsActive(debug, value))
     {
-        if (ButtonDown(debug->input.left_mouse_button))
+        if (ButtonDown(&debug->input, BUTTON_MOUSE_LEFT))
         {
             button_color = red_color;
             f32 slide_amount = (debug->input.mouse.position.x - pos.x);
@@ -1019,7 +1019,7 @@ UiSilder(DebugState* debug,
     else if (IsHot(debug, value))
     {
         button_color = faint_red_color;
-        if (ButtonPressed(debug->input.left_mouse_button))
+        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
         {
             SetActive(debug, value);
         }
@@ -1057,7 +1057,7 @@ HueSlider(DebugState* debug, Colorpicker* cp)
     
     if (IsActive(debug, &cp->hue))
     {
-        if (ButtonDown(debug->input.left_mouse_button))
+        if (ButtonDown(&debug->input, BUTTON_MOUSE_LEFT))
         {
             cursor_color.a = 180;
             cp->hue = (debug->input.mouse.position.y - pos.y) / size.y;
@@ -1070,7 +1070,7 @@ HueSlider(DebugState* debug, Colorpicker* cp)
     }
     else if (IsHot(debug, &cp->hue))
     {
-        if (ButtonPressed(debug->input.left_mouse_button))
+        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
         {
             SetActive(debug, &cp->hue);
         }
@@ -1119,7 +1119,7 @@ HsbPicker(DebugState* debug, Colorpicker* cp)
     
     if (IsActive(debug, &cp->saturation))
     {
-        if (ButtonDown(debug->input.left_mouse_button))
+        if (ButtonDown(&debug->input, BUTTON_MOUSE_LEFT))
         {
             cursor_color.a = 180;
             cp->saturation = (debug->input.mouse.position.x - pos.x) / size.x;
@@ -1135,7 +1135,7 @@ HsbPicker(DebugState* debug, Colorpicker* cp)
     }
     else if (IsHot(debug, &cp->saturation))
     {
-        if (ButtonPressed(debug->input.left_mouse_button))
+        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
         {
             SetActive(debug, &cp->saturation);
         }
@@ -1250,7 +1250,7 @@ UiColorpicker(DebugState* debug, Color* var, char* var_name)
     UiWindow* colorpicker_window = GetWindow(debug, "Color Picker");
     Colorpicker* colorpicker = GetColorpicker(debug, (void*)var);
     
-    if (ButtonPressed(debug->input.left_mouse_button))
+    if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
     {
         if (!colorpicker->is_active)
         {

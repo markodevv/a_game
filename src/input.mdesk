@@ -1,40 +1,37 @@
-@struct ButtonState:
+ButtonState :: struct
 {
     is_down: b8,
     released: b8,
     pressed: b8,
 }
 
-@struct MouseInput:
+MouseInput :: struct
 {
     position: vec2,
     wheel_delta: i32,
 }
 
-
-@struct GameInput:
+ButtonCode :: enum
 {
-    @union @anon
-    {
-        @struct @anon
-        {
-            move_left: ButtonState,
-            move_right: ButtonState,
-            move_up: ButtonState,
-            move_down: ButtonState,
-            move_forward: ButtonState,
-            move_back: ButtonState,
-            pause_button: ButtonState,
-            left_mouse_button: ButtonState,
-            right_mouse_button: ButtonState,
-            backspace: ButtonState,
-            escape: ButtonState,
-            enter: ButtonState,
-            f1: ButtonState,
-        }
-        buttons: ([13]ButtonState),
-    }
+    BUTTON_LEFT,
+    BUTTON_RIGHT,
+    BUTTON_UP,
+    BUTTON_DOWN,
+    BUTTON_FORWARD,
+    BUTTON_BACK,
+    BUTTON_PAUSE,
+    BUTTON_MOUSE_LEFT,
+    BUTTON_MOUSE_RIGHT,
+    BUTTON_BACKSPACE,
+    BUTTON_ESCAPE,
+    BUTTON_ENTER,
+    BUTTON_F1,
+    NUM_BUTTONS,
+}
 
+GameInput :: struct
+{
+    buttons: [NUM_BUTTONS]ButtonState,
     modifiers: u32,
     mouse: MouseInput,
     character: char,

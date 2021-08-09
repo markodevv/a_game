@@ -11,10 +11,10 @@
 
 #ifdef PLATFORM_WIN32
 #define Assert(condition) \
-    if (!(condition)) *(int *)0 = 0 
+if (!(condition)) *(int *)0 = 0 
 #elif PLATFORM_LINUX 
 #define Assert(condition) \
-    assert(condition)
+assert(condition)
 #endif
 
 #else
@@ -41,6 +41,13 @@ typedef double f64;
 
 typedef i8 b8;
 typedef size_t sizet;
+
+typedef u32 SpriteHandle;
+typedef u16 EntityId;
+
+struct GameState;
+struct Array;
+typedef void (*SystemFunc)(GameState* gs, Array* ent);
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 

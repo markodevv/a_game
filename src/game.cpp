@@ -15,19 +15,19 @@
 Platform* g_Platform;
 
 #include "log.h"
-#include "headers/memory.h"
+#include "generated/memory.h"
 #include "memory.cpp"
 #include "array.cpp"
 #include "hashmap.cpp"
 #include "string.cpp"
-#include "headers/math.h"
+#include "generated/math.h"
 #include "math.cpp"
-#include "headers/input.h"
+#include "generated/input.h"
 #include "input.cpp"
-#include "headers/renderer.h"
+#include "generated/renderer.h"
 #include "renderer.cpp"
-#include "headers/debug.h"
-#include "headers/game.h"
+#include "generated/debug.h"
+#include "generated/game.h"
 #include "render_group.cpp"
 #include "asset.cpp"
 #include "entity.cpp"
@@ -407,28 +407,30 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         Rigidbody* player_rigid = GetComponent(&game_state->world, player, Rigidbody);
         Transform* player_tran = GetComponent(&game_state->world, player, Transform);
         
-        if (ButtonDown(input->move_left))
-        {
-            AddForce(player_rigid, V2(-1000.0f, 0.0f));
-        }
-        if (ButtonDown(input->move_right))
-        {
-            AddForce(player_rigid, V2(1000.0f, 0.0f));
-        }
-        if (ButtonDown(input->move_up))
-        {
-            AddForce(player_rigid, V2(0.0f, 1000.0f));
-        }
-        
-        if (player_tran->position.y <= 100.0f)
-        {
-            AddForce(player_rigid, V2(0.0f, 3000.0f));
-        }
+        /*
+                if (ButtonDown(input->move_left))
+                {
+                    AddForce(player_rigid, V2(-1000.0f, 0.0f));
+                }
+                if (ButtonDown(input->move_right))
+                {
+                    AddForce(player_rigid, V2(1000.0f, 0.0f));
+                }
+                if (ButtonDown(input->move_up))
+                {
+                    AddForce(player_rigid, V2(0.0f, 1000.0f));
+                }
+                
+                if (player_tran->position.y <= 100.0f)
+                {
+                    AddForce(player_rigid, V2(0.0f, 3000.0f));
+                }
+        */
         
     }
     
     // TOggle edit mode
-    if (ButtonPressed(input->f1))
+    if (ButtonPressed(input, BUTTON_F1))
     {
         global_is_edit_mode = !global_is_edit_mode;
         if (global_is_edit_mode)
@@ -455,19 +457,19 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
             cam->position.z -= scroll_amount;
         }
         
-        if (ButtonDown(input->move_left))
+        if (ButtonDown(input, BUTTON_LEFT))
         {
             cam->position.x -= 5.0f;
         }
-        if (ButtonDown(input->move_right))
+        if (ButtonDown(input, BUTTON_RIGHT))
         {
             cam->position.x += 5.0f;
         }
-        if (ButtonDown(input->move_up))
+        if (ButtonDown(input, BUTTON_UP))
         {
             cam->position.y += 5.0f;
         }
-        if (ButtonDown(input->move_down))
+        if (ButtonDown(input, BUTTON_DOWN))
         {
             cam->position.y -= 5.0f;
         }

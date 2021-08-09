@@ -1,4 +1,4 @@
-@struct GameMemory:
+GameMemory :: struct
 {
     is_initialized: b8,
     
@@ -16,7 +16,7 @@
 }
 
 
-@struct GameSoundBuffer:
+GameSoundBuffer :: struct
 {
     samples_per_sec: i32,
     sample_count: i32,
@@ -25,21 +25,21 @@
 
 
 
-@struct Render:
+Render :: struct
 {
-    sprite: SpriteHandle,
+    sprite: u32,
     color: Color,
     layer: f32,
 }
 
-@struct Transform:
+Transform :: struct
 {
     position: vec2,
     scale: vec2,
     rotation: vec2,
 }
 
-@struct Rigidbody:
+Rigidbody :: struct
 {
     velocity: vec2,
     acceleration: vec2,
@@ -47,7 +47,7 @@
     mass: f32,
 }
 
-@struct Particle:
+Particle :: struct
 {
     position: vec2,
     velocity: vec2,
@@ -56,7 +56,7 @@
 }
 
 
-@struct ParticleEmitter:
+ParticleEmitter :: struct
 {
     min_vel: vec2,
     max_vel: vec2,
@@ -75,26 +75,25 @@
     max_particles :u32,
 }
 
-@define ("ENTITY_MAX 10000")
-@define ("NUM_COMPONENTS 4")
+ENTITY_MAX :: 10000
+NUM_COMPONENTS :: 4
+
 
 @typedef ("u16 EntityId")
 
-@struct ComponentInfo:
+ComponentInfo :: struct
 {
     size: u32,
     name: *char,
 }
 
-@struct Component:
+Component :: struct
 {
     data: *void,
 }
 
-@forward_decl ("GameState")
-@typedef ("void (*SystemFunc)(GameState* game_state, Array* entities)");
 
-@struct System:
+System :: struct
 {
     id: u32,
     entities: *Array,
@@ -104,14 +103,14 @@
     name: *char,
 }
 
-@struct WorldState:
+WorldState :: struct
 {
-    components: ([NUM_COMPONENTS]Component),
-    component_infos: ([NUM_COMPONENTS]ComponentInfo),
-    entity_masks: ([ENTITY_MAX]u64),
+    components: [NUM_COMPONENTS]Component,
+    component_infos: [NUM_COMPONENTS]ComponentInfo,
+    entity_masks: [ENTITY_MAX]u64,
     removed_ids: *Array,
     
-    systems: ([32]System),
+    systems: [32]System,
     num_systems: u32,
     
     entity_count: u32,
@@ -123,7 +122,7 @@
     render_group: *RenderGroup,
 }
 
-@struct GameState:
+GameState :: struct
 {
     arena: MemoryArena,
     flush_arena: MemoryArena,
@@ -136,12 +135,12 @@
     tone_hz: i32,
     tone_volume: i32,
     
-    hero_sprite: SpriteHandle,
-    minotaur_sprite: SpriteHandle,
-    hero_sprite_sheet: SpriteHandle,
-    backgroud_sprite: SpriteHandle,
-    goblin_sprite_sheet: SpriteHandle,
-    goblin_sprite: SpriteHandle,
+    hero_sprite: u32,
+    minotaur_sprite: u32,
+    hero_sprite_sheet: u32,
+    backgroud_sprite: u32,
+    goblin_sprite_sheet: u32,
+    goblin_sprite: u32,
     
     tile_size: u32,
     
@@ -153,4 +152,3 @@
     render_group: *RenderGroup,
 }
 
-@typedef ("void (*GameMainLoopProc)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)")

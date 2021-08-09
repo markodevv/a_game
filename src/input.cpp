@@ -2,21 +2,21 @@
 #define CONTROL_MODIF 0x2
 
 internal b8
-ButtonDown(ButtonState button)
+ButtonDown(GameInput* input, ButtonCode button)
 {
-    return button.is_down;
+    return input->buttons[button].is_down;
 }
 
 internal b8
-ButtonPressed(ButtonState button)
+ButtonPressed(GameInput* input, ButtonCode button)
 {
-    return button.pressed;
+    return input->buttons[button].pressed;
 }
 
 internal b8
-ButtonReleased(ButtonState button)
+ButtonReleased(GameInput* input, ButtonCode button)
 {
-    return button.released;
+    return input->buttons[button].released;
 }
 
 internal b8
