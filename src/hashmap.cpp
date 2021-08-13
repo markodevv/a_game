@@ -164,7 +164,7 @@ _HashMapPut(HashMap* map, const void* key, u32 key_size, u32 value_size)
             void* key_cmp = _ArrayGet(&entry->keys, sizeof(Array), key_size, i);
             if (MemCompare(key, key_cmp, key_size))
             {
-                Print("Hash entry with key [%s] already exists!", (char*)key);
+                LogM("Hash entry with key [%s] already exists!", (char*)key);
                 Assert(false);
             }
         }

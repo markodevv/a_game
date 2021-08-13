@@ -32,8 +32,8 @@ struct Platform
     Reallocate* Reallocate;
     Free* Free;
 #ifdef GAME_DEBUG
-    typedef void Win32PrintProc(const char* text);
-    Win32PrintProc* Win32Print;
+    typedef i32 LogFunc(const char* text, ...);
+    LogFunc* LogM;
 #endif
 };
 

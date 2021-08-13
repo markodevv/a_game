@@ -9,6 +9,7 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include <stb_truetype.h>
 
+#define GAME_FILE
 #include "common.h"
 #include "platform.h"
 
@@ -32,9 +33,9 @@ Platform* g_Platform;
 #include "asset.cpp"
 #include "entity.cpp"
 
-#include "generated_print.cpp"
-
 #include "debug_ui.cpp"
+#include "generated_print.c"
+
 
 
 // NOTE: Debug data
@@ -509,6 +510,9 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
             UiFloat32Editbox(memory->debug, &trans->rotation, "rotation");
             UiFloat32Editbox(memory->debug, &trans->scale, "scale");
             
+            Log(render);
+            Log(trans);
+            Log(rigid);
             UiColorpicker(memory->debug, &render->color, "color");
         }
         

@@ -71,7 +71,7 @@ OpenglGetUnifromLocation(i32 shader, char* uniform)
     i32 loc = glGetUniformLocation(shader, uniform);
     if (loc == -1)
     {
-        Print("Failed to get uniform location: %s\n", uniform);
+        LogM("Failed to get uniform location: %s\n", uniform);
     }
     return loc;
     
@@ -135,7 +135,7 @@ opengl_create_shader(MemoryArena* arena, const char* vertex_shader, const char* 
     if (!success)
     {
         glGetShaderInfoLog(vs, 5120, NULL, info_log);
-        Print("Failed to compile vertex shader: \n%s", info_log);
+        LogM("Failed to compile vertex shader: \n%s", info_log);
     }
     
     u32 fs = glCreateShader(GL_FRAGMENT_SHADER);
@@ -147,7 +147,7 @@ opengl_create_shader(MemoryArena* arena, const char* vertex_shader, const char* 
     if (!success)
     {
         glGetShaderInfoLog(fs, 5120, NULL, info_log);
-        Print("Failed to compile fragment shader: \n%s", info_log);
+        LogM("Failed to compile fragment shader: \n%s", info_log);
     }
     
     glAttachShader(shader_program, vs);
@@ -158,7 +158,7 @@ opengl_create_shader(MemoryArena* arena, const char* vertex_shader, const char* 
     if(!success)
     {
         glGetProgramInfoLog(shader_program, 5120, NULL, info_log);
-        Print("Failed to link shader \n%s", info_log);
+        LogM("Failed to link shader \n%s", info_log);
     }
     glUseProgram(shader_program);
     

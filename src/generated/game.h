@@ -22,6 +22,7 @@ struct GameSoundBuffer
     i32 sample_count;
     i16 *samples;
 };
+// @Print
 typedef struct Render Render;
 struct Render
 {
@@ -29,6 +30,7 @@ struct Render
     Color color;
     f32 layer;
 };
+// @Print
 typedef struct Transform Transform;
 struct Transform
 {
@@ -36,6 +38,7 @@ struct Transform
     vec2 scale;
     vec2 rotation;
 };
+// @Print
 typedef struct Rigidbody Rigidbody;
 struct Rigidbody
 {
@@ -44,6 +47,7 @@ struct Rigidbody
 
     f32 mass;
 };
+// @Print
 typedef struct Particle Particle;
 struct Particle
 {

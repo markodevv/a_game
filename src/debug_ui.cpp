@@ -485,7 +485,7 @@ UiLoadFont(MemoryArena* arena, Platform* platform, Assets* assets, char* font_pa
                                           char_metrics);
         if (!result)
         {
-            Print("Failed to bake font map\n");
+            LogM("Failed to bake font map\n");
         }
         
         for(u8 i = 0; i < NUM_ASCII; ++i)
@@ -528,7 +528,7 @@ UiLoadFont(MemoryArena* arena, Platform* platform, Assets* assets, char* font_pa
     }
     else
     {
-        Print("Failed to load font [%s] file.", font_path);
+        LogM("Failed to load font [%s] file.", font_path);
     }
     
     

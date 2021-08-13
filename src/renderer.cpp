@@ -72,7 +72,7 @@ type test = *((type*)uni->data); \
 } \
 else \
 { \
-Print("No uniform named [%s]", name); \
+LogM("No uniform named [%s]", name); \
 } \
 } 
 

@@ -24,7 +24,7 @@ GameSoundBuffer :: struct
 }
 
 
-
+@Print
 Render :: struct
 {
     sprite: u32,
@@ -32,6 +32,7 @@ Render :: struct
     layer: f32,
 }
 
+@Print
 Transform :: struct
 {
     position: vec2,
@@ -39,6 +40,7 @@ Transform :: struct
     rotation: vec2,
 }
 
+@Print
 Rigidbody :: struct
 {
     velocity: vec2,
@@ -47,6 +49,7 @@ Rigidbody :: struct
     mass: f32,
 }
 
+@Print
 Particle :: struct
 {
     position: vec2,

@@ -23,7 +23,7 @@
 #include "platform.h"
 extern Platform* g_Platform;
 
-#define WIN32_EXE_FILE
+#define WIN32_FILE
 
 #include "log.h"
 #include "generated/memory.h"
@@ -55,7 +55,7 @@ HMODULE module = LoadLibraryA("opengl32.dll"); \
 name = (name##proc *)GetProcAddress(module, #name); \
 if (!name) \
 { \
-Print("OpenGL function " #name " couldn't be loaded.\n"); \
+LogM("OpenGL function " #name " couldn't be loaded.\n"); \
 } \
 } 
 
@@ -116,19 +116,19 @@ ReadEntireFile(char* file_name)
             }
             else
             {
-                Print("File malloc failed for file %s.\n", file_name);
+                LogM("File malloc failed for file %s.\n", file_name);
             }
         }
         else
         {
-            Print("Trying to open invalid file %s.\n", file_name);
+            LogM("Trying to open invalid file %s.\n", file_name);
         }
         
         CloseHandle(file_handle);
     }
     else
     {
-        Print("Trying to open invalid file %s.\n", file_name);
+        LogM("Trying to open invalid file %s.\n", file_name);
     }
     
     return result;
@@ -150,14 +150,14 @@ WriteEntireFile(char* file_name, u32 size, void* memory)
         }
         else
         {
-            Print("Failed to write entire file: %s.\n", file_name);
+            LogM("Failed to write entire file: %s.\n", file_name);
         }
         
         CloseHandle(file_handle);
     }
     else
     {
-        Print("Invalid file handle \n");
+        LogM("Invalid file handle \n");
     }
     
     return result;
@@ -196,13 +196,13 @@ win32_init_dsound(HWND window, i32 samples_per_sec, i32 buffer_size)
             
             if (!FAILED(direct_sound->CreateSoundBuffer(&buffer_description, &global_sound_buffer, 0)))
             {
-                Print("Created sound buffer. \n");
+                LogM("Created sound buffer. \n");
             }
         }
     }
     else
     {
-        Print("Failed to create sound buffer. \n");
+        LogM("Failed to create sound buffer. \n");
     }
 }
 
@@ -461,13 +461,13 @@ win32_init_opengl(HWND window_handle)
         }
         else
         {
-            Print("Failed to set current 3.0+ OpenGL context!\n");
+            LogM("Failed to set current 3.0+ OpenGL context!\n");
             Assert(false);
         }
     }
     else
     {
-        Print("Failed to create 3.0+ OpenGL context!\n");
+        LogM("Failed to create 3.0+ OpenGL context!\n");
         Assert(false);
     }
     
@@ -564,7 +564,7 @@ win32_process_input_messages(GameInput* game_input)
             } break;
             case WM_QUIT:
             global_running= false;
-            Print("Closing game...\n");
+            LogM("Closing game...\n");
             case WM_KEYUP:
             case WM_KEYDOWN:
             {
@@ -622,35 +622,33 @@ win32_process_input_messages(GameInput* game_input)
                 i32 wheel_delta = GET_WHEEL_DELTA_WPARAM(message.wParam);
                 game_input->mouse.wheel_delta = wheel_delta;
             } break;
-            /* TODO(Marko)
-                        case WM_MOUSEMOVE:
-                        {
-                            if ((message.wParam & MK_LBUTTON) == MK_LBUTTON)
-                            {
-                                game_input->right_mouse_button.is_down = true;
-                            }
-                        } break;
-                        case WM_LBUTTONDOWN:
-                        {
-                            game_input->left_mouse_button.is_down = 1;
-                            game_input->left_mouse_button.pressed = 1;
-                        } break;
-                        case WM_RBUTTONDOWN:
-                        {
-                            game_input->right_mouse_button.is_down = 1;
-                            game_input->right_mouse_button.pressed = 1;
-                        } break;
-                        case WM_LBUTTONUP:
-                        {
-                            game_input->left_mouse_button.is_down = 0;
-                            game_input->left_mouse_button.released = 1;
-                        } break;
-                        case WM_RBUTTONUP:
-                        {
-                            game_input->right_mouse_button.is_down = 0;
-                            game_input->right_mouse_button.released = 1;
-                        } break;
-*/
+            case WM_MOUSEMOVE:
+            {
+                //if ((message.wParam & MK_LBUTTON) == MK_LBUTTON)
+                //{
+                //game_input->right_mouse_button.is_down = true;
+                //}
+            } break;
+            case WM_LBUTTONDOWN:
+            {
+                game_input->buttons[BUTTON_MOUSE_LEFT].is_down = 1;
+                game_input->buttons[BUTTON_MOUSE_LEFT].pressed = 1;
+            } break;
+            case WM_RBUTTONDOWN:
+            {
+                game_input->buttons[BUTTON_MOUSE_RIGHT].is_down = 1;
+                game_input->buttons[BUTTON_MOUSE_RIGHT].pressed = 1;
+            } break;
+            case WM_LBUTTONUP:
+            {
+                game_input->buttons[BUTTON_MOUSE_LEFT].is_down = 0;
+                game_input->buttons[BUTTON_MOUSE_LEFT].released = 1;
+            } break;
+            case WM_RBUTTONUP:
+            {
+                game_input->buttons[BUTTON_MOUSE_RIGHT].is_down = 1;
+                game_input->buttons[BUTTON_MOUSE_RIGHT].released = 0;
+            } break;
             default:
             {
                 TranslateMessage(&message);
@@ -662,17 +660,6 @@ win32_process_input_messages(GameInput* game_input)
     
 }
 
-
-// internal b8 
-// sprite_is_loaded(Assets* assets, char* sprite_name)
-// {
-// for (u32 i = 0; i < assets->num_sprites; ++i)
-// {
-// if (string_equals(assets->sprites[i].name, sprite_name))
-// return true;
-// }
-// return false;
-// }
 
 i32
 WinMain(HINSTANCE hinstance,
@@ -694,7 +681,6 @@ WinMain(HINSTANCE hinstance,
     setvbuf(hf_in, NULL, _IONBF, 128);
     *stdin = *hf_in;
     freopen("CONOUT$", "w+", stdout);
-    
     
     
     WNDCLASS window_class = {};
@@ -765,7 +751,7 @@ WinMain(HINSTANCE hinstance,
     game_memory.platform.InitRenderer = OpenglInit;
     game_memory.platform.EndFrame = OpenglEndFrame;
     
-    game_memory.platform.Win32Print = OutputDebugString;
+    game_memory.platform.LogM = printf;
     
     Win32SoundState sound_output = {};
     sound_output.bytes_per_sample = sizeof(i16) * 2;
@@ -864,7 +850,7 @@ WinMain(HINSTANCE hinstance,
         {
             // TODO: logging
             sound_is_valid = false;
-            Print("Could not get sound buffer cursor position! \n");
+            Log("Could not get sound buffer cursor position! \n");
         }
         
         GameSoundBuffer sound_buffer = {};
@@ -884,7 +870,7 @@ WinMain(HINSTANCE hinstance,
                 
                 if (FAILED(hresult))
                 {
-                    Print("Failed to play sound. \n");
+                    Log("Failed to play sound. \n");
                 }
                 sound_is_playing = true;
             }

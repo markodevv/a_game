@@ -20,7 +20,7 @@ _InitComponent(world, comp, sizeof(type), #type);
 internal void
 _InitComponent(WorldState* world, ComponentType type, u32 size, char* name)
 {
-    u64 id = Log2(type);
+    u64 id = LogBase2(type);
     world->component_infos[id].size = size;
     world->component_infos[id].name = name;
 }
@@ -73,9 +73,9 @@ _AddComponent(WorldState* world, EntityId entity, ComponentType type)
 {
     if ((world->entity_masks[entity] & type) == type)
     {
-        u64 index = Log2(type);
+        u64 index = LogBase2(type);
         ComponentInfo info = world->component_infos[index];
-        Print("Entity %u already has component %s!", entity, info.name);
+        LogM("Entity %u already has component %s!", entity, info.name);
         return;
     }
     world->entity_masks[entity] |= type;
@@ -103,9 +103,9 @@ RemoveComponent(WorldState* world, EntityId entity, ComponentType type)
 {
     if ((world->entity_masks[entity] & type) != type)
     {
-        u64 index = Log2(type);
+        u64 index = LogBase2(type);
         ComponentInfo info = world->component_infos[index];
-        Print("Entity %u has no component %s!", entity, info.name);
+        LogM("Entity %u has no component %s!", entity, info.name);
         return;
     }
     for (u32 i = 0; i < world->num_systems; ++i)
@@ -128,7 +128,7 @@ RemoveComponent(WorldState* world, EntityId entity, ComponentType type)
 internal void*
 _GetComponent(WorldState* world, EntityId entity, ComponentType type)
 {
-    u64 index = Log2(type);
+    u64 index = LogBase2(type);
     ComponentInfo info = world->component_infos[index];
     return ((u8*)world->components[index].data) + (entity * info.size);
 }

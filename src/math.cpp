@@ -52,7 +52,7 @@ vec3_mix(vec3 v1, vec3 v2, f32 s)
 }
 
 internal u64
-Log2(u64 n)
+LogBase2(u64 n)
 {
     return log2(n);
 }

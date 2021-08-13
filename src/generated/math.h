@@ -1,15 +1,18 @@
+// @Print
 typedef struct vec2 vec2;
 struct vec2
 {
     f32 x;
     f32 y;
 };
+// @Print
 typedef struct vec2i vec2i;
 struct vec2i
 {
     i32 x;
     i32 y;
 };
+// @Print
 typedef struct vec3 vec3;
 struct vec3
 {
@@ -17,6 +20,7 @@ struct vec3
     f32 y;
     f32 z;
 };
+// @Print
 typedef struct vec3i vec3i;
 struct vec3i
 {
@@ -24,6 +28,7 @@ struct vec3i
     i32 y;
     i32 z;
 };
+// @Print
 typedef struct vec4 vec4;
 struct vec4
 {
@@ -37,6 +42,7 @@ struct mat4
 {
     vec4 rows[4];
 };
+// @Print
 typedef struct vec4i vec4i;
 struct vec4i
 {
