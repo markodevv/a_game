@@ -32,9 +32,9 @@ Platform* g_Platform;
 #include "render_group.cpp"
 #include "asset.cpp"
 #include "entity.cpp"
-
-#include "debug_ui.cpp"
 #include "generated_print.c"
+#include "debug_ui.cpp"
+
 
 
 
@@ -111,20 +111,11 @@ CreateParticleEmitter(MemoryArena* arena,
     return pa;
 }
 
-internal f32
-RandomBetweenFloats(f32 min, f32 max)
-{
-    f32 random = ((f32)rand()) / (f32)RAND_MAX;
-    f32 diff = max - min;
-    f32 r = random * diff;
-    return min + r;
-}
-
 internal vec2
 RandomBetweenVectors(vec2 min, vec2 max)
 {
-    return V2(RandomBetweenFloats(min.x, max.x),
-              RandomBetweenFloats(min.y, max.y));
+    return V2(RandomRange(min.x, max.x),
+              RandomRange(min.y, max.y));
 }
 
 internal void
@@ -297,7 +288,8 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         AssetsInit(&game_state->assets, &game_state->flush_arena);
         
         memory->debug = PushMemory(&game_state->arena, DebugState);
-        SubArena(&game_state->arena, &memory->debug->arena, Megabytes(12));
+        SubArena(&game_state->arena, &memory->debug->arena, Megabytes(16));
+        SubArena(&game_state->arena, &memory->debug->temp_arena, Megabytes(16));
         
         
         //ren->camera.up = V3(0, 1, 0);
@@ -318,24 +310,9 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         
         
         UiInit(memory->debug, ren, &memory->platform, &game_state->assets);
+        //ReadUiConfig(memory->debug);
         
         
-        game_state->minotaur_sprite = LoadSprite(g_Platform, &game_state->assets, "../assets/minotaur.png");
-        game_state->hero_sprite_sheet = LoadSprite(g_Platform, &game_state->assets, 
-                                                   "../assets/platform_metroidvania asset pack v1.01/herochar sprites(new)/herochar_spritesheet(new).png");
-        game_state->goblin_sprite_sheet = LoadSprite(g_Platform, &game_state->assets, 
-                                                     "../assets/platform_metroidvania asset pack v1.01/enemies sprites/bomber goblin/goblin_bomber_spritesheet.png");
-        game_state->hero_sprite = SubspriteFromSprite(&game_state->assets,
-                                                      game_state->hero_sprite_sheet,
-                                                      0, 11,
-                                                      16, 16);
-        game_state->goblin_sprite = SubspriteFromSprite(&game_state->assets,
-                                                        game_state->goblin_sprite_sheet,
-                                                        0, 1,
-                                                        16, 16);
-        
-        game_state->backgroud_sprite = LoadSprite(g_Platform, &game_state->assets,
-                                                  "../assets/platform_metroidvania asset pack v1.01/tiles and background_foreground/background.png");
         
         
         WorldState* world = &game_state->world;
@@ -373,7 +350,7 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         };
         Render* player_render = GetComponent(world, player, Render);
         *player_render = {
-            game_state->hero_sprite,
+            0,
             NewColor(255),
             LAYER_FRONT
         };
@@ -391,7 +368,7 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         AddComponent(world, goblin, Transform);
         
         Render* goblin_render = GetComponent(world, goblin, Render);
-        *goblin_render = {game_state->goblin_sprite, NewColor(255), LAYER_FRONT};
+        *goblin_render = {0, NewColor(255), LAYER_FRONT};
         
         
         InitGrid(world);
@@ -481,50 +458,58 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
     
     if (global_is_edit_mode)
     {
-        UiStart(memory->debug, input, &game_state->assets, ren);
+        DebugState* debug = memory->debug;
+        UiStart(debug, input, &game_state->assets, ren);
         
-        UiFps(memory->debug);
+        UiFps(debug);
         
-        UiWindowBegin(memory->debug, "Window");
+        UiWindowBegin(debug, "Window 1");
         
-        if (UiSubmenu(memory->debug, "Camera"))
+        if (UiSubmenu(debug, "Camera"))
         {
             Camera* camera = &game_state->render_group->setup.camera;
-            UiFloat32Editbox(memory->debug, &camera->up, "up");
-            UiFloat32Editbox(memory->debug, &camera->direction, "direction");
-            UiFloat32Editbox(memory->debug, &camera->position, "position");
+            UiFloat32Editbox(debug, &camera->up, "up");
+            UiFloat32Editbox(debug, &camera->direction, "direction");
+            UiFloat32Editbox(debug, &camera->position, "position");
         }
         
-        if (UiSubmenu(memory->debug, "Player"))
+        if (UiSubmenu(debug, "Player"))
         {
             EntityId player = 0;
             Rigidbody* rigid = GetComponent(&game_state->world, player, Rigidbody);
             Transform* trans = GetComponent(&game_state->world, player, Transform);
             Render* render = GetComponent(&game_state->world, player, Render);
             
-            UiCheckbox(memory->debug, &game_state->is_free_camera, "free camera");
-            UiFloat32Editbox(memory->debug, &rigid->velocity, "velocity");
-            UiFloat32Editbox(memory->debug, &rigid->mass, "mass");
+            UiCheckbox(debug, &game_state->is_free_camera, "free camera");
+            UiFloat32Editbox(debug, &rigid->velocity, "velocity");
+            UiFloat32Editbox(debug, &rigid->mass, "mass");
             
-            UiFloat32Editbox(memory->debug, &trans->position, "position");
-            UiFloat32Editbox(memory->debug, &trans->rotation, "rotation");
-            UiFloat32Editbox(memory->debug, &trans->scale, "scale");
+            UiFloat32Editbox(debug, &trans->position, "position");
+            UiFloat32Editbox(debug, &trans->rotation, "rotation");
+            UiFloat32Editbox(debug, &trans->scale, "scale");
             
-            Log(render);
-            Log(trans);
-            Log(rigid);
-            UiColorpicker(memory->debug, &render->color, "color");
+            //Log(&game_state->render_group->setup.camera);
+            UiColorpicker(debug, &render->color, "color");
         }
         
         
         UiWindowEnd(memory->debug);
         
-        EndTemporaryMemory(&memory->debug->temp_arena);
+        UiWindowBegin(debug, "Window 2adasdas");
+        
+        UiWindowEnd(memory->debug);
+        
+        
+        UiEnd(debug);
+    }
+    
+    if (memory->is_last_frame)
+    {
+        WriteUiConfig(memory->debug);
     }
     
     
-    
-    g_Platform->EndFrame(ren);
+    g_Platform->RendererEndFrame(ren);
 }
 
 

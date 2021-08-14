@@ -18,19 +18,6 @@ CreateRenderGroup(MemoryArena* arena, mat4 projection, Camera camera, Renderer* 
     return render_group;
 }
 
-// internal void
-// AddSpriteToSetup(RenderSetup* render_setup, SpriteHandle sprite_handle)
-// {
-// for (u32 i = 0; i < render_setup->num_sprites; ++i)
-// {
-// if (render_setup->sprite_handles[i] == sprite_handle)
-// return;
-// }
-// Assert(render_setup->num_sprites < 32);
-// render_setup->sprite_handles[render_setup->num_sprites] = sprite_handle;
-// ++render_setup->num_sprites;
-// }
-
 
 internal void 
 PushBackSortElement(RenderGroup* group, u32 sort_key)
@@ -91,7 +78,7 @@ PushQuad(RenderGroup* group,
          vec2 position, 
          vec2 size, 
          Color color, 
-         f32 layer,
+         Layer layer,
          SpriteHandle sprite_handle = 0,
          ShaderId shader_id = SHADER_ID_NORMAL)
 {
@@ -99,7 +86,7 @@ PushQuad(RenderGroup* group,
     
     if (color.a != 255)
     {
-        key += 100 + (u32)layer;
+        key += 100 + layer;
     }
     
     QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
@@ -122,7 +109,7 @@ PushTriangle(RenderGroup* group,
              vec2 p2, 
              vec2 p3, 
              Color color, 
-             f32 layer,
+             Layer layer,
              SpriteHandle sprite_handle = 0,
              ShaderId shader_id = SHADER_ID_NORMAL)
 {
@@ -130,7 +117,7 @@ PushTriangle(RenderGroup* group,
     
     if (color.a != 255)
     {
-        key += 50 + (u32)layer;
+        key += 50 + layer;
     }
     
     TriangleEntry* entry = PushRenderEntry(group, TriangleEntry, key);
@@ -141,4 +128,58 @@ PushTriangle(RenderGroup* group,
     entry->color = color;
     entry->sprite_handle = sprite_handle;
     entry->shader_id = shader_id;
+}
+
+internal f32
+GetTextPixelWidth(Font* font, char* text)
+{
+    f32 out = 0;
+    
+    while(*text)
+    {
+        u32 index = *text-32;
+        out += font->char_metrics[index].xadvance;
+        
+        text++;
+    }
+    
+    return out;
+}
+
+
+internal void
+DrawText(RenderGroup* render_group,
+         Font* font,
+         char* text,
+         vec2 position,
+         Layer layer,
+         TextAlign align = TEXT_ALIGN_LEFT,
+         Color color = {255, 255, 255, 254})
+{
+    if (align == TEXT_ALIGN_MIDDLE)
+    {
+        f32 text_width = GetTextPixelWidth(font, text);
+        position.x -= (text_width / 2.0f);
+    }
+    
+    while(*text)
+    {
+        if (*text >= 32 && *text <= 128)
+        {
+            i32 index = *text-32;
+            CharMetric* cm = font->char_metrics + index;
+            
+            i32 round_x = IFloor((position.x + cm->xoff) + 0.5f);
+            i32 round_y = IFloor((position.y - cm->yoff) + 0.5f);
+            
+            vec2 pos = V2(round_x, round_y);
+            vec2 size = V2(cm->x1 - cm->x0,
+                           -cm->y1 + cm->y0);
+            
+            PushQuad(render_group, pos, size, color, layer, font->sprite_handles[index]);
+            
+            position.x += cm->xadvance;
+        }
+        text++;
+    }
 }

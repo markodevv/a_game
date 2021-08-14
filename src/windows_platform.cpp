@@ -713,11 +713,11 @@ WinMain(HINSTANCE hinstance,
     }
     BOOL result = SetWindowPos(window_handle,
                                HWND_TOP,
-                               60,
-                               60,
                                0,
                                0,
-                               SWP_NOSIZE);
+                               1920,
+                               1080,
+                               0);
     Assert(result);
     
     Win32GameCode game = win32_load_game_code();
@@ -732,6 +732,7 @@ WinMain(HINSTANCE hinstance,
     game_memory.temporary_storage_size = Megabytes(128);
     
     game_memory.is_initialized = false;
+    game_memory.is_last_frame = false;
     game_memory.permanent_storage = calloc(game_memory.permanent_storage_size, sizeof(u8));
     game_memory.temporary_storage = calloc(game_memory.temporary_storage_size, sizeof(u8));
     
@@ -749,7 +750,7 @@ WinMain(HINSTANCE hinstance,
     
     // TODO: should be able to change graphics API on runtime
     game_memory.platform.InitRenderer = OpenglInit;
-    game_memory.platform.EndFrame = OpenglEndFrame;
+    game_memory.platform.RendererEndFrame = OpenglEndFrame;
     
     game_memory.platform.LogM = printf;
     
@@ -876,7 +877,7 @@ WinMain(HINSTANCE hinstance,
             }
         }
 #endif
-        
+        game_memory.is_last_frame = global_running;
         if (!paused)
         {
             game.main_loop(delta_time, &game_memory, NULL, &game_input);
@@ -895,7 +896,8 @@ WinMain(HINSTANCE hinstance,
         
     }
     
-#ifdef GAME_DEBUG
+    
+#if 0
     system("pause");
 #endif
     

@@ -3,6 +3,7 @@ struct SubMenu
 {
     b8 is_active;
 };
+// @Print
 typedef struct UiWindow UiWindow;
 struct UiWindow
 {
@@ -10,6 +11,10 @@ struct UiWindow
     vec2 size;
     u32 layer;
 
+    char *id;
+
+
+    // @NoPrint
     UiWindow *next;
 };
 typedef struct StackedWindow StackedWindow;
@@ -35,7 +40,9 @@ typedef struct DebugState DebugState;
 struct DebugState
 {
     MemoryArena arena;
-    TemporaryArena temp_arena;
+    MemoryArena temp_arena;
+
+    TemporaryArena temp_memory;
 
     RenderGroup *render_group;
 
@@ -60,13 +67,12 @@ struct DebugState
     vec2 mouse_pos;
     vec2 prev_mouse_pos;
 
-    UiWindow window_table[64];
+    UiWindow *window_table[64];
     UiWindow *current_window;
     UiWindow *focused_window;
 
     StackedWindow window_stack[32];
     u32 num_stacked_windows;
-    b8 do_pop_window;
 
     vec2 draw_cursor;
     u32 top_layer;

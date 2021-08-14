@@ -7,7 +7,8 @@ global_variable Color red_color = {232, 69, 69, 255};
 #define PADDING 5.0f
 #define MAX_NAME_WIDTH 120
 
-#define WINDOW_NO_TITLEBAR 0x1
+#define WINDOW_NO_TITLEBAR (1 << 1)
+#define WINDOW_NO_RESIZE (1 << 2)
 // WARNING: Macro madness bellow, don't look at it for too long!!
 
 #define UiFloat32Editbox(debug, var, name) \
@@ -43,7 +44,7 @@ DrawEditbox(debug, iterator, (*iterator), 0, V2(total_width/num_components, 20),
 #define DrawEditbox(debug, pointer, value, var_name, size, type, is_int) \
 { \
 RenderGroup* group = debug->render_group; \
-u32 layer = debug->current_window ? debug->current_window->layer : 0; \
+Layer layer = debug->current_window ? debug->current_window->layer : 0; \
 if (var_name) \
 { \
 UiCursorNewline(debug, size.x + MAX_NAME_WIDTH, size.y); \
@@ -59,7 +60,7 @@ if (var_name) \
 { \
 if (NameIsTooLong(&debug->font, var_name)) \
 { \
-char* temp_name = StringCopy(&debug->arena, var_name); \
+char* temp_name = StringCopy(&debug->temp_arena, var_name); \
 TruncateName(temp_name); \
 DrawText(group,  \
 &debug->font, temp_name,  \
@@ -77,7 +78,7 @@ layer + LAYER_FRONT); \
 pos.x += MAX_NAME_WIDTH; \
 \
 \
-char* text = GetTextToDraw(&debug->arena, value); \
+char* text = GetTextToDraw(&debug->temp_arena, value); \
 \
 if (IsActive(debug, pointer)) \
 { \
@@ -116,7 +117,7 @@ is_editing_box = true; \
 DrawText(group, &debug->font, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font.font_size)), layer + LAYER_FRONT); \
 debug->text_input_buffer[debug->text_insert_index] = '\0'; \
 \
-f32 cursor_x = pos.x + GetTextWidth(&debug->font, debug->text_input_buffer); \
+f32 cursor_x = pos.x + GetTextPixelWidth(&debug->font, debug->text_input_buffer); \
 PushQuad(group, V2(cursor_x, pos.y), V2(3, size.y), faint_red_color, layer + LAYER_FRONT); \
 } \
 else \
@@ -197,24 +198,19 @@ WindowIsFocused(DebugState* debug, UiWindow* window)
 internal void
 SetWindowFocus(DebugState* debug, UiWindow* window)
 {
-    // TODO: this is a hack
-    if (debug->top_layer >= 10000)
-    {
-        debug->top_layer = 0;
-    }
     debug->top_layer += 20;
     window->layer = debug->top_layer;
     debug->focused_window = window;
 }
 
 
-// TODO: handle collisions
 internal UiWindow*
-GetWindow(DebugState* debug, char* key)
+GetWindow(DebugState* debug, char* id)
 {
     u64 hash = 5381;
     i32 c;
     
+    char* key = id;
     while((c = *key++))
     {
         hash = ((hash << 5) + hash) + c;
@@ -222,9 +218,29 @@ GetWindow(DebugState* debug, char* key)
     
     u16 hash_index = hash % ArrayCount(debug->window_table);
     
-    UiWindow* ui_window = debug->window_table + hash_index;
+    UiWindow** ui_window = debug->window_table + hash_index;
     
-    return ui_window;
+    UiWindow* result = 0;
+    for (UiWindow* window = (*ui_window);
+         window;
+         window = window->next)
+    {
+        if (StringMatch(window->id, id))
+        {
+            result = window;
+            return result;
+        }
+    }
+    
+    if (!result)
+    {
+        result = PushMemory(&debug->arena, UiWindow);
+        result->next = *ui_window;
+        result->id = id;
+        *ui_window = result;
+    }
+    
+    return result;
 }
 
 internal void
@@ -265,13 +281,6 @@ SetHot(DebugState* debug, void* id)
     
     debug->hot_item = id;
 }
-
-
-enum TextAlign
-{
-    TEXT_ALIGN_MIDDLE,
-    TEXT_ALIGN_LEFT,
-};
 
 
 internal inline void
@@ -528,64 +537,11 @@ UiLoadFont(MemoryArena* arena, Platform* platform, Assets* assets, char* font_pa
     }
     else
     {
-        LogM("Failed to load font [%s] file.", font_path);
+        LogM("Failed to load font [%s] file.\n", font_path);
     }
     
     
     return font;
-}
-
-internal f32
-GetTextWidth(Font* font, char* text)
-{
-    f32 out = 0;
-    
-    while(*text)
-    {
-        u32 index = *text-32;
-        out += font->char_metrics[index].xadvance;
-        
-        text++;
-    }
-    
-    return out;
-}
-
-internal void
-DrawText(RenderGroup* render_group,
-         Font* font,
-         char* text,
-         vec2 position,
-         u32 layer,
-         TextAlign align = TEXT_ALIGN_LEFT,
-         Color color = {255, 255, 255, 254})
-{
-    if (align == TEXT_ALIGN_MIDDLE)
-    {
-        f32 text_width = GetTextWidth(font, text);
-        position.x -= (text_width / 2.0f);
-    }
-    
-    while(*text)
-    {
-        if (*text >= 32 && *text <= 128)
-        {
-            i32 index = *text-32;
-            CharMetric* cm = font->char_metrics + index;
-            
-            i32 round_x = IFloor((position.x + cm->xoff) + 0.5f);
-            i32 round_y = IFloor((position.y - cm->yoff) + 0.5f);
-            
-            vec2 pos = V2(round_x, round_y);
-            vec2 size = V2(cm->x1 - cm->x0,
-                           -cm->y1 + cm->y0);
-            
-            PushQuad(render_group, pos, size, color, layer, font->sprite_handles[index]);
-            
-            position.x += cm->xadvance;
-        }
-        text++;
-    }
 }
 
 // TODO: title is not a good pointer for id
@@ -593,7 +549,7 @@ internal void
 UiSubmenuTitlebar(DebugState* debug, vec2 position, vec2 size, char* title)
 {
     Color color = bg_main_color;
-    u32 layer = debug->current_window ? debug->current_window->layer : 0;
+    Layer layer = debug->current_window ? debug->current_window->layer : 0;
     
     if (IsHot(debug, title))
     {
@@ -629,11 +585,8 @@ UiSubmenuTitlebar(DebugState* debug, vec2 position, vec2 size, char* title)
 internal void
 UiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
 {
-    if (debug->temp_arena.arena)
-    {
-        EndTemporaryMemory(&debug->temp_arena);
-    }
-    debug->temp_arena = BeginTemporaryMemory(&debug->arena);
+    
+    debug->temp_memory = BeginTemporaryMemory(&debug->temp_arena);
     debug->prev_mouse_pos = debug->input.mouse.position;
     debug->input = *input;
     debug->screen_width = ren->screen_width;
@@ -647,22 +600,26 @@ UiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
     
     if (ButtonPressed(input, BUTTON_MOUSE_LEFT))
     {
-        UiWindow** windows =  PushMemory(&debug->arena, 
+        UiWindow** windows =  PushMemory(&debug->temp_arena, 
                                          UiWindow*, 
                                          ArrayCount(debug->window_table));
         u32 len = 0;
         
         for (u32 i = 0; i < ArrayCount(debug->window_table); ++i)
         {
-            UiWindow* window = debug->window_table + i;
-            if (window->size.x)
+            for (UiWindow* window = debug->window_table[i]; 
+                 window; 
+                 window= window->next)
             {
+                Log(window);
                 windows[len] = window;
                 len++;
             }
         }
-        // TODO: learn better sort..
         
+        LogM("Number of windows %i\n", len);
+        
+        // TODO: better sort
         // Sort by layer
         for (i32 i = 0; i < (i32)len; ++i)
         {
@@ -702,6 +659,13 @@ UiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
 }
 
 internal void
+UiEnd(DebugState* debug)
+{
+    Assert(debug->temp_memory.arena);
+    EndTemporaryMemory(&debug->temp_memory);
+}
+
+internal void
 PushWindow(DebugState* debug, UiWindow* window)
 {
     StackedWindow* sw = debug->window_stack + debug->num_stacked_windows;
@@ -719,9 +683,57 @@ PopWindow(DebugState* debug)
     return debug->window_stack + debug->num_stacked_windows;
 }
 
+internal void
+UiWindowResizeThingy(DebugState* debug, UiWindow* window)
+{
+    vec2 resize_thingy_size = V2(20, 20);
+    vec2 resize_thingy_pos = V2(window->position.x + window->size.x - resize_thingy_size.x,
+                                window->position.y);
+    
+    Color color = bg_main_color;
+    
+    if (IsActive(debug, window))
+    {
+        if (ButtonDown(&debug->input, BUTTON_MOUSE_LEFT))
+        {
+            vec2 mouse_delta = (debug->input.mouse.position - debug->prev_mouse_pos);
+            window->size.x += mouse_delta.x;
+            window->size.y -= mouse_delta.y;
+            window->position.y += mouse_delta.y;
+            
+            resize_thingy_pos = V2(window->position.x + window->size.x - resize_thingy_size.x,
+                                   window->position.y);
+            
+        }
+        else
+        {
+            SetActive(debug, 0);
+        }
+    }
+    else if (IsHot(debug, window))
+    {
+        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
+        {
+            SetActive(debug, window);
+        }
+        color = faint_red_color;
+    }
+    
+    if (WindowIsFocused(debug, window))
+    {
+        if (PointInsideRect(debug->input.mouse.position,
+                            resize_thingy_pos,
+                            resize_thingy_size))
+        {
+            SetHot(debug, window);
+        }
+    }
+    
+    PushQuad(debug->render_group, resize_thingy_pos, resize_thingy_size, color, window->layer + LAYER_FRONT);
+}
 
 internal void
-UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(400, 500), u32 style_flags = 0)
+UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(400, 500), u32 flags = 0)
 {
     UiWindow* window = GetWindow(debug, title);
     
@@ -730,23 +742,24 @@ UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(4
     if (debug->current_window)
     {
         PushWindow(debug, debug->current_window);
-        debug->do_pop_window = true;
+        
     }
     
     debug->current_window = window;
-    u32 layer = window->layer;
+    Layer layer = window->layer;
     
     
-    if (window->position.x <= 0 && window->position.y <= 0)
+    if (window->size.x <= 0 || window->size.y <= 0)
     {
+        window->position = V2(RandomRange(100, 200),
+                              RandomRange(100, 200));
         window->size = size;
-        window->position = pos;
     }
     
     
     Color color = faint_red_color;
     
-    if (IsActive(debug, window))
+    if (IsActive(debug, title))
     {
         if (ButtonDown(&debug->input, BUTTON_MOUSE_LEFT))
         {
@@ -756,16 +769,15 @@ UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(4
         }
         else
         {
-            debug->active_item = 0;
+            SetActive(debug, 0);
         }
     }
-    else if (IsHot(debug, window))
+    else if (IsHot(debug, title))
     {
         color = red_color;
-        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT), 
-            ButtonDown(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
         {
-            SetActive(debug, window);
+            SetActive(debug, title);
         }
     }
     
@@ -773,13 +785,20 @@ UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(4
     debug->draw_cursor = V2(window->position.x,
                             window->position.y + window->size.y);
     
+    if ((flags & WINDOW_NO_RESIZE) != WINDOW_NO_RESIZE)
+    {
+        UiWindowResizeThingy(debug, window);
+    }
+    
+    
     PushQuad(debug->render_group, 
              debug->current_window->position,
              debug->current_window->size,
              faint_bg_color,
              debug->current_window->layer + LAYER_BACKMID);
     
-    if ((style_flags & WINDOW_NO_TITLEBAR) != WINDOW_NO_TITLEBAR)
+    
+    if ((flags & WINDOW_NO_TITLEBAR) != WINDOW_NO_TITLEBAR)
     {
         vec2 titlebar_size = V2((f32)window->size.x, (f32)debug->font.font_size);
         debug->draw_cursor.y -= titlebar_size.y;
@@ -793,13 +812,13 @@ UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(4
         }
         
         
-        if (WindowIsFocused(debug, debug->current_window))
+        if (WindowIsFocused(debug, window))
         {
             if (PointInsideRect(debug->input.mouse.position,
                                 titlebar_pos,
                                 titlebar_size))
             {
-                SetHot(debug, window);
+                SetHot(debug, title);
             }
         }
         
@@ -818,12 +837,11 @@ UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(4
 internal void
 UiWindowEnd(DebugState* debug)
 {
-    if (debug->do_pop_window)
+    if (debug->num_stacked_windows > 0)
     {
         StackedWindow* sw = PopWindow(debug);
         debug->current_window = sw->window;
         debug->draw_cursor = sw->previous_draw_cursor;
-        debug->do_pop_window = false;
     }
     else
     {
@@ -840,7 +858,7 @@ UiFps(DebugState* debug)
     sprintf(out, fps_text, debug->game_fps);
     vec2 position = V2(0.0f, (f32)debug->screen_height - debug->font.font_size);
     
-    DrawText(group, &debug->font, out, position, LAYER_FRONT);
+    DrawText(group, &debug->font, out, position, 1 << 10);
 }
 
 
@@ -852,11 +870,11 @@ UiCheckbox(DebugState* debug, b8* toggle_var, char* var_name)
     
     vec2 size = V2(20);
     vec2 pos = UiCursorNewline(debug, size.x, size.y);
-    u32 layer = debug->current_window ? debug->current_window->layer : 0;
+    Layer layer = debug->current_window ? debug->current_window->layer : 0;
     
     if (NameIsTooLong(&debug->font, var_name))
     {
-        var_name = StringCopy(&debug->arena, var_name);
+        var_name = StringCopy(&debug->temp_arena, var_name);
         TruncateName(var_name);
     }
     
@@ -920,7 +938,7 @@ UiButton(DebugState* debug, char* name, vec2 pos = V2(0), vec2 size = V2(80, 40)
     
     Color button_color = bg_main_color;
     b8 result = false;
-    u32 layer = debug->current_window ? debug->current_window->layer : 0;
+    Layer layer = debug->current_window ? debug->current_window->layer : 0;
     
     
     if (IsActive(debug, name))
@@ -975,11 +993,11 @@ UiSilder(DebugState* debug,
     vec2 bar_size = V2(debug->current_window->size.x - MAX_NAME_WIDTH - 2*PADDING, 20.0f);
     vec2 pos = UiCursorNewline(debug, bar_size.x + MAX_NAME_WIDTH, bar_size.y);
     
-    u32 layer = debug->current_window ? debug->current_window->layer : 0;
+    Layer layer = debug->current_window ? debug->current_window->layer : 0;
     
     if (NameIsTooLong(&debug->font, var_name))
     {
-        var_name = StringCopy(&debug->arena, var_name);
+        var_name = StringCopy(&debug->temp_arena, var_name);
         TruncateName(var_name);
     }
     DrawText(group,
@@ -1224,16 +1242,17 @@ GetColorpicker(DebugState* debug, void* key)
 internal void
 UiColorpicker(DebugState* debug, Color* var, char* var_name)
 {
-    vec2 size = V2(200, debug->font.font_size);
+    vec2 size = V2(debug->current_window->size.x - MAX_NAME_WIDTH - 2*PADDING,
+                   debug->font.font_size);
     Color color = *var;
     
-    u32 layer = debug->current_window ? debug->current_window->layer : 0;
+    Layer layer = debug->current_window ? debug->current_window->layer : 0;
     vec2 pos = UiCursorNewline(debug, size.x, size.y);
     
     
     if (NameIsTooLong(&debug->font, var_name))
     {
-        var_name = StringCopy(&debug->arena, var_name);
+        var_name = StringCopy(&debug->temp_arena, var_name);
         TruncateName(var_name);
     }
     
@@ -1291,7 +1310,9 @@ UiColorpicker(DebugState* debug, Color* var, char* var_name)
         
         
         UiWindowBegin(debug, "Color Picker", 
-                      colorpicker_window->position, colorpicker_window->size);
+                      colorpicker_window->position, 
+                      colorpicker_window->size,
+                      WINDOW_NO_RESIZE);
         
         
         
@@ -1313,13 +1334,39 @@ UiColorpicker(DebugState* debug, Color* var, char* var_name)
 }
 
 internal void
+ReadUiConfig(DebugState* debug)
+{
+    FileResult file = g_Platform->ReadEntireFile("./config.ui");
+    
+    u32 table_size = ArrayCount(debug->window_table) * sizeof(UiWindow);
+    if (file.size == table_size)
+    {
+        LogM("Read ui config.\n");
+        MemCopy(debug->window_table, file.data, table_size);
+    }
+}
+
+internal void
+WriteUiConfig(DebugState* debug)
+{
+    b8 success = g_Platform->WriteEntireFile("./config.ui", 
+                                             ArrayCount(debug->window_table) * sizeof(UiWindow), 
+                                             debug->window_table);
+    
+    if (!success)
+    {
+        LogM("Failed to write ui config file!\n");
+    }
+}
+
+internal void
 UiInit(DebugState* debug, Renderer* renderer, Platform* platform, Assets* assets)
 {
     debug->font = UiLoadFont(&debug->arena,
                              platform,
                              assets,
-                             "../assets/fonts/liberation-mono.ttf",
-                             16);
+                             "../assets/fonts/consola.ttf",
+                             14);
     for (u32 i = 0; i < ArrayCount(debug->sub_menus); ++i)
     {
         debug->sub_menus[i].is_active = true;
@@ -1333,6 +1380,7 @@ UiInit(DebugState* debug, Renderer* renderer, Platform* platform, Assets* assets
                                             CreateCamera(Vec3Up(), Vec3Forward(), V3(0.0f, 0.0f, 9000.0f)),
                                             renderer, 
                                             assets);
+    debug->top_layer = 4069;
 }
 
 

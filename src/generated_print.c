@@ -112,6 +112,107 @@ LogM("}");
 LogM("\n\n");
 }
 
+void Log(Camera *object)
+{
+LogM("Camera\n");
+LogM("");
+LogM("{\n");
+LogM("  ");
+LogM("position\n");
+LogM("  ");
+LogM("{\n");
+LogM("    ");
+LogM("x : %f", object->position.x);
+LogM(",\n");
+LogM("    ");
+LogM("y : %f", object->position.y);
+LogM(",\n");
+LogM("    ");
+LogM("z : %f", object->position.z);
+LogM(",\n");
+LogM("  ");
+LogM("}");
+LogM(",\n");
+LogM("  ");
+LogM("direction\n");
+LogM("  ");
+LogM("{\n");
+LogM("    ");
+LogM("x : %f", object->direction.x);
+LogM(",\n");
+LogM("    ");
+LogM("y : %f", object->direction.y);
+LogM(",\n");
+LogM("    ");
+LogM("z : %f", object->direction.z);
+LogM(",\n");
+LogM("  ");
+LogM("}");
+LogM(",\n");
+LogM("  ");
+LogM("up\n");
+LogM("  ");
+LogM("{\n");
+LogM("    ");
+LogM("x : %f", object->up.x);
+LogM(",\n");
+LogM("    ");
+LogM("y : %f", object->up.y);
+LogM(",\n");
+LogM("    ");
+LogM("z : %f", object->up.z);
+LogM(",\n");
+LogM("  ");
+LogM("}");
+LogM(",\n");
+LogM("");
+LogM("}");
+LogM("\n\n");
+}
+
+void Log(UiWindow *object)
+{
+LogM("UiWindow\n");
+LogM("");
+LogM("{\n");
+LogM("  ");
+LogM("position\n");
+LogM("  ");
+LogM("{\n");
+LogM("    ");
+LogM("x : %f", object->position.x);
+LogM(",\n");
+LogM("    ");
+LogM("y : %f", object->position.y);
+LogM(",\n");
+LogM("  ");
+LogM("}");
+LogM(",\n");
+LogM("  ");
+LogM("size\n");
+LogM("  ");
+LogM("{\n");
+LogM("    ");
+LogM("x : %f", object->size.x);
+LogM(",\n");
+LogM("    ");
+LogM("y : %f", object->size.y);
+LogM(",\n");
+LogM("  ");
+LogM("}");
+LogM(",\n");
+LogM("  ");
+LogM("layer : %i", object->layer);
+LogM(",\n");
+LogM("  ");
+LogM("id : %s", object->id);
+LogM(",\n");
+LogM("  ");
+LogM("");
+LogM("}");
+LogM("\n\n");
+}
+
 void Log(Render *object)
 {
 LogM("Render\n");

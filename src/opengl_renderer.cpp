@@ -373,11 +373,11 @@ SortRenderGroup(RenderGroup* render_group)
 {
     SortElement* sort_entries = SortElementStart(render_group);
     
-    for(i32 i = 1; i < (i32)render_group->sort_element_count; ++i)
+    for(i64 i = 1; i < (i64)render_group->sort_element_count; ++i)
     {
         SortElement sort_element = sort_entries[i];
         
-        i32 j = i - 1;
+        i64 j = i - 1;
         while(j >= 0 && sort_entries[j].key > sort_element.key)
         {
             sort_entries[j+1] = sort_entries[j];

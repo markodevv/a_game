@@ -26,7 +26,7 @@ struct Platform
     WriteEntireFileProc* WriteEntireFile;
     
     RenderProc* InitRenderer;
-    RenderProc* EndFrame;
+    RenderProc* RendererEndFrame;
     
     Allocate* Allocate;
     Reallocate* Reallocate;

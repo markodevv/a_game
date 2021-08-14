@@ -2,11 +2,11 @@
 #define INDICES_PER_QUAD 6
 #define NUM_ASCII 96
 
-const u32 LAYER_BACK = 0;
-const u32 LAYER_BACKMID = 1;
-const u32 LAYER_MID = 2;
-const u32 LAYER_MIDFRONT = 3;
-const u32 LAYER_FRONT = 4;
+const Layer LAYER_BACK = 0;
+const Layer LAYER_BACKMID = 1;
+const Layer LAYER_MID = 2;
+const Layer LAYER_MIDFRONT = 3;
+const Layer LAYER_FRONT = 4;
 
 internal inline Color
 NewColor(u8 r, u8 b, u8 g, u8 a)

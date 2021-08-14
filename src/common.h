@@ -44,6 +44,7 @@ typedef size_t sizet;
 
 typedef u32 SpriteHandle;
 typedef u16 EntityId;
+typedef u32 Layer;
 
 struct GameState;
 struct Array;

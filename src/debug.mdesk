@@ -3,13 +3,17 @@ SubMenu :: struct
     is_active: b8,
 }
 
+@Print
 UiWindow :: struct
 {
     position: vec2,
     size: vec2,
     layer: u32,
     
-    next: *UiWindow,
+    id: *char,
+    
+    @NoPrint
+        next: *UiWindow,
 }
 
 StackedWindow :: struct
@@ -34,7 +38,9 @@ Colorpicker :: struct
 DebugState :: struct
 {
     arena: MemoryArena,
-    temp_arena: TemporaryArena,
+    temp_arena: MemoryArena,
+    
+    temp_memory: TemporaryArena,
     
     render_group: *RenderGroup,
     
@@ -59,13 +65,12 @@ DebugState :: struct
     mouse_pos: vec2,
     prev_mouse_pos: vec2,
     
-    window_table: [64]UiWindow,
+    window_table: [64]*UiWindow,
     current_window: *UiWindow, 
     focused_window: *UiWindow,
     
     window_stack: [32]StackedWindow,
     num_stacked_windows: u32,
-    do_pop_window: b8,
     
     draw_cursor: vec2,
     top_layer: u32,

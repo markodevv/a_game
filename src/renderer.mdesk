@@ -16,6 +16,7 @@ VertexData :: struct
 }
 
 
+@Print
 Camera :: struct
 {
     position: vec3,
@@ -54,6 +55,12 @@ CharMetric :: struct
     xoff: f32,
     yoff: f32,
     xadvance: f32,
+}
+
+TextAlign :: enum
+{
+    TEXT_ALIGN_MIDDLE,
+    TEXT_ALIGN_LEFT,
 }
 
 Font :: struct

@@ -12,6 +12,8 @@ struct GameMemory
     DebugState *debug;
     Platform platform;
 
+    b8 is_last_frame;
+
     i32 screen_width;
     i32 screen_height;
 };
@@ -131,13 +133,6 @@ struct GameState
     f32 t_sine;
     i32 tone_hz;
     i32 tone_volume;
-
-    u32 hero_sprite;
-    u32 minotaur_sprite;
-    u32 hero_sprite_sheet;
-    u32 backgroud_sprite;
-    u32 goblin_sprite_sheet;
-    u32 goblin_sprite;
 
     u32 tile_size;
 

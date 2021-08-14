@@ -51,6 +51,15 @@ vec3_mix(vec3 v1, vec3 v2, f32 s)
     return result;
 }
 
+internal f32
+RandomRange(f32 min, f32 max)
+{
+    f32 random = ((f32)rand()) / (f32)RAND_MAX;
+    f32 diff = max - min;
+    f32 r = random * diff;
+    return min + r;
+}
+
 internal u64
 LogBase2(u64 n)
 {

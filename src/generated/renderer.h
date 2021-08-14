@@ -14,6 +14,7 @@ struct VertexData
     Color color;
     f32 texture_slot;
 };
+// @Print
 typedef struct Camera Camera;
 struct Camera
 {
@@ -24,6 +25,7 @@ struct Camera
 typedef enum SpriteType
 {
     TYPE_SPRITE,
+
 
 
 
@@ -81,6 +83,74 @@ struct CharMetric
     f32 yoff;
     f32 xadvance;
 };
+typedef enum TextAlign
+{
+    TEXT_ALIGN_MIDDLE,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    TEXT_ALIGN_LEFT,
+}
+TextAlign;
 typedef struct Font Font;
 struct Font
 {
@@ -165,6 +235,13 @@ typedef enum RenderEntryType
 
 
 
+
+
+
+
+
+
+
     RENDER_ENTRY_TriangleEntry,
 }
 RenderEntryType;
@@ -176,6 +253,13 @@ struct RenderEntryHeader
 typedef enum ShaderId
 {
     SHADER_ID_NORMAL,
+
+
+
+
+
+
+
 
 
 
@@ -344,7 +428,21 @@ typedef enum ShaderId
 
 
 
+
+
+
+
+
+
+
     SHADER_ID_SB_QUAD,
+
+
+
+
+
+
+
 
 
 
@@ -589,7 +687,21 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
     UNIFORM_F64,
+
+
+
+
+
+
+
 
 
 
@@ -838,7 +950,21 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
     UNIFORM_U32,
+
+
+
+
+
+
+
 
 
 
@@ -1091,7 +1217,21 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
     UNIFORM_VEC3,
+
+
+
+
+
+
+
 
 
 
@@ -1348,7 +1488,21 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
     UNIFORM_MAT4,
+
+
+
+
+
+
+
 
 
 
