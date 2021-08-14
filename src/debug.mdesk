@@ -16,6 +16,17 @@ UiWindow :: struct
         next: *UiWindow,
 }
 
+WindowSerializeData :: struct
+{
+    position: vec2,
+    size: vec2,
+}
+
+UiFileHeader :: struct
+{
+    window_count: u32,
+}
+
 StackedWindow :: struct
 {
     window: *UiWindow,
@@ -82,4 +93,6 @@ DebugState :: struct
     
     screen_height: i32,
     screen_width: i32,
+    
+    have_read_config: b8,
 }

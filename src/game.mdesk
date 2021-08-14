@@ -11,8 +11,6 @@ GameMemory :: struct
     debug: *DebugState,
     platform: Platform,
     
-    is_last_frame: b8,
-    
     screen_width: i32,
     screen_height: i32,
 }

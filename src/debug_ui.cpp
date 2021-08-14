@@ -203,9 +203,40 @@ SetWindowFocus(DebugState* debug, UiWindow* window)
     debug->focused_window = window;
 }
 
-
 internal UiWindow*
 GetWindow(DebugState* debug, char* id)
+{
+    u64 hash = 5381;
+    i32 c;
+    
+    char* key = id;
+    while((c = *key++))
+    {
+        hash = ((hash << 5) + hash) + c;
+    }
+    
+    u16 hash_index = hash % ArrayCount(debug->window_table);
+    
+    UiWindow** ui_window = debug->window_table + hash_index;
+    
+    UiWindow* result = 0;
+    for (UiWindow* window = (*ui_window);
+         window;
+         window = window->next)
+    {
+        if (StringMatch(window->id, id))
+        {
+            result = window;
+            return result;
+        }
+    }
+    
+    return result;
+    
+}
+
+internal UiWindow*
+GetOrCreateWindow(DebugState* debug, char* id)
 {
     u64 hash = 5381;
     i32 c;
@@ -236,7 +267,7 @@ GetWindow(DebugState* debug, char* id)
     {
         result = PushMemory(&debug->arena, UiWindow);
         result->next = *ui_window;
-        result->id = id;
+        result->id = StringCopy(&debug->arena, id);
         *ui_window = result;
     }
     
@@ -246,13 +277,13 @@ GetWindow(DebugState* debug, char* id)
 internal void
 SetWindowPosition(DebugState* debug, vec2 position, char* window_name)
 {
-    GetWindow(debug, window_name)->position = position;
+    GetOrCreateWindow(debug, window_name)->position = position;
 }
 
 internal void
 SetWindowSize(DebugState* debug, vec2 size, char* window_name)
 {
-    GetWindow(debug, window_name)->size = size;
+    GetOrCreateWindow(debug, window_name)->size = size;
 }
 
 internal b8
@@ -659,8 +690,95 @@ UiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
 }
 
 internal void
+ReadUiConfig(DebugState* debug)
+{
+    FileResult file = g_Platform->ReadEntireFile("./config.ui");
+    
+    if (file.data)
+    {
+        UiFileHeader* header = (UiFileHeader*)file.data;
+        u8* iterator = (u8*)(header + 1);
+        
+        char id_buffer[128];
+        for (u32 i = 0; i < header->window_count; ++i)
+        {
+            u32 id_size = *((u32*)iterator);
+            iterator += sizeof(u32);
+            
+            StringCopy(id_buffer, (char*)iterator, id_size);
+            iterator += id_size;
+            
+            WindowSerializeData* data = (WindowSerializeData*)iterator;
+            iterator += sizeof(WindowSerializeData);
+            
+            UiWindow* window = GetWindow(debug, id_buffer);
+            if (window)
+            {
+                window->size = data->size;
+                window->position = data->position;
+            }
+        }
+        g_Platform->FreeFileMemory(file.data);
+    }
+}
+
+internal void
+WriteUiConfig(DebugState* debug)
+{
+    u8* mem = PushMemory(&debug->temp_arena, u8, Megabytes(10));
+    UiFileHeader* file_header = (UiFileHeader*)mem;
+    u8* iterator = mem + sizeof(UiFileHeader);
+    
+    u32 used_size = 0;
+    u32 window_count = 0;
+    
+    for (u32 i = 0; i < ArrayCount(debug->window_table); ++i)
+    {
+        for (UiWindow* window = debug->window_table[i]; 
+             window; 
+             window= window->next)
+        {
+            u32 id_size = StringLength(window->id) * sizeof(char);
+            
+            MemCopy(iterator, &id_size, sizeof(u32));
+            iterator += sizeof(u32);
+            
+            MemCopy(iterator, window->id, id_size);
+            iterator += id_size;
+            
+            WindowSerializeData* window_data = (WindowSerializeData*)iterator;
+            iterator += sizeof(WindowSerializeData);
+            
+            window_data->position = window->position;
+            window_data->size = window->size;
+            
+            used_size += sizeof(u32) + id_size + sizeof(WindowSerializeData);
+            window_count++;
+        }
+    }
+    
+    file_header->window_count = window_count;
+    
+    b8 success = g_Platform->WriteEntireFile("./config.ui", used_size, mem);
+    
+    if (!success)
+    {
+        LogM("Failed to write ui config file!\n");
+    }
+}
+
+internal void
 UiEnd(DebugState* debug)
 {
+    if (!debug->have_read_config)
+    {
+        ReadUiConfig(debug);
+        debug->have_read_config = true;
+    }
+    if (ButtonPressed(&debug->input, BUTTON_F1))
+    {
+        WriteUiConfig(debug);
+    }
     Assert(debug->temp_memory.arena);
     EndTemporaryMemory(&debug->temp_memory);
 }
@@ -735,7 +853,7 @@ UiWindowResizeThingy(DebugState* debug, UiWindow* window)
 internal void
 UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(400, 500), u32 flags = 0)
 {
-    UiWindow* window = GetWindow(debug, title);
+    UiWindow* window = GetOrCreateWindow(debug, title);
     
     Assert(window);
     
@@ -1266,7 +1384,7 @@ UiColorpicker(DebugState* debug, Color* var, char* var_name)
     PushQuad(debug->render_group, pos, size, color, layer + LAYER_MID);
     
     
-    UiWindow* colorpicker_window = GetWindow(debug, "Color Picker");
+    UiWindow* colorpicker_window = GetOrCreateWindow(debug, "Color Picker");
     Colorpicker* colorpicker = GetColorpicker(debug, (void*)var);
     
     if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
@@ -1331,32 +1449,6 @@ UiColorpicker(DebugState* debug, Color* var, char* var_name)
         
     }
     
-}
-
-internal void
-ReadUiConfig(DebugState* debug)
-{
-    FileResult file = g_Platform->ReadEntireFile("./config.ui");
-    
-    u32 table_size = ArrayCount(debug->window_table) * sizeof(UiWindow);
-    if (file.size == table_size)
-    {
-        LogM("Read ui config.\n");
-        MemCopy(debug->window_table, file.data, table_size);
-    }
-}
-
-internal void
-WriteUiConfig(DebugState* debug)
-{
-    b8 success = g_Platform->WriteEntireFile("./config.ui", 
-                                             ArrayCount(debug->window_table) * sizeof(UiWindow), 
-                                             debug->window_table);
-    
-    if (!success)
-    {
-        LogM("Failed to write ui config file!\n");
-    }
 }
 
 internal void

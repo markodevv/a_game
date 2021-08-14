@@ -732,7 +732,6 @@ WinMain(HINSTANCE hinstance,
     game_memory.temporary_storage_size = Megabytes(128);
     
     game_memory.is_initialized = false;
-    game_memory.is_last_frame = false;
     game_memory.permanent_storage = calloc(game_memory.permanent_storage_size, sizeof(u8));
     game_memory.temporary_storage = calloc(game_memory.temporary_storage_size, sizeof(u8));
     
@@ -781,7 +780,7 @@ WinMain(HINSTANCE hinstance,
     while(global_running)
     {
         
-        for (sizet i = 0; i < ArrayCount(game_input.buttons); ++i)
+        for (sizet i = 0; i < NUM_BUTTONS; ++i)
         {
             game_input.buttons[i].released = 0;
             game_input.buttons[i].pressed = 0;
@@ -877,18 +876,17 @@ WinMain(HINSTANCE hinstance,
             }
         }
 #endif
-        game_memory.is_last_frame = global_running;
-        if (!paused)
-        {
-            game.main_loop(delta_time, &game_memory, NULL, &game_input);
-        }
-        
         RECT screen_rect;
         GetClientRect(window_handle, &screen_rect);
         i32 w = screen_rect.right - screen_rect.left;
         i32 h = screen_rect.bottom - screen_rect.top;
         game_memory.screen_width = w;
         game_memory.screen_height = h;
+        
+        if (!paused)
+        {
+            game.main_loop(delta_time, &game_memory, NULL, &game_input);
+        }
         
         HDC window_dc = GetDC(window_handle);
         SwapBuffers(window_dc);

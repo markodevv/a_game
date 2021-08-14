@@ -17,6 +17,17 @@ struct UiWindow
     // @NoPrint
     UiWindow *next;
 };
+typedef struct WindowSerializeData WindowSerializeData;
+struct WindowSerializeData
+{
+    vec2 position;
+    vec2 size;
+};
+typedef struct UiFileHeader UiFileHeader;
+struct UiFileHeader
+{
+    u32 window_count;
+};
 typedef struct StackedWindow StackedWindow;
 struct StackedWindow
 {
@@ -84,4 +95,6 @@ struct DebugState
 
     i32 screen_height;
     i32 screen_width;
+
+    b8 have_read_config;
 };

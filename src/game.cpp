@@ -310,9 +310,6 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         
         
         UiInit(memory->debug, ren, &memory->platform, &game_state->assets);
-        //ReadUiConfig(memory->debug);
-        
-        
         
         
         WorldState* world = &game_state->world;
@@ -495,17 +492,16 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         
         UiWindowEnd(memory->debug);
         
-        UiWindowBegin(debug, "Window 2adasdas");
+        UiWindowBegin(debug, "Window 2");
+        
+        UiWindowEnd(memory->debug);
+        
+        UiWindowBegin(debug, "Window 3");
         
         UiWindowEnd(memory->debug);
         
         
         UiEnd(debug);
-    }
-    
-    if (memory->is_last_frame)
-    {
-        WriteUiConfig(memory->debug);
     }
     
     
