@@ -617,7 +617,6 @@ internal void
 UiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
 {
     
-    debug->temp_memory = BeginTemporaryMemory(&debug->temp_arena);
     debug->prev_mouse_pos = debug->input.mouse.position;
     debug->input = *input;
     debug->screen_width = ren->screen_width;
@@ -692,7 +691,7 @@ UiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
 internal void
 ReadUiConfig(DebugState* debug)
 {
-    FileResult file = g_Platform->ReadEntireFile("./config.ui");
+    FileResult file = g_Platform.ReadEntireFile("./config.ui");
     
     if (file.data)
     {
@@ -718,7 +717,7 @@ ReadUiConfig(DebugState* debug)
                 window->position = data->position;
             }
         }
-        g_Platform->FreeFileMemory(file.data);
+        g_Platform.FreeFileMemory(file.data);
     }
 }
 
@@ -759,7 +758,7 @@ WriteUiConfig(DebugState* debug)
     
     file_header->window_count = window_count;
     
-    b8 success = g_Platform->WriteEntireFile("./config.ui", used_size, mem);
+    b8 success = g_Platform.WriteEntireFile("./config.ui", used_size, mem);
     
     if (!success)
     {
@@ -775,12 +774,7 @@ UiEnd(DebugState* debug)
         ReadUiConfig(debug);
         debug->have_read_config = true;
     }
-    if (ButtonPressed(&debug->input, BUTTON_F1))
-    {
-        WriteUiConfig(debug);
-    }
     Assert(debug->temp_memory.arena);
-    EndTemporaryMemory(&debug->temp_memory);
 }
 
 internal void
@@ -804,7 +798,7 @@ PopWindow(DebugState* debug)
 internal void
 UiWindowResizeThingy(DebugState* debug, UiWindow* window)
 {
-    vec2 resize_thingy_size = V2(20, 20);
+    vec2 resize_thingy_size = V2(10, 10);
     vec2 resize_thingy_pos = V2(window->position.x + window->size.x - resize_thingy_size.x,
                                 window->position.y);
     
@@ -1074,6 +1068,10 @@ UiButton(DebugState* debug, char* name, vec2 pos = V2(0), vec2 size = V2(80, 40)
         {
             SetActive(debug, name);
         }
+        
+        button_color.r *= 2;
+        button_color.g *= 2;
+        button_color.b *= 2;
     }
     
     PushQuad(group, pos, size, button_color, layer + LAYER_MID);

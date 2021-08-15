@@ -46,6 +46,14 @@ Colorpicker :: struct
     next: *Colorpicker,
 }
 
+ProfileEntry :: struct
+{
+    name: *char,
+    elapsed_sec: f64,
+    
+    next: *ProfileEntry,
+}
+
 DebugState :: struct
 {
     arena: MemoryArena,
@@ -54,6 +62,9 @@ DebugState :: struct
     temp_memory: TemporaryArena,
     
     render_group: *RenderGroup,
+    
+    profile_entries: *ProfileEntry;
+    frame_start_cycles: u64,
     
     hot_item: *void,
     next_hot_item: *void,

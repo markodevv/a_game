@@ -111,3 +111,14 @@ CameraTransform(Camera* cam)
     return out;
 }
 
+
+internal SortElement*
+SortElementStart(RenderGroup* group)
+{
+    SortElement* end = (SortElement*)((group->push_buffer_base + 
+                                       group->push_buffer_capacity) - 
+                                      (sizeof(SortElement)));
+    SortElement* start = end - (group->sort_element_count - 1);
+    
+    return start;
+}

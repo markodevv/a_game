@@ -7,7 +7,7 @@
 #ifdef GAME_FILE
 
 #define LogM(msg, ...) \
-g_Platform->LogM(msg, ##__VA_ARGS__) 
+g_Platform.LogM(msg, ##__VA_ARGS__) 
 
 #else
 

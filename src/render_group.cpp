@@ -31,17 +31,6 @@ PushBackSortElement(RenderGroup* group, u32 sort_key)
     Assert((u8*)next_element > (group->push_buffer_base + group->push_buffer_size));
 }
 
-internal SortElement*
-SortElementStart(RenderGroup* group)
-{
-    SortElement* end = (SortElement*)((group->push_buffer_base + 
-                                       group->push_buffer_capacity) - 
-                                      (sizeof(SortElement)));
-    SortElement* start = end - (group->sort_element_count - 1);
-    
-    return start;
-}
-
 internal void*
 PushRenderEntry_(RenderGroup* group, u32 size, RenderEntryType type, u32 sort_key)
 {

@@ -1,3 +1,5 @@
+#pragma once
+
 typedef struct ButtonState ButtonState;
 struct ButtonState
 {

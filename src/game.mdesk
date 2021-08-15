@@ -8,7 +8,11 @@ GameMemory :: struct
     temporary_storage: *void,
     temporary_storage_size: sizet,
     
+    debug_storage: *void,
+    debug_storage_size: sizet,
+    
     debug: *DebugState,
+    
     platform: Platform,
     
     screen_width: i32,
@@ -81,8 +85,6 @@ ParticleEmitter :: struct
 ENTITY_MAX :: 10000
 NUM_COMPONENTS :: 4
 
-
-@typedef ("u16 EntityId")
 
 ComponentInfo :: struct
 {

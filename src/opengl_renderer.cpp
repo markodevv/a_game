@@ -1,3 +1,7 @@
+#include "generated/renderer.h"
+#include "renderer.cpp"
+
+
 OpenGLFunction(void,     glAttachShader,            GLuint program, GLuint shader);
 OpenGLFunction(void,     glBindBuffer,              GLenum target, GLuint buffer);
 OpenGLFunction(void,     glBindFramebuffer,         GLenum target, GLuint framebuffer);
@@ -387,7 +391,6 @@ SortRenderGroup(RenderGroup* render_group)
     }
 }
 
-
 internal void
 UploadShaderUniform(u32 shader_program, Uniform* uniform)
 {
@@ -475,6 +478,8 @@ OpenglDraw(Renderer* ren, RenderSetup* setup, ShaderId shader_id)
 internal void
 OpenglEndFrame(Renderer* ren)
 {
+    PROFILE_FUNCTION();
+    
     glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     

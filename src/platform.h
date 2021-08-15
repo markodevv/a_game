@@ -1,5 +1,74 @@
 #if !defined(PLATFORM_H)
 #define PLATFORM_H
+#define internal static 
+#define global_variable static 
+#define local_persist static
+
+#ifdef GAME_DEBUG
+
+#include <assert.h>
+
+#ifdef PLATFORM_WIN32
+#define Assert(condition) \
+if (!(condition)) *(int *)0 = 0 
+#elif PLATFORM_LINUX 
+#define Assert(condition) \
+assert(condition)
+#endif
+
+#else
+
+#define Assert(condition)
+
+#endif
+
+#include <stdint.h>
+#include <stddef.h>
+
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+typedef float f32;
+typedef double f64;
+
+typedef i8 b8;
+typedef size_t sizet;
+
+typedef u32 SpriteHandle;
+typedef u16 EntityId;
+typedef u32 Layer;
+
+struct GameState;
+struct Array;
+typedef void (*SystemFunc)(GameState* gs, Array* ent);
+
+#define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
+
+#define Kylobytes(n) n*1024
+#define Megabytes(n) n*1024*1024
+#define GigaBytes(n) n*1024*1024*1024
+
+
+#ifdef PLATFORM_WIN32
+
+#ifdef GAME_FILE
+#define PLATFORM_API __declspec(dllexport)
+#else
+#define PLATFORM_API __declspec(dllimport)
+#endif
+
+#elif PLATFORM_LINUX
+
+#define PLATFORM_API __attribute__((visibility("default")))
+
+#endif
 
 struct FileResult
 {
@@ -19,6 +88,10 @@ typedef void* Allocate(sizet size);
 typedef void* Reallocate(void* ptr, sizet size);
 typedef void Free(void* ptr);
 
+typedef f64 GetElapsedSeconds(u64 start);
+typedef u64 GetPrefCounter();
+
+
 struct Platform
 {
     ReadEntireFileProc* ReadEntireFile;
@@ -28,13 +101,15 @@ struct Platform
     RenderProc* InitRenderer;
     RenderProc* RendererEndFrame;
     
+    GetElapsedSeconds* GetElapsedSeconds;
+    GetPrefCounter* GetPrefCounter;
+    
     Allocate* Allocate;
     Reallocate* Reallocate;
     Free* Free;
-#ifdef GAME_DEBUG
+    
     typedef i32 LogFunc(const char* text, ...);
     LogFunc* LogM;
-#endif
 };
 
 internal void*
@@ -101,9 +176,16 @@ MemClear(void* mem, sizet size)
     }
 }
 
-#define Allocate(type, count) (type*)g_Platform->Allocate(sizeof(type) * (count));
-#define Reallocate(ptr, size) g_Platform->Reallocate(ptr, size);
-#define Free(ptr) g_Platform->Free(ptr);
+#ifdef GAME_FILE
+extern Platform g_Platform;
+#else
+Platform g_Platform;
+#endif
+
+
+#define Allocate(type, count) (type*)g_Platform.Allocate(sizeof(type) * (count));
+#define Reallocate(ptr, size) g_Platform.Reallocate(ptr, size);
+#define Free(ptr) g_Platform.Free(ptr);
 
 #endif
 

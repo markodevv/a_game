@@ -1,21 +1,19 @@
-// 090035212100108
-
 #include <math.h>
 #include <stdio.h>
 
+#define GAME_FILE
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #define STB_TRUETYPE_IMPLEMENTATION
 #include <stb_truetype.h>
 
-#define GAME_FILE
-#include "common.h"
-#include "platform.h"
-
-Platform* g_Platform;
+#ifdef GAME_DEBUG
+struct DebugState* global_debug_state;
+#endif
 
 #include "log.h"
+#include "platform.h"
 #include "generated/memory.h"
 #include "memory.cpp"
 #include "array.cpp"
@@ -28,6 +26,7 @@ Platform* g_Platform;
 #include "generated/renderer.h"
 #include "renderer.cpp"
 #include "generated/debug.h"
+#include "debug_profiler.cpp"
 #include "generated/game.h"
 #include "render_group.cpp"
 #include "asset.cpp"
@@ -37,6 +36,8 @@ Platform* g_Platform;
 
 
 
+
+Platform g_Platform;
 
 // NOTE: Debug data
 
@@ -186,6 +187,8 @@ RenderUpdate(GameState* game_state, Array* entities)
 internal void 
 PhysicsUpdate(GameState* game_state, Array* entities)
 {
+    PROFILE_FUNCTION();
+    
     WorldState* world = &game_state->world;
     f32 dt = game_state->delta_time;
     
@@ -249,6 +252,102 @@ InitGrid(WorldState* world)
     }
 }
 
+internal void 
+InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
+{
+    Renderer* ren = &game_state->renderer;
+    
+    InitArena(&game_state->arena, 
+              (memory->permanent_storage_size - sizeof(GameState)),
+              (u8*)memory->permanent_storage + sizeof(GameState));
+    
+    InitArena(&game_state->flush_arena, 
+              (memory->temporary_storage_size),
+              (u8*)memory->temporary_storage);
+    
+    AssetsInit(&game_state->assets, &game_state->flush_arena);
+    
+    
+    //ren->camera.up = V3(0, 1, 0);
+    //ren->camera.direction = V3(0, 0, 1);
+    //ren->camera.position.z = 9000.0f;
+    
+    ren->assets = &game_state->assets;
+    
+    // NOTE: needs to be first image loaded
+    Assert(game_state->assets.num_sprites == 0);
+    ren->white_sprite = LoadSprite(&g_Platform, &game_state->assets, "../assets/white.png");
+    
+    g_Platform.InitRenderer(&game_state->renderer);
+    game_state->render_group = CreateRenderGroup(&game_state->flush_arena, Mat4Orthographic((f32)ren->screen_width, (f32)ren->screen_height),
+                                                 CreateCamera(Vec3Up(), Vec3Forward(), V3(0.0f, 0.0f, 3000.0f)),
+                                                 &game_state->renderer,
+                                                 &game_state->assets);
+    
+    
+    UiInit(memory->debug, ren, &memory->platform, &game_state->assets);
+    
+    
+    WorldState* world = &game_state->world;
+    
+    InitWorld(&game_state->arena, world);
+    ComponentType components[] = 
+    {
+        ComponentTransform,
+        ComponentRender,
+    };
+    RegisterSystem(world, components, ArrayCount(components), RenderUpdate);
+    
+    components[0] = ComponentTransform;
+    components[1] = ComponentRigidbody;
+    
+    RegisterSystem(world, components, ArrayCount(components), PhysicsUpdate);
+    
+    ComponentType comps[] = {ComponentParticleEmitter};
+    RegisterSystem(world, comps, ArrayCount(comps), ParticleUpdate);
+    
+    EntityId player = NewEntity(world);
+    AddComponent(world, player, Transform);
+    AddComponent(world, player, Render);
+    AddComponent(world, player, Rigidbody);
+    AddComponent(world, player, ParticleEmitter);
+    
+    ParticleEmitter* player_particles = GetComponent(world, player, ParticleEmitter);
+    *player_particles = CreateParticleEmitter(&game_state->flush_arena, world, V2(-100), V2(100), 4, NewColor(255), V2(30), 10000);
+    
+    Transform* player_transform = GetComponent(world, player, Transform);
+    *player_transform = {
+        V2(200, 200),
+        V2(60, 60),
+        V2(0),
+    };
+    Render* player_render = GetComponent(world, player, Render);
+    *player_render = {
+        0,
+        NewColor(255),
+        LAYER_FRONT
+    };
+    
+    Rigidbody* player_rigidbody = GetComponent(world, player, Rigidbody);
+    
+    *player_rigidbody = {
+        V2(0),
+        V2(0),
+        1.0f,
+    };
+    
+    EntityId goblin = NewEntity(world);
+    AddComponent(world, goblin, Render);
+    AddComponent(world, goblin, Transform);
+    
+    Render* goblin_render = GetComponent(world, goblin, Render);
+    *goblin_render = {0, NewColor(255), LAYER_FRONT};
+    
+    
+    InitGrid(world);
+    
+}
+
 extern "C" PLATFORM_API void
 GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
 {
@@ -273,104 +372,13 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
     
     if (!memory->is_initialized)
     {
+        global_debug_state = memory->debug;
+        g_Platform = memory->platform;
+        InitGame(memory, game_state, input);
         memory->is_initialized = true;
-        g_Platform = &memory->platform;
-        
-        
-        InitArena(&game_state->arena, 
-                  (memory->permanent_storage_size - sizeof(GameState)),
-                  (u8*)memory->permanent_storage + sizeof(GameState));
-        
-        InitArena(&game_state->flush_arena, 
-                  (memory->temporary_storage_size),
-                  (u8*)memory->temporary_storage);
-        
-        AssetsInit(&game_state->assets, &game_state->flush_arena);
-        
-        memory->debug = PushMemory(&game_state->arena, DebugState);
-        SubArena(&game_state->arena, &memory->debug->arena, Megabytes(16));
-        SubArena(&game_state->arena, &memory->debug->temp_arena, Megabytes(16));
-        
-        
-        //ren->camera.up = V3(0, 1, 0);
-        //ren->camera.direction = V3(0, 0, 1);
-        //ren->camera.position.z = 9000.0f;
-        
-        ren->assets = &game_state->assets;
-        
-        // NOTE: needs to be first image loaded
-        Assert(game_state->assets.num_sprites == 0);
-        ren->white_sprite = LoadSprite(g_Platform, &game_state->assets, "../assets/white.png");
-        
-        g_Platform->InitRenderer(&game_state->renderer);
-        game_state->render_group = CreateRenderGroup(&game_state->flush_arena, Mat4Orthographic((f32)ren->screen_width, (f32)ren->screen_height),
-                                                     CreateCamera(Vec3Up(), Vec3Forward(), V3(0.0f, 0.0f, 300.0f)),
-                                                     &game_state->renderer,
-                                                     &game_state->assets);
-        
-        
-        UiInit(memory->debug, ren, &memory->platform, &game_state->assets);
-        
-        
-        WorldState* world = &game_state->world;
-        
-        InitWorld(&game_state->arena, world);
-        ComponentType components[] = 
-        {
-            ComponentTransform,
-            ComponentRender,
-        };
-        RegisterSystem(world, components, ArrayCount(components), RenderUpdate);
-        
-        components[0] = ComponentTransform;
-        components[1] = ComponentRigidbody;
-        
-        RegisterSystem(world, components, ArrayCount(components), PhysicsUpdate);
-        
-        ComponentType comps[] = {ComponentParticleEmitter};
-        RegisterSystem(world, comps, ArrayCount(comps), ParticleUpdate);
-        
-        EntityId player = NewEntity(world);
-        AddComponent(world, player, Transform);
-        AddComponent(world, player, Render);
-        AddComponent(world, player, Rigidbody);
-        AddComponent(world, player, ParticleEmitter);
-        
-        ParticleEmitter* player_particles = GetComponent(world, player, ParticleEmitter);
-        *player_particles = CreateParticleEmitter(&game_state->flush_arena, world, V2(-100), V2(100), 4, NewColor(255), V2(30), 10000);
-        
-        Transform* player_transform = GetComponent(world, player, Transform);
-        *player_transform = {
-            V2(200, 200),
-            V2(60, 60),
-            V2(0),
-        };
-        Render* player_render = GetComponent(world, player, Render);
-        *player_render = {
-            0,
-            NewColor(255),
-            LAYER_FRONT
-        };
-        
-        Rigidbody* player_rigidbody = GetComponent(world, player, Rigidbody);
-        
-        *player_rigidbody = {
-            V2(0),
-            V2(0),
-            1.0f,
-        };
-        
-        EntityId goblin = NewEntity(world);
-        AddComponent(world, goblin, Render);
-        AddComponent(world, goblin, Transform);
-        
-        Render* goblin_render = GetComponent(world, goblin, Render);
-        *goblin_render = {0, NewColor(255), LAYER_FRONT};
-        
-        
-        InitGrid(world);
-        
     }
+    
+    PROFILE_FUNCTION();
     
     
     
@@ -487,6 +495,12 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
             
             //Log(&game_state->render_group->setup.camera);
             UiColorpicker(debug, &render->color, "color");
+            
+            if (UiButton(debug, "Save Ui Config", V2(200, 200), V2(150, 20)))
+            {
+                WriteUiConfig(debug);
+            }
+            
         }
         
         
@@ -494,18 +508,36 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         
         UiWindowBegin(debug, "Window 2");
         
+        if (UiSubmenu(debug, "Camera settings"))
+        {
+            Camera* cam = &game_state->render_group->setup.camera;
+            UiFloat32Editbox(debug, &cam->position, "position");
+            UiCheckbox(debug, &game_state->is_free_camera, "free camera");
+        }
+        
+        if (UiSubmenu(debug, "Particle Settings"))
+        {
+            ParticleEmitter* pe = GetComponent(&game_state->world, 0, ParticleEmitter);
+            UiFloat32Editbox(debug, &pe->position, "position");
+            UiFloat32Editbox(debug, &pe->min_vel, "min velocity");
+            UiFloat32Editbox(debug, &pe->max_vel, "max velocity");
+            UiFloat32Editbox(debug, &pe->size, "size");
+            UiFloat32Editbox(debug, &pe->particle_spawn_rate, "spawn rate");
+            UiColorpicker(debug, &pe->color, "color");
+        }
+        
         UiWindowEnd(memory->debug);
         
         UiWindowBegin(debug, "Window 3");
         
         UiWindowEnd(memory->debug);
         
-        
         UiEnd(debug);
     }
     
     
-    g_Platform->RendererEndFrame(ren);
+    g_Platform.RendererEndFrame(ren);
+    
 }
 
 

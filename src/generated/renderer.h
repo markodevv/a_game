@@ -1,3 +1,5 @@
+#pragma once
+
 typedef struct Color Color;
 struct Color
 {

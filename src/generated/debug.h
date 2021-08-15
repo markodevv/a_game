@@ -1,3 +1,5 @@
+#pragma once
+
 typedef struct SubMenu SubMenu;
 struct SubMenu
 {
@@ -47,6 +49,14 @@ struct Colorpicker
     void *key;
     Colorpicker *next;
 };
+typedef struct ProfileEntry ProfileEntry;
+struct ProfileEntry
+{
+    char *name;
+    f64 elapsed_sec;
+
+    ProfileEntry *next;
+};
 typedef struct DebugState DebugState;
 struct DebugState
 {
@@ -56,6 +66,9 @@ struct DebugState
     TemporaryArena temp_memory;
 
     RenderGroup *render_group;
+
+    ProfileEntry *profile_entries;
+    u64 frame_start_cycles;
 
     void *hot_item;
     void *next_hot_item;

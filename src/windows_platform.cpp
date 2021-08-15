@@ -16,16 +16,13 @@
 #define WGL_CONTEXT_PROFILE_MASK_ARB              0x9126
 #define WGL_CONTEXT_CORE_PROFILE_BIT_ARB          0x00000001
 
+#ifdef GAME_DEBUG
+struct DebugState* global_debug_state;
+#endif
 
 #include <stb_image.h>
-
-#include "common.h"
-#include "platform.h"
-extern Platform* g_Platform;
-
-#define WIN32_FILE
-
 #include "log.h"
+#include "platform.h"
 #include "generated/memory.h"
 #include "memory.cpp"
 #include "array.cpp"
@@ -34,13 +31,11 @@ extern Platform* g_Platform;
 #include "generated/math.h"
 #include "math.cpp"
 #include "generated/input.h"
-#include "input.cpp"
 #include "generated/renderer.h"
-#include "renderer.cpp"
 #include "generated/debug.h"
+#include "debug_profiler.cpp"
 #include "generated/game.h"
 #include "asset.cpp"
-#include "render_group.cpp"
 #include "opengl_renderer.h"
 #include "opengl_renderer.cpp"
 
@@ -306,20 +301,21 @@ win32_fill_sound_buffer(Win32SoundState* sound_output, GameSoundBuffer* sound_bu
 
 global_variable LARGE_INTEGER global_pref_count_freq;
 
-internal f32 
-win32_get_elapsed_seconds(LARGE_INTEGER start, LARGE_INTEGER end)
-{
-    i64 elapsed_sec = end.QuadPart - start.QuadPart;
-    f32 out = (f32)elapsed_sec / (f32)global_pref_count_freq.QuadPart;
-    
-    return out;
-}
-
-internal LARGE_INTEGER
-win32_get_preformance_counter()
+internal u64
+Win32GetPerformanceCounter()
 {
     LARGE_INTEGER out = {};
     QueryPerformanceCounter(&out);
+    
+    return out.QuadPart;
+}
+
+internal f64 
+Win32GetElapsedSeconds(u64 start)
+{
+    u64 end = Win32GetPerformanceCounter();
+    u64 elapsed_sec = end - start;
+    f64 out = (f64)elapsed_sec / (f64)global_pref_count_freq.QuadPart;
     
     return out;
 }
@@ -408,6 +404,15 @@ win32_window_callback(
     return result;
 }
 
+internal u64
+Win32GetTimeInMs()
+{
+    SYSTEMTIME st;
+    GetSystemTime(&st);
+    
+    return st.wMilliseconds;
+}
+
 
 internal void
 win32_init_opengl(HWND window_handle)
@@ -473,7 +478,7 @@ win32_init_opengl(HWND window_handle)
     
     
     // NOTE: Vsync
-    ((BOOL(WINAPI*)(int))wglGetProcAddress("wglSwapIntervalEXT"))(1);
+    ((BOOL(WINAPI*)(int))wglGetProcAddress("wglSwapIntervalEXT"))(0);
     
     Win32LoadOpenGLFunction(glAttachShader);
     Win32LoadOpenGLFunction(glBindBuffer);
@@ -730,14 +735,26 @@ WinMain(HINSTANCE hinstance,
     GameMemory game_memory = {};
     game_memory.permanent_storage_size = Megabytes(64);
     game_memory.temporary_storage_size = Megabytes(128);
+    game_memory.debug_storage_size = Megabytes(48);
     
     game_memory.is_initialized = false;
     game_memory.permanent_storage = calloc(game_memory.permanent_storage_size, sizeof(u8));
     game_memory.temporary_storage = calloc(game_memory.temporary_storage_size, sizeof(u8));
+    game_memory.debug_storage = calloc(game_memory.debug_storage_size, sizeof(u8));
+    
+    game_memory.debug = (DebugState*)game_memory.debug_storage;
+    global_debug_state = game_memory.debug;
+    
+    InitArena(&game_memory.debug->arena, 
+              (game_memory.debug_storage_size - sizeof(DebugState)),
+              (u8*)game_memory.debug_storage + sizeof(DebugState));
+    SubArena(&game_memory.debug->arena, &game_memory.debug->temp_arena, Megabytes(16));
     
     
+    Assert(game_memory.debug_storage);
     Assert(game_memory.permanent_storage);
     Assert(game_memory.temporary_storage);
+    
     
     game_memory.platform.ReadEntireFile = ReadEntireFile;
     game_memory.platform.WriteEntireFile = WriteEntireFile;
@@ -751,7 +768,11 @@ WinMain(HINSTANCE hinstance,
     game_memory.platform.InitRenderer = OpenglInit;
     game_memory.platform.RendererEndFrame = OpenglEndFrame;
     
+    game_memory.platform.GetPrefCounter = Win32GetPerformanceCounter;
+    game_memory.platform.GetElapsedSeconds = Win32GetElapsedSeconds;
+    
     game_memory.platform.LogM = printf;
+    g_Platform = game_memory.platform;
     
     Win32SoundState sound_output = {};
     sound_output.bytes_per_sample = sizeof(i16) * 2;
@@ -764,7 +785,7 @@ WinMain(HINSTANCE hinstance,
     win32_init_dsound(window_handle, sound_output.samples_per_sec, sound_output.buffer_size);
     
     
-    LARGE_INTEGER last_counter = win32_get_preformance_counter();
+    u64 last_counter = Win32GetPerformanceCounter();
     
     i16* samples = (i16*)calloc(sound_output.buffer_size, sizeof(i16));
     b8 sound_is_valid = false;
@@ -779,6 +800,7 @@ WinMain(HINSTANCE hinstance,
     
     while(global_running)
     {
+        PROFILER_FRAME_START();
         
         for (sizet i = 0; i < NUM_BUTTONS; ++i)
         {
@@ -790,11 +812,6 @@ WinMain(HINSTANCE hinstance,
         
         win32_process_input_messages(&game_input);
         
-        if (ButtonPressed(&game_input, BUTTON_PAUSE))
-        {
-            paused = !paused;
-        }
-        
         POINT p; 
         GetCursorPos(&p);
         ScreenToClient(window_handle, &p);
@@ -802,9 +819,8 @@ WinMain(HINSTANCE hinstance,
         game_input.mouse.position.y = (f32)p.y;
         
         
-        LARGE_INTEGER end_count = win32_get_preformance_counter();
-        f32 delta_time = win32_get_elapsed_seconds(last_counter, end_count);
-        last_counter = win32_get_preformance_counter();
+        f64 delta_time = Win32GetElapsedSeconds(last_counter);
+        last_counter = Win32GetPerformanceCounter();
         
         if (game_memory.is_initialized)
         {
@@ -876,6 +892,7 @@ WinMain(HINSTANCE hinstance,
             }
         }
 #endif
+        
         RECT screen_rect;
         GetClientRect(window_handle, &screen_rect);
         i32 w = screen_rect.right - screen_rect.left;
@@ -891,7 +908,7 @@ WinMain(HINSTANCE hinstance,
         HDC window_dc = GetDC(window_handle);
         SwapBuffers(window_dc);
         
-        
+        PROFILER_FRAME_END();
     }
     
     

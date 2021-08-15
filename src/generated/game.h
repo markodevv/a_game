@@ -1,3 +1,5 @@
+#pragma once
+
 typedef struct GameMemory GameMemory;
 struct GameMemory
 {
@@ -9,7 +11,11 @@ struct GameMemory
     void *temporary_storage;
     sizet temporary_storage_size;
 
+    void *debug_storage;
+    sizet debug_storage_size;
+
     DebugState *debug;
+
     Platform platform;
 
     i32 screen_width;
@@ -77,7 +83,6 @@ struct ParticleEmitter
 };
 #define ENTITY_MAX (10000)
 #define NUM_COMPONENTS (4)
-// @typedef("u16 EntityId")
 typedef struct ComponentInfo ComponentInfo;
 struct ComponentInfo
 {

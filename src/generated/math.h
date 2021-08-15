@@ -1,3 +1,5 @@
+#pragma once
+
 // @Print
 typedef struct vec2 vec2;
 struct vec2

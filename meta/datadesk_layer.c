@@ -10,6 +10,26 @@ static FILE *global_print_gen_file = 0;
 #define INDENT_SPACES 2
 int global_indent_level = 0;
 char global_ident_string[32];
+FILE* file_table[1024];
+
+static FILE** 
+GetFile(char* filename)
+{
+    long long hash = 5381;
+    int c;
+    
+    while((c = *filename++))
+    {
+        hash = ((hash << 5) + hash) + c;
+    }
+    
+    int hash_index = hash % 1024;
+    
+    FILE** result = file_table + hash_index;
+    
+    return result;
+}
+
 
 static void GeneratePrintCode(FILE *file, DataDeskNode* parent, DataDeskNode *root, char *access_string);
 
@@ -38,10 +58,21 @@ DataDeskCustomParseCallback(DataDeskNode *root, char* filename)
             break;
         }
     }
-    FILE* generated_header_file = fopen(header_filename, "a");
-    DataDeskFWriteGraphAsC(generated_header_file, root);
+    FILE** generated_header_file = GetFile(header_filename);
+    if (!(*generated_header_file))
+    {
+        *generated_header_file = fopen(header_filename, "a");
+        fprintf(*generated_header_file, "#pragma once\n\n");
+    }
+    else
+    {
+        *generated_header_file = fopen(header_filename, "a");
+    }
     
-    fclose(generated_header_file);
+    DataDeskFWriteGraphAsC(*generated_header_file, root);
+    
+    fclose(*generated_header_file);
+    
     if(root->type == DataDeskNodeType_StructDeclaration &&
        DataDeskNodeHasTag(root, "Print"))
     {
