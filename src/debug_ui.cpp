@@ -614,7 +614,7 @@ UiSubmenuTitlebar(DebugState* debug, vec2 position, vec2 size, char* title)
 }
 
 internal void
-UiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer* ren)
+UiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer2D* ren)
 {
     
     debug->prev_mouse_pos = debug->input.mouse.position;
@@ -1450,7 +1450,7 @@ UiColorpicker(DebugState* debug, Color* var, char* var_name)
 }
 
 internal void
-UiInit(DebugState* debug, Renderer* renderer, Platform* platform, Assets* assets)
+UiInit(DebugState* debug, Renderer2D* renderer, Platform* platform, Assets* assets)
 {
     debug->font = UiLoadFont(&debug->arena,
                              platform,

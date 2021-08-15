@@ -138,3 +138,98 @@ void main()
 }
 
 )";
+
+global_variable const char* vertex_shader_3D =
+R"(
+#version 330 core
+layout (location = 0) in vec3 att_pos;
+layout (location = 1) in vec3 att_normal;
+layout (location = 2) in vec2 att_uv;
+layout (location = 3) in float att_texid;
+
+out vec3 frag_pos;
+out vec3 normal;
+out vec2 uv;
+out float tex_id;
+
+uniform mat4 u_viewproj;
+uniform mat4 u_transform;
+uniform mat4 u_normal_trans;
+
+void main()
+{
+    vec4 frag = u_viewproj * u_transform * vec4(att_pos, 1.0f);
+    uv = att_uv;
+    normal = mat3(u_normal_trans) * att_normal;
+    tex_id = att_texid;
+
+    gl_Position = frag;
+
+    frag_pos = frag.xyz;
+}
+)";
+
+global_variable const char* fragment_shader_3D =
+R"(
+#version 330 core
+
+struct Material
+{
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+
+    bool has_texture;
+};
+
+struct Light
+{
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+
+out vec4 frag_color;
+
+in vec3 frag_pos;
+in vec3 normal;
+in vec2 uv;
+in float tex_id;
+
+uniform vec3 u_cam_pos;
+uniform vec3 u_light_pos;
+uniform Material u_material;
+uniform Light u_light;
+
+uniform sampler2D u_textures[32];
+
+
+void main()
+{
+    vec3 norm = normalize(normal);
+
+    vec3 light_dir = normalize(u_light_pos - frag_pos);
+    float diff = max(dot(light_dir, norm), 0.0f);
+
+    vec3 view_dir = normalize(u_cam_pos - frag_pos);
+    vec3 reflected = reflect(-light_dir, norm);
+
+    float spec = pow(max(dot(reflected, view_dir), 0.0f), u_material.shininess);
+
+    vec3 ambient = u_light.ambient * u_material.ambient;
+    vec3 diffuse = u_light.diffuse * (u_material.diffuse * diff);
+    vec3 specular = u_light.specular * (u_material.specular * spec);
+
+
+    if (u_material.has_texture)
+    {
+        diffuse = u_light.diffuse * (texture(u_textures[0], uv) * diff).xyz;
+        frag_color = vec4(specular + diffuse + ambient, 1.0f);
+    }
+    else
+    {
+        frag_color = vec4(diffuse + ambient + specular, 1.0f);
+    }
+}
+)";

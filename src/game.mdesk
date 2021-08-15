@@ -146,7 +146,7 @@ GameState :: struct
     
     world: WorldState,
     
-    renderer: Renderer,
+    renderer: Renderer2D,
     render_group: *RenderGroup,
 }
 

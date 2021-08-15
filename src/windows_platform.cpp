@@ -327,13 +327,13 @@ Win32GetElapsedSeconds(u64 start)
 struct Win32GameCode
 {
     HINSTANCE game_code_dll;
-    GameMainLoopProc main_loop;
+    GameMainLoopProc MainLoop;
 };
 
 // Model load_3D_model(MemoryArena* arena, char* path);
 
 internal Win32GameCode
-win32_load_game_code()
+Win32LoadGameCode()
 {
     
     Win32GameCode game_code;
@@ -341,8 +341,8 @@ win32_load_game_code()
     game_code.game_code_dll = LoadLibrary("game_temp.dll");
     if (game_code.game_code_dll != NULL)
     {
-        game_code.main_loop = (GameMainLoopProc)GetProcAddress(game_code.game_code_dll, "GameMainLoop");
-        Assert(game_code.main_loop);
+        game_code.MainLoop = (GameMainLoopProc)GetProcAddress(game_code.game_code_dll, "GameMainLoop");
+        Assert(game_code.MainLoop);
     }
     else
     {
@@ -352,10 +352,10 @@ win32_load_game_code()
 }
 
 internal void
-win32_unload_game_code(Win32GameCode* game_code)
+Win32UnloadGameCode(Win32GameCode* game_code)
 {
     Assert(FreeLibrary(game_code->game_code_dll));
-    game_code->main_loop = 0;
+    game_code->MainLoop = 0;
     game_code->game_code_dll = 0;
 }
 
@@ -376,12 +376,12 @@ win32_get_last_write_time(char* file_name)
 }
 
 LRESULT CALLBACK 
-win32_window_callback(
-                      _In_ HWND   window,
-                      _In_ UINT   message,
-                      _In_ WPARAM w_param,
-                      _In_ LPARAM l_param
-                      ) 
+Win32WindowCallback(
+                    _In_ HWND   window,
+                    _In_ UINT   message,
+                    _In_ WPARAM w_param,
+                    _In_ LPARAM l_param
+                    ) 
 {
     LRESULT result = 0;
     
@@ -415,7 +415,7 @@ Win32GetTimeInMs()
 
 
 internal void
-win32_init_opengl(HWND window_handle)
+Win32InitOpenGL(HWND window_handle)
 {
     
     HDC window_dc = GetDC(window_handle);
@@ -555,7 +555,7 @@ set_button_state(GameInput* input, ButtonCode button, b8 is_down, b8 was_down)
 }
 
 internal void
-win32_process_input_messages(GameInput* game_input)
+Win32ProcessInputMessages(GameInput* game_input)
 {
     
     MSG message;
@@ -690,7 +690,7 @@ WinMain(HINSTANCE hinstance,
     
     WNDCLASS window_class = {};
     window_class.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
-    window_class.lpfnWndProc = win32_window_callback;
+    window_class.lpfnWndProc = Win32WindowCallback;
     window_class.hInstance = hinstance;
     window_class.lpszClassName = "Win32WindowClass";
     
@@ -710,7 +710,7 @@ WinMain(HINSTANCE hinstance,
                                         0); 
     if (window_handle)
     {
-        win32_init_opengl(window_handle);
+        Win32InitOpenGL(window_handle);
     }
     else
     {
@@ -725,7 +725,7 @@ WinMain(HINSTANCE hinstance,
                                0);
     Assert(result);
     
-    Win32GameCode game = win32_load_game_code();
+    Win32GameCode game = Win32LoadGameCode();
     
     QueryPerformanceFrequency(&global_pref_count_freq);
     f32 target_fps = 60.0f;
@@ -765,8 +765,8 @@ WinMain(HINSTANCE hinstance,
     game_memory.platform.Free = DefaultFree;
     
     // TODO: should be able to change graphics API on runtime
-    game_memory.platform.InitRenderer = OpenglInit;
-    game_memory.platform.RendererEndFrame = OpenglEndFrame;
+    game_memory.platform.InitRenderer = OpenGLInit;
+    game_memory.platform.RendererEndFrame = OpenGLEndFrame;
     
     game_memory.platform.GetPrefCounter = Win32GetPerformanceCounter;
     game_memory.platform.GetElapsedSeconds = Win32GetElapsedSeconds;
@@ -810,7 +810,7 @@ WinMain(HINSTANCE hinstance,
         game_input.character = -1;
         game_input.mouse.wheel_delta = 0;
         
-        win32_process_input_messages(&game_input);
+        Win32ProcessInputMessages(&game_input);
         
         POINT p; 
         GetCursorPos(&p);
@@ -822,16 +822,11 @@ WinMain(HINSTANCE hinstance,
         f64 delta_time = Win32GetElapsedSeconds(last_counter);
         last_counter = Win32GetPerformanceCounter();
         
-        if (game_memory.is_initialized)
-        {
-            game_memory.debug->game_fps = 1.0f/delta_time;
-        }
-        
         i32 game_dll_write_time = win32_get_last_write_time("game.dll");
         if (last_game_dll_write_time != game_dll_write_time)
         {
-            win32_unload_game_code(&game);
-            game = win32_load_game_code();
+            Win32UnloadGameCode(&game);
+            game = Win32LoadGameCode();
             last_game_dll_write_time = game_dll_write_time;
         }
         
@@ -902,7 +897,7 @@ WinMain(HINSTANCE hinstance,
         
         if (!paused)
         {
-            game.main_loop(delta_time, &game_memory, NULL, &game_input);
+            game.MainLoop(delta_time, &game_memory, NULL, &game_input);
         }
         
         HDC window_dc = GetDC(window_handle);

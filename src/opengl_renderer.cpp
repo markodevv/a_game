@@ -66,11 +66,11 @@ OpenGLFunction(void,     glDrawArrays,          	GLenum  	mode, GLint  	first, G
 
 
 
-#include "shaders.h"
+#include "shaders.glsl"
 
 
 internal inline i32
-OpenglGetUnifromLocation(i32 shader, char* uniform)
+OpenGLGetUniformLocation(i32 shader, char* uniform)
 {
     i32 loc = glGetUniformLocation(shader, uniform);
     if (loc == -1)
@@ -113,7 +113,7 @@ GetUniformTypeInfo(GLenum type)
         }break;
         default:
         {
-            Assert(false);
+            LogM("Unknown type uniform type %d\n", type);
         } break;
     }
     
@@ -123,7 +123,7 @@ GetUniformTypeInfo(GLenum type)
 
 
 internal Shader
-opengl_create_shader(MemoryArena* arena, const char* vertex_shader, const char* fragment_shader)
+OpenGLCreateShader(MemoryArena* arena, const char* vertex_shader, const char* fragment_shader)
 {
     i32 shader_program = glCreateProgram();
     
@@ -167,14 +167,14 @@ opengl_create_shader(MemoryArena* arena, const char* vertex_shader, const char* 
     glUseProgram(shader_program);
     
     char texture_uniform_name[] = {"u_textures[0]"};
-    i32 loc = OpenglGetUnifromLocation(shader_program, texture_uniform_name);
+    i32 loc = OpenGLGetUniformLocation(shader_program, texture_uniform_name);
     
     if (loc != -1)
     {
         for (u32 tex_id = 0; tex_id < 9; ++tex_id)
         {
             texture_uniform_name[11] = '0' + tex_id;
-            loc = OpenglGetUnifromLocation(shader_program, texture_uniform_name);
+            loc = OpenGLGetUniformLocation(shader_program, texture_uniform_name);
             glUniform1i(loc, tex_id);
         }
     }
@@ -221,7 +221,7 @@ opengl_create_shader(MemoryArena* arena, const char* vertex_shader, const char* 
 
 
 internal void
-OpenglLoadTexture(Sprite* sprite, u32 slot)
+OpenGLLoadTexture(Sprite* sprite, u32 slot)
 {
     u32 texture_id = 0;
     
@@ -274,17 +274,81 @@ OpenglLoadTexture(Sprite* sprite, u32 slot)
 
 
 
+internal void
+OpenGLLoadMesh(Mesh* mesh)
+{
+    u32 stride = sizeof(f32) * 9;
+    
+    glGenVertexArrays(1, &mesh->VAO);
+    glGenBuffers(1, &mesh->VBO);
+    
+    glBindVertexArray(mesh->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
+    
+    glGenBuffers(1, &mesh->EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
+    u32 size = mesh->num_indices * sizeof(u32);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, (void*)mesh->indices, GL_STATIC_DRAW);
+    
+    size = sizeof(Vertex) * mesh->num_vertices;
+    glBufferData(GL_ARRAY_BUFFER, size, (void*)mesh->vertices, GL_STATIC_DRAW);
+    
+    // position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+    glEnableVertexAttribArray(0); 
+    
+    // normal
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
+    glEnableVertexAttribArray(1); 
+    
+    // uv
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6*sizeof(f32)));
+    glEnableVertexAttribArray(2); 
+    
+    // texture id
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(8*sizeof(f32)));
+    glEnableVertexAttribArray(3); 
+    
+    glBindVertexArray(0);
+    
+}
+
+Vertex3D cube_vertices[] = 
+{
+    V3(-0.5f, -0.5f, -0.5f), V3(0.0f), V2(0.0f, 0.0f), 0,
+    V3(0.5f, -0.5f, -0.5f), V3(0.0f),V2(0.0f, 0.0f), 0,
+    V3(0.5f, 0.5f, -0.5f), V3(0.0f), V2(0.0f, 0.0f), 0, 
+    V3(-0.5f, 0.5f, -0.5f), V3(0.0f), V2(0.0f, 0.0f), 0,
+    V3(-0.5f, -0.5f, 0.5f), V3(0.0f), V2(0.0f, 0.0f), 0,
+    V3(0.5f, -0.5f, 0.5f), V3(0.0f), V2(0.0f, 0.0f), 0,
+    V3(0.5f, 0.5f, 0.5f), V3(0.0f), V2(0.0f, 0.0f), 0,
+    V3(-0.5f, 0.5f, 0.5f), V3(0.0f), V2(0.0f, 0.0f), 0,
+};
+
+u32 cube_indices[] =
+{
+    0, 1, 3, 3, 1, 2,
+    1, 5, 2, 2, 5, 6,
+    5, 4, 6, 6, 4, 7,
+    4, 0, 7, 7, 0, 3,
+    3, 2, 7, 7, 2, 6,
+    4, 5, 0, 0, 5, 1
+};
+
 
 
 internal void
-OpenglInit(Renderer* ren)
+OpenGLInit(Renderer2D* ren)
 {
     Shader* shaders = ren->assets->shaders;
     MemoryArena* arena = &ren->assets->arena;
     
-    shaders[SHADER_ID_NORMAL] = opengl_create_shader(arena, basic_vertex_shader, basic_fragment_shader);
-    shaders[SHADER_ID_HUE_QUAD] = opengl_create_shader(arena, basic_vertex_shader, hue_quad_shader);
-    shaders[SHADER_ID_SB_QUAD] = opengl_create_shader(arena, basic_vertex_shader, sat_brigh_quad_shader);
+    shaders[SHADER_ID_NORMAL] = OpenGLCreateShader(arena, basic_vertex_shader, basic_fragment_shader);
+    shaders[SHADER_ID_HUE_QUAD] = OpenGLCreateShader(arena, basic_vertex_shader, hue_quad_shader);
+    shaders[SHADER_ID_SB_QUAD] = OpenGLCreateShader(arena, basic_vertex_shader, sat_brigh_quad_shader);
+    shaders[SHADER_ID_BASIC_3D] = OpenGLCreateShader(arena, vertex_shader_3D, fragment_shader_3D);
+    
+    ren->shader_program_3D = shaders[SHADER_ID_BASIC_3D].bind_id;
     
     
     glGenVertexArrays(1, &ren->VAO);
@@ -298,7 +362,7 @@ OpenglInit(Renderer* ren)
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * MAX_INDICES, NULL, GL_DYNAMIC_DRAW);
     
     glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * MAX_VERTICES, NULL, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * MAX_VERTICES, NULL, GL_DYNAMIC_DRAW);
     
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ren->EBO);
     
@@ -327,12 +391,22 @@ OpenglInit(Renderer* ren)
     
     glBindVertexArray(0);
     
+    ren->mesh.vertices = cube_vertices,
+    ren->mesh.num_vertices = ArrayCount(cube_vertices);
+    
+    ren->mesh.indices = cube_indices;
+    ren->mesh.num_indices = ArrayCount(cube_vertices);
+    
+    //OpenGLLoadMesh(&ren->mesh);
+    
+    ren->camera = CreateCamera(Vec3Up(), Vec3Forward(), V3(0.0f, 0.0f, 200.0f));
+    
 #if 0
     char texture_uniform_name[] = {"u_textures[-]"};
     for (u32 tex_id = 0; tex_id < 9; ++tex_id)
     {
         texture_uniform_name[11] = '0' + tex_id;
-        i32 loc = OpenglGetUnifromLocation(ren->shader_program_3D, texture_uniform_name);
+        i32 loc = OpenGLGetUniformLocation(ren->shader_program_3D, texture_uniform_name);
         glUniform1i(loc, tex_id);
     }
     
@@ -367,8 +441,7 @@ OpenglInit(Renderer* ren)
     
     
 #endif
-}
-
+};
 
 
 // NOTE: Dumb sort
@@ -395,7 +468,7 @@ internal void
 UploadShaderUniform(u32 shader_program, Uniform* uniform)
 {
     // TODO: should cache this when we load shader
-    i32 location = OpenglGetUnifromLocation(shader_program, uniform->name);
+    i32 location = OpenGLGetUniformLocation(shader_program, uniform->name);
     
     switch (uniform->type_info.type)
     {
@@ -432,7 +505,7 @@ UploadShaderUniform(u32 shader_program, Uniform* uniform)
 }
 
 internal void
-OpenglDraw(Renderer* ren, RenderSetup* setup, ShaderId shader_id)
+OpenGLDraw(Renderer2D* ren, RenderSetup* setup, ShaderId shader_id)
 {
     Shader* shader = GetShader(ren->assets, shader_id);
     u32 shader_program = shader->bind_id;
@@ -443,11 +516,10 @@ OpenglDraw(Renderer* ren, RenderSetup* setup, ShaderId shader_id)
     u32 num_indices = ren->indices_count;
     
     
-    u32 vertices_size = num_vertices * sizeof(VertexData);
+    u32 vertices_size = num_vertices * sizeof(Vertex);
     u32 indices_size = num_indices * sizeof(u32);
     
-    i32 vp_loc = OpenglGetUnifromLocation(shader_program, "u_viewproj");
-    // NOTE: For now we only have 1 main camera.
+    i32 vp_loc = OpenGLGetUniformLocation(shader_program, "u_viewproj");
     mat4 cam_mat = CameraTransform(&setup->camera);
     mat4 viewproj = setup->projection * cam_mat;
     glUniformMatrix4fv(vp_loc, 1, true, &viewproj.rows[0].x);
@@ -475,8 +547,55 @@ OpenglDraw(Renderer* ren, RenderSetup* setup, ShaderId shader_id)
     ren->indices_count = 0;
 }
 
+
 internal void
-OpenglEndFrame(Renderer* ren)
+OpenGLSetMaterialUniform(u32 shader, Material* material)
+{
+    i32 amb, spec, diff, shin, tex;
+    amb = OpenGLGetUniformLocation(shader, "u_material.ambient");
+    spec = OpenGLGetUniformLocation(shader, "u_material.specular");
+    diff = OpenGLGetUniformLocation(shader, "u_material.diffuse");
+    shin = OpenGLGetUniformLocation(shader, "u_material.shininess");
+    tex =  OpenGLGetUniformLocation(shader, "u_material.has_texture");
+    
+    glUniform3fv(amb, 1, &material->ambient.x);
+    glUniform3fv(spec, 1, &material->specular.x);
+    glUniform3fv(diff, 1, &material->diffuse.x);
+    glUniform1f(shin, material->shininess);
+}
+
+internal void
+OpenGLDrawMesh(Renderer2D* ren, Mesh* mesh)
+{
+    mat4 transform = Mat4Translate(V3(0.0f)) *
+        Mat4Scale(V3(100.0f));
+    mat4 projection = Mat4Perspective(ren->screen_width,
+                                      ren->screen_height,
+                                      90.0f,
+                                      1.0f,
+                                      100000.0f);
+    
+    mat4 view = CameraTransform(&ren->camera);
+    mat4 mvp = projection * view * transform;
+    mat4 normal_transform = Mat4Transpose(Mat4Inverse(transform));
+    b8 do_transpose = true;
+    
+    i32 transform_loc = OpenGLGetUniformLocation(ren->shader_program_3D, "u_transform");
+    glUniformMatrix4fv(transform_loc, 1, do_transpose, (f32*)&transform.rows[0].x);
+    
+    i32 normal_loc =  OpenGLGetUniformLocation(ren->shader_program_3D, "u_normal_trans");
+    glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)&normal_transform.rows[0].x);
+    
+    
+    OpenGLSetMaterialUniform(ren->shader_program_3D, &mesh->material);
+    // TODO(Marko): textures
+    glBindVertexArray(mesh->VAO);
+    
+    glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, 0);
+}
+
+internal void
+OpenGLEndFrame(Renderer2D* ren)
 {
     PROFILE_FUNCTION();
     
@@ -497,7 +616,7 @@ OpenglEndFrame(Renderer* ren)
     // if (!white_sprite->loaded_to_gpu)
     // {
     // Assert(ren->slot == 0);
-    // white_sprite->id = OpenglLoadTexture(white_sprite, ren->slot);
+    // white_sprite->id = OpenGLLoadTexture(white_sprite, ren->slot);
     // white_sprite->slot = ren->slot;
     // ++ren->slot;
     // }
@@ -510,7 +629,7 @@ OpenglEndFrame(Renderer* ren)
         {
             SpriteHandle handle = ren->assets->loaded_sprite_queue[i];
             Sprite* sprite = GetLoadedSprite(ren->assets, handle);
-            OpenglLoadTexture(sprite, ren->slot);
+            OpenGLLoadTexture(sprite, ren->slot);
             sprite->slot = ren->slot;
             ++ren->slot;
             
@@ -547,7 +666,7 @@ OpenglEndFrame(Renderer* ren)
                     // NOTE: we flush draw everything on shader change
                     if (quad->shader_id != current_shader)
                     {
-                        OpenglDraw(ren, &render_group->setup, current_shader);
+                        OpenGLDraw(ren, &render_group->setup, current_shader);
                         current_shader = quad->shader_id;
                     }
                     u32 sprite_slot = 0;
@@ -599,7 +718,7 @@ OpenglEndFrame(Renderer* ren)
                         1, 2, 3,
                     };
                     
-                    VertexData* vertex = ren->vertices + ren->vertex_count;
+                    Vertex* vertex = ren->vertices + ren->vertex_count;
                     u32* index = ren->indices + ren->indices_count;
                     
                     for (u32 i = 0; i < VERTICES_PER_QUAD; ++i)
@@ -630,7 +749,7 @@ OpenglEndFrame(Renderer* ren)
                     
                     if (triangle->shader_id != current_shader)
                     {
-                        OpenglDraw(ren, &render_group->setup, current_shader);
+                        OpenGLDraw(ren, &render_group->setup, current_shader);
                         current_shader = triangle->shader_id;
                     }
                     
@@ -640,7 +759,7 @@ OpenglEndFrame(Renderer* ren)
                     }
                     
                     
-                    VertexData* vertex = ren->vertices + ren->vertex_count;
+                    Vertex* vertex = ren->vertices + ren->vertex_count;
                     u32* index = ren->indices + ren->indices_count;
                     
                     u32 indices[] = {
@@ -671,11 +790,13 @@ OpenglEndFrame(Renderer* ren)
                 } break;
             }
         }
-        OpenglDraw(ren, &render_group->setup, current_shader);
+        OpenGLDraw(ren, &render_group->setup, current_shader);
         render_group->push_buffer_size = 0;
         render_group->sort_element_count = 0;
         
         render_group = ren->render_groups + (group_id + 1);
     }
+    OpenGLDrawMesh(ren, &ren->mesh);
+    
 }
 

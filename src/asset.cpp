@@ -31,6 +31,7 @@ LoadSprite(Platform* platform, Assets* assets, char* sprite_path)
         result = assets->num_sprites++;
     }
     
+    /// TODO(Marko): 
     assets->loaded_sprite_queue[assets->num_queued_sprites++] = result;
     
     return result;

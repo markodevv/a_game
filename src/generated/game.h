@@ -143,6 +143,6 @@ struct GameState
 
     WorldState world;
 
-    Renderer renderer;
+    Renderer2D renderer;
     RenderGroup *render_group;
 };

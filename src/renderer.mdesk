@@ -7,11 +7,20 @@ Color :: struct
 }
 
 
-VertexData :: struct
+Vertex :: struct
 {
     position: vec3,
     uv: vec2,
     color: Color,
+    texture_slot: f32,
+}
+
+Vertex3D :: struct
+{
+    position: vec3,
+    normal: vec3,
+    uv: vec2,
+    //color: Color,
     texture_slot: f32,
 }
 
@@ -78,6 +87,7 @@ RenderEntryType :: enum
 {
     RENDER_ENTRY_QuadEntry,
     RENDER_ENTRY_TriangleEntry,
+    RENDER_ENTRY_Model,
 }
 
 RenderEntryHeader :: struct
@@ -90,6 +100,7 @@ ShaderId :: enum
     SHADER_ID_NORMAL,
     SHADER_ID_HUE_QUAD,
     SHADER_ID_SB_QUAD,
+    SHADER_ID_BASIC_3D,
     NUM_SHADERS,
 }
 
@@ -186,13 +197,36 @@ RenderGroup :: struct
     sort_element_count: u32,
 }
 
+Material :: struct
+{
+    ambient: vec3,
+    diffuse: vec3,
+    specular: vec3,
+    
+    shininess: f32,
+}
+
+Mesh :: struct
+{
+    vertices: *Vertex3D,
+    num_vertices: u32,
+    
+    indices: *u32,
+    num_indices: u32,
+    
+    material: Material,
+    
+    VAO: u32,
+    EBO: u32,
+    VBO: u32,
+}
+
 MAX_VERTICES :: 100000
 MAX_INDICES :: 150000
 
-
-Renderer :: struct
+Renderer2D :: struct
 {
-    vertices: [MAX_VERTICES]VertexData,
+    vertices: [MAX_VERTICES]Vertex,
     vertex_count: u32,
     indices: [MAX_INDICES]u32,
     indices_count: u32,
@@ -203,8 +237,6 @@ Renderer :: struct
     
     slot: u32,
     
-    light_pos: vec3,
-    
     screen_width: i32,
     screen_height: i32,
     
@@ -214,5 +246,9 @@ Renderer :: struct
     render_group_count: u32,
     
     white_sprite: u32,
+    
+    mesh: Mesh,
+    camera: Camera,
+    shader_program_3D: u32,
 }
 

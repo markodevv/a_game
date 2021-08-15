@@ -8,12 +8,21 @@ struct Color
     u8 b;
     u8 a;
 };
-typedef struct VertexData VertexData;
-struct VertexData
+typedef struct Vertex Vertex;
+struct Vertex
 {
     vec3 position;
     vec2 uv;
     Color color;
+    f32 texture_slot;
+};
+typedef struct Vertex3D Vertex3D;
+struct Vertex3D
+{
+    vec3 position;
+    vec3 normal;
+    vec2 uv;
+
     f32 texture_slot;
 };
 // @Print
@@ -27,6 +36,15 @@ struct Camera
 typedef enum SpriteType
 {
     TYPE_SPRITE,
+
+
+
+
+
+
+
+
+
 
 
 
@@ -88,6 +106,15 @@ struct CharMetric
 typedef enum TextAlign
 {
     TEXT_ALIGN_MIDDLE,
+
+
+
+
+
+
+
+
+
 
 
 
@@ -244,7 +271,106 @@ typedef enum RenderEntryType
 
 
 
+
+
+
+
+
+
+
+
+
     RENDER_ENTRY_TriangleEntry,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    RENDER_ENTRY_Model,
 }
 RenderEntryType;
 typedef struct RenderEntryHeader RenderEntryHeader;
@@ -345,7 +471,27 @@ typedef enum ShaderId
 
 
 
+
+
+
+
+
+
+
+
+
+
     SHADER_ID_HUE_QUAD,
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -530,6 +676,120 @@ typedef enum ShaderId
 
 
 
+
+
+
+
+
+
+
+
+
+
+    SHADER_ID_BASIC_3D,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     NUM_SHADERS,
 }
 ShaderId;
@@ -567,6 +827,17 @@ struct RenderSetup
 typedef enum UniformType
 {
     UNIFORM_F32,
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -827,7 +1098,29 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_I32,
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1092,7 +1385,29 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_VEC2,
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1361,7 +1676,29 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_VEC4,
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1634,6 +1971,17 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_TEXTURE2D,
 }
 UniformType;
@@ -1684,12 +2032,36 @@ struct RenderGroup
 
     u32 sort_element_count;
 };
+typedef struct Material Material;
+struct Material
+{
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+
+    f32 shininess;
+};
+typedef struct Mesh Mesh;
+struct Mesh
+{
+    Vertex3D *vertices;
+    u32 num_vertices;
+
+    u32 *indices;
+    u32 num_indices;
+
+    Material material;
+
+    u32 VAO;
+    u32 EBO;
+    u32 VBO;
+};
 #define MAX_VERTICES (100000)
 #define MAX_INDICES (150000)
-typedef struct Renderer Renderer;
-struct Renderer
+typedef struct Renderer2D Renderer2D;
+struct Renderer2D
 {
-    VertexData vertices[MAX_VERTICES];
+    Vertex vertices[MAX_VERTICES];
     u32 vertex_count;
     u32 indices[MAX_INDICES];
     u32 indices_count;
@@ -1700,8 +2072,6 @@ struct Renderer
 
     u32 slot;
 
-    vec3 light_pos;
-
     i32 screen_width;
     i32 screen_height;
 
@@ -1711,4 +2081,8 @@ struct Renderer
     u32 render_group_count;
 
     u32 white_sprite;
+
+    Mesh mesh;
+    Camera camera;
+    u32 shader_program_3D;
 };

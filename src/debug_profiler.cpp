@@ -44,8 +44,10 @@ internal void
 ProfilerEnd()
 {
     f64 elapsed_time = g_Platform.GetElapsedSeconds(global_debug_state->frame_start_cycles);
-    printf("FRAME DATA\n");
-    printf("Frame Time: %.2fms\n", elapsed_time * 1000.0f);
+    global_debug_state->game_fps = 1.0f/elapsed_time;
+    LogM("FRAME DATA\n");
+    LogM("FPS %f\n", global_debug_state->game_fps);
+    LogM("Frame Time: %.2fms\n", elapsed_time * 1000.0f);
     PrintProfileData();
     EndTemporaryMemory(&global_debug_state->temp_memory);
 }

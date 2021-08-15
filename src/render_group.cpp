@@ -3,7 +3,7 @@
 
 
 internal RenderGroup*
-CreateRenderGroup(MemoryArena* arena, mat4 projection, Camera camera, Renderer* ren, Assets* assets)
+CreateRenderGroup(MemoryArena* arena, mat4 projection, Camera camera, Renderer2D* ren, Assets* assets)
 {
     RenderGroup* render_group = &ren->render_groups[ren->render_group_count++];
     

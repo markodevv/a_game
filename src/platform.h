@@ -76,13 +76,13 @@ struct FileResult
     i32 size;
 };
 
-struct Renderer;
+struct Renderer2D;
 
 typedef FileResult ReadEntireFileProc(char* path);
 typedef void FreeEntireFileProc(void* memory);
 typedef b8 WriteEntireFileProc(char* file_name, u32 size, void* memory);
 
-typedef void RenderProc(Renderer* ren);
+typedef void RenderProc(Renderer2D* ren);
 
 typedef void* Allocate(sizet size);
 typedef void* Reallocate(void* ptr, sizet size);

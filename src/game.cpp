@@ -129,6 +129,8 @@ ParticleUpdate(GameState* game_state, Array* entities)
     {
         EntityId entity = *ArrayGet(entities, i, EntityId);
         ParticleEmitter* emitter = GetComponent(world, entity, ParticleEmitter);
+        Transform* transform = GetComponent(world, entity, Transform);
+        emitter->position = transform->position;
         
         for (u32 particle_index = 0; 
              particle_index < emitter->max_particles;
@@ -255,7 +257,7 @@ InitGrid(WorldState* world)
 internal void 
 InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
 {
-    Renderer* ren = &game_state->renderer;
+    Renderer2D* ren = &game_state->renderer;
     
     InitArena(&game_state->arena, 
               (memory->permanent_storage_size - sizeof(GameState)),
@@ -353,7 +355,7 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
 {
     GameState* game_state = (GameState*)memory->permanent_storage;
     game_state->delta_time = delta_time;
-    Renderer* ren = &game_state->renderer;
+    Renderer2D* ren = &game_state->renderer;
     input->mouse.position.y = ren->screen_height - input->mouse.position.y;
     
     if (ren->screen_width != memory->screen_width ||
@@ -377,8 +379,8 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         InitGame(memory, game_state, input);
         memory->is_initialized = true;
     }
-    
     PROFILE_FUNCTION();
+    
     
     
     
@@ -390,25 +392,22 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         Rigidbody* player_rigid = GetComponent(&game_state->world, player, Rigidbody);
         Transform* player_tran = GetComponent(&game_state->world, player, Transform);
         
-        /*
-                if (ButtonDown(input->move_left))
-                {
-                    AddForce(player_rigid, V2(-1000.0f, 0.0f));
-                }
-                if (ButtonDown(input->move_right))
-                {
-                    AddForce(player_rigid, V2(1000.0f, 0.0f));
-                }
-                if (ButtonDown(input->move_up))
-                {
-                    AddForce(player_rigid, V2(0.0f, 1000.0f));
-                }
-                
-                if (player_tran->position.y <= 100.0f)
-                {
-                    AddForce(player_rigid, V2(0.0f, 3000.0f));
-                }
-        */
+        if (ButtonDown(input, BUTTON_LEFT))
+        {
+            AddForce(player_rigid, V2(-1000.0f, 0.0f));
+        }
+        if (ButtonDown(input, BUTTON_RIGHT))
+        {
+            AddForce(player_rigid, V2(1000.0f, 0.0f));
+        }
+        if (ButtonDown(input, BUTTON_UP))
+        {
+            AddForce(player_rigid, V2(0.0f, 1000.0f));
+        }
+        if (ButtonDown(input, BUTTON_DOWN))
+        {
+            AddForce(player_rigid, V2(0.0f, -1000.0f));
+        }
         
     }
     
@@ -522,7 +521,7 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
             UiFloat32Editbox(debug, &pe->min_vel, "min velocity");
             UiFloat32Editbox(debug, &pe->max_vel, "max velocity");
             UiFloat32Editbox(debug, &pe->size, "size");
-            UiFloat32Editbox(debug, &pe->particle_spawn_rate, "spawn rate");
+            UiInt32Editbox(debug, &pe->particle_spawn_rate, "spawn rate");
             UiColorpicker(debug, &pe->color, "color");
         }
         
