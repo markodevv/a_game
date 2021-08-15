@@ -169,6 +169,7 @@ ParticleUpdate(GameState* game_state, Array* entities)
 internal void 
 RenderUpdate(GameState* game_state, Array* entities)
 {
+#if 0
     WorldState* world = &game_state->world;
     for (u32 i = 0; i < entities->count; ++i)
     {
@@ -184,6 +185,7 @@ RenderUpdate(GameState* game_state, Array* entities)
                  render->sprite);
         
     }
+#endif
 }
 
 internal void 
@@ -500,6 +502,12 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
                 WriteUiConfig(debug);
             }
             
+        }
+        
+        if (UiSubmenu(debug, "Debug"))
+        {
+            
+            UiFloat32Editbox(debug, &ren->camera.position, "cam pos");
         }
         
         

@@ -290,7 +290,7 @@ OpenGLLoadMesh(Mesh* mesh)
     u32 size = mesh->num_indices * sizeof(u32);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, (void*)mesh->indices, GL_STATIC_DRAW);
     
-    size = sizeof(Vertex) * mesh->num_vertices;
+    size = sizeof(Vertex3D) * mesh->num_vertices;
     glBufferData(GL_ARRAY_BUFFER, size, (void*)mesh->vertices, GL_STATIC_DRAW);
     
     // position
@@ -315,14 +315,14 @@ OpenGLLoadMesh(Mesh* mesh)
 
 Vertex3D cube_vertices[] = 
 {
-    V3(-0.5f, -0.5f, -0.5f), V3(0.0f), V2(0.0f, 0.0f), 0,
-    V3(0.5f, -0.5f, -0.5f), V3(0.0f),V2(0.0f, 0.0f), 0,
-    V3(0.5f, 0.5f, -0.5f), V3(0.0f), V2(0.0f, 0.0f), 0, 
-    V3(-0.5f, 0.5f, -0.5f), V3(0.0f), V2(0.0f, 0.0f), 0,
-    V3(-0.5f, -0.5f, 0.5f), V3(0.0f), V2(0.0f, 0.0f), 0,
-    V3(0.5f, -0.5f, 0.5f), V3(0.0f), V2(0.0f, 0.0f), 0,
-    V3(0.5f, 0.5f, 0.5f), V3(0.0f), V2(0.0f, 0.0f), 0,
-    V3(-0.5f, 0.5f, 0.5f), V3(0.0f), V2(0.0f, 0.0f), 0,
+    {{-0.5f, -0.5f, -0.5f}, {0, 0, 1}},
+    {{0.5f, -0.5f, -0.5f}, {1, 0, 0}},
+    {{0.5f, 0.5f, -0.5f}, {0, 0, -1}},
+    {{-0.5f, 0.5f, -0.5f}, {-1, 0, 0}},
+    {{-0.5f, -0.5f, 0.5f}, {0, 1, 0}},
+    {{0.5f, -0.5f, 0.5f}, {0, -1, 0}},
+    {{0.5f, 0.5f, 0.5f}},
+    {{-0.5f, 0.5f, 0.5f}},
 };
 
 u32 cube_indices[] =
@@ -397,7 +397,7 @@ OpenGLInit(Renderer2D* ren)
     ren->mesh.indices = cube_indices;
     ren->mesh.num_indices = ArrayCount(cube_vertices);
     
-    //OpenGLLoadMesh(&ren->mesh);
+    OpenGLLoadMesh(&ren->mesh);
     
     ren->camera = CreateCamera(Vec3Up(), Vec3Forward(), V3(0.0f, 0.0f, 200.0f));
     
@@ -538,6 +538,8 @@ OpenGLDraw(Renderer2D* ren, RenderSetup* setup, ShaderId shader_id)
     
     glBindVertexArray(ren->VAO);
     
+    glBindBuffer(GL_ARRAY_BUFFER, ren->VBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ren->EBO);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indices_size, ren->indices);
     glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, ren->vertices);
     
@@ -567,18 +569,23 @@ OpenGLSetMaterialUniform(u32 shader, Material* material)
 internal void
 OpenGLDrawMesh(Renderer2D* ren, Mesh* mesh)
 {
-    mat4 transform = Mat4Translate(V3(0.0f)) *
-        Mat4Scale(V3(100.0f));
+    glUseProgram(ren->shader_program_3D);
+    mat4 transform = Mat4Translate(V3(1.0f)) * Mat4Scale(V3(100.0f));
     mat4 projection = Mat4Perspective(ren->screen_width,
                                       ren->screen_height,
                                       90.0f,
                                       1.0f,
-                                      100000.0f);
+                                      1000.0f);
+    
     
     mat4 view = CameraTransform(&ren->camera);
-    mat4 mvp = projection * view * transform;
+    mat4 vp = projection * view;
     mat4 normal_transform = Mat4Transpose(Mat4Inverse(transform));
     b8 do_transpose = true;
+    
+    i32 vp_loc = OpenGLGetUniformLocation(ren->shader_program_3D, "u_viewproj");
+    glUniformMatrix4fv(vp_loc, 1, do_transpose, (f32*)&vp.rows[0].x);
+    
     
     i32 transform_loc = OpenGLGetUniformLocation(ren->shader_program_3D, "u_transform");
     glUniformMatrix4fv(transform_loc, 1, do_transpose, (f32*)&transform.rows[0].x);
@@ -590,6 +597,9 @@ OpenGLDrawMesh(Renderer2D* ren, Mesh* mesh)
     OpenGLSetMaterialUniform(ren->shader_program_3D, &mesh->material);
     // TODO(Marko): textures
     glBindVertexArray(mesh->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
+    
     
     glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, 0);
 }
@@ -797,6 +807,5 @@ OpenGLEndFrame(Renderer2D* ren)
         render_group = ren->render_groups + (group_id + 1);
     }
     OpenGLDrawMesh(ren, &ren->mesh);
-    
 }
 
