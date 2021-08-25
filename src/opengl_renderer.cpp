@@ -397,9 +397,11 @@ OpenGLInit(Renderer2D* ren)
     ren->mesh.indices = cube_indices;
     ren->mesh.num_indices = ArrayCount(cube_vertices);
     
+    ren->mesh.material = CreateMaterial(V3(0.2f), V3(0.1f), V3(0.5f), 1.0f);
+    
     OpenGLLoadMesh(&ren->mesh);
     
-    ren->camera = CreateCamera(Vec3Up(), Vec3Forward(), V3(0.0f, 0.0f, 200.0f));
+    ren->light = CreateLight(V3(0, 0, -200), V3(0.3f), V3(0.5f), V3(0.1f));
     
 #if 0
     char texture_uniform_name[] = {"u_textures[-]"};
@@ -430,7 +432,7 @@ OpenGLInit(Renderer2D* ren)
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3*sizeof(f32)));
     glEnableVertexAttribArray(1); 
     
-    // uví*sizeof(f32)));
+    // uv*sizeof(f32)));
     glEnableVertexAttribArray(2); 
     
     // texture id
@@ -549,6 +551,19 @@ OpenGLDraw(Renderer2D* ren, RenderSetup* setup, ShaderId shader_id)
     ren->indices_count = 0;
 }
 
+internal void
+OpenGLSetLightUniform(u32 shader_program, Light* light)
+{
+    i32 amb, spec, diff;
+    amb = OpenGLGetUniformLocation(shader_program, "u_light.ambient");
+    spec = OpenGLGetUniformLocation(shader_program, "u_light.specular");
+    diff = OpenGLGetUniformLocation(shader_program, "u_light.diffuse");
+    
+    glUniform3fv(amb, 1, &light->ambient.x);
+    glUniform3fv(spec, 1, &light->specular.x);
+    glUniform3fv(diff, 1, &light->diffuse.x);
+}
+
 
 internal void
 OpenGLSetMaterialUniform(u32 shader, Material* material)
@@ -578,7 +593,7 @@ OpenGLDrawMesh(Renderer2D* ren, Mesh* mesh)
                                       1000.0f);
     
     
-    mat4 view = CameraTransform(&ren->camera);
+    mat4 view = CameraTransform(ren->camera);
     mat4 vp = projection * view;
     mat4 normal_transform = Mat4Transpose(Mat4Inverse(transform));
     b8 do_transpose = true;
@@ -595,6 +610,7 @@ OpenGLDrawMesh(Renderer2D* ren, Mesh* mesh)
     
     
     OpenGLSetMaterialUniform(ren->shader_program_3D, &mesh->material);
+    OpenGLSetLightUniform(ren->shader_program_3D, &ren->light);
     // TODO(Marko): textures
     glBindVertexArray(mesh->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);

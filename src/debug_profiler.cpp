@@ -1,4 +1,4 @@
-#ifdef GAME_DEBUG
+#ifdef GAME_PROFILE
 
 #define PROFILER_FRAME_START() \
 ProfilerStart()
@@ -18,6 +18,39 @@ ProfilerEnd()
 #define PROFILE_FUNCTION()
 
 #endif
+
+
+internal void
+AddProfileEntry(char* name, f64 elapsed_sec)
+{
+    ProfileEntry* entry = PushMemory(&global_debug_state->temp_arena, ProfileEntry);
+    
+    entry->name = name;
+    entry->elapsed_sec = elapsed_sec;
+    
+    entry->next = global_debug_state->profile_entries;
+    global_debug_state->profile_entries = entry;
+}
+
+struct Timer
+{
+    u64 start_counter;
+    char* name;
+    
+    Timer(char* _name)
+    {
+        start_counter = g_Platform.GetPrefCounter();
+        name = _name;
+    }
+    
+    ~Timer()
+    {
+        f64 elapsed_time = g_Platform.GetElapsedSeconds(start_counter);
+        AddProfileEntry(name, elapsed_time);
+    }
+};
+
+
 
 internal void
 PrintProfileData()
@@ -51,35 +84,4 @@ ProfilerEnd()
     PrintProfileData();
     EndTemporaryMemory(&global_debug_state->temp_memory);
 }
-
-
-internal void
-AddProfileEntry(char* name, f64 elapsed_sec)
-{
-    ProfileEntry* entry = PushMemory(&global_debug_state->temp_arena, ProfileEntry);
-    
-    entry->name = name;
-    entry->elapsed_sec = elapsed_sec;
-    
-    entry->next = global_debug_state->profile_entries;
-    global_debug_state->profile_entries = entry;
-}
-
-struct Timer
-{
-    u64 start_counter;
-    char* name;
-    
-    Timer(char* _name)
-    {
-        start_counter = g_Platform.GetPrefCounter();
-        name = _name;
-    }
-    
-    ~Timer()
-    {
-        f64 elapsed_time = g_Platform.GetElapsedSeconds(start_counter);
-        AddProfileEntry(name, elapsed_time);
-    }
-};
 

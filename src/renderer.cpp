@@ -82,7 +82,19 @@ GetShader(Assets* assets, ShaderId shader_id)
     return &assets->shaders[shader_id];
 }
 
-internal Camera
+inline internal Material
+CreateMaterial(vec3 ambient, vec3 diffuse, vec3 specular, f32 shininess)
+{
+    return {ambient, diffuse, specular, shininess};
+}
+
+inline internal Light
+CreateLight(vec3 position ,vec3 ambient, vec3 diffuse, vec3 specular)
+{
+    return {position, ambient, diffuse, specular};
+}
+
+inline internal Camera
 CreateCamera(vec3 up, vec3 direction, vec3 position)
 {
     Camera result;

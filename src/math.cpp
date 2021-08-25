@@ -8,6 +8,7 @@
 #define Fmod(a, b) (f32)fmod((double)a, (double)b)
 #define Fmod_V3(v, x) fmod_vec3(v, x)
 #define IFloor(x) ((int) floor(x))
+#define Atof(x) atof(x)
 
 internal vec3 
 fmod_vec3(vec3 v, f32 x)
@@ -368,10 +369,18 @@ Vec3Dot(vec3 a, vec3 b)
     return {a.x*b.x + a.y*b.y + a.z*b.z};
 }
 
+internal inline f32& 
+Vec3At(vec3 &v, sizet i)
+{
+    Assert(i >= 0 && i < 3);
+    return *(&v.x + i);
+}
+
 
 internal inline f32& 
 Vec4At(vec4 &v, sizet i)
 {
+    Assert(i >= 0 && i < 4);
     return *(&v.x + i);
 }
 

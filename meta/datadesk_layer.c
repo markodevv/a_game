@@ -80,7 +80,7 @@ DataDeskCustomParseCallback(DataDeskNode *root, char* filename)
         
         fprintf(global_print_gen_file, "void Log(%s *object)\n{\n", root->string, root->string);
         GeneratePrintCode(global_print_gen_file, root, root->children_list_head, "object->");
-        fprintf(global_print_gen_file, "LogM(\"\\n\\n\");\n");
+        fprintf(global_print_gen_file, "LogS(\"\\n\\n\");\n");
         fprintf(global_print_gen_file, "}\n\n");
     }
 }
@@ -102,15 +102,15 @@ OffsetIndent(int offset)
 static void
 PrintIndentation(FILE* file)
 {
-    fprintf(file, "LogM(\"%s\");\n", global_ident_string);
+    fprintf(file, "LogS(\"%s\");\n", global_ident_string);
 }
 
 static void
 GeneratePrintCode(FILE *file, DataDeskNode* parent, DataDeskNode *root, char *access_string)
 {
-    fprintf(file, "LogM(\"%s\\n\");\n", parent->string);
+    fprintf(file, "LogS(\"%s\\n\");\n", parent->string);
     PrintIndentation(file);
-	fprintf(file, "LogM(\"{\\n\");\n");
+	fprintf(file, "LogS(\"{\\n\");\n");
     OffsetIndent(+1);
     
 	for(DataDeskNode *node = root; node; node = node->next)
@@ -128,33 +128,33 @@ GeneratePrintCode(FILE *file, DataDeskNode* parent, DataDeskNode *root, char *ac
 			   DataDeskMatchType(node, "uint8_t" ) || DataDeskMatchType(node, "u8"  ) ||
                DataDeskMatchType(node, "i64"))
 			{
-				fprintf(file, "LogM(\"%s : %%i\", %s%s);\n", node->string, access_string, node->string);
+				fprintf(file, "LogS(\"%s : %%i\", %s%s);\n", node->string, access_string, node->string);
 			}
             
 			else if(DataDeskMatchType(node, "float" ) || DataDeskMatchType(node, "double") ||
 			        DataDeskMatchType(node, "f32"   ) || DataDeskMatchType(node, "f64"   ))
 			{
-				fprintf(file, "LogM(\"%s : %%f\", %s%s);\n", node->string, access_string, node->string);
+				fprintf(file, "LogS(\"%s : %%f\", %s%s);\n", node->string, access_string, node->string);
 			}
             
 			else if(DataDeskMatchType(node, "[]char"))
 			{
-				fprintf(file, "LogM(\"%s : %%s\", %s%s);\n", node->string, access_string, node->string);
+				fprintf(file, "LogS(\"%s : %%s\", %s%s);\n", node->string, access_string, node->string);
 			}
             
 			else if(DataDeskMatchType(node, "char"))
 			{
-				fprintf(file, "LogM(\"%s : %%c\", %s%s);\n", node->string, access_string, node->string);
+				fprintf(file, "LogS(\"%s : %%c\", %s%s);\n", node->string, access_string, node->string);
 			}
             
 			else if(DataDeskMatchType(node, "*char"))
 			{
-				fprintf(file, "LogM(\"%s : %%s\", %s%s);\n", node->string, access_string, node->string);
+				fprintf(file, "LogS(\"%s : %%s\", %s%s);\n", node->string, access_string, node->string);
 			}
             
 			else if(DataDeskMatchType(node, "*void"))
 			{
-				fprintf(file, "LogM(\"%s : %%p\", %s%s);\n", node->string, access_string, node->string);
+				fprintf(file, "LogS(\"%s : %%p\", %s%s);\n", node->string, access_string, node->string);
 			}
             
             // NOTE(rjf): Recursively descending for inline struct definition.
@@ -183,10 +183,10 @@ GeneratePrintCode(FILE *file, DataDeskNode* parent, DataDeskNode *root, char *ac
                 DataDeskError(node, "Unhandled type for printing code generation.");
             }
             
-			fprintf(file, "LogM(\",\\n\");\n");
+			fprintf(file, "LogS(\",\\n\");\n");
 		}
 	}
     OffsetIndent(-1);
     PrintIndentation(file);
-	fprintf(file, "LogM(\"}\");\n");
+	fprintf(file, "LogS(\"}\");\n");
 }

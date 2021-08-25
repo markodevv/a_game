@@ -77,10 +77,13 @@ typedef enum SpriteType
     TYPE_SUBSPRITE,
 }
 SpriteType;
+// @Print
 typedef struct Sprite Sprite;
 struct Sprite
 {
     u32 main_sprite;
+
+    // @NoPrint
     vec2 uvs[4];
     char *name;
     void *data;
@@ -177,6 +180,8 @@ typedef enum TextAlign
 
 
 
+
+
     TEXT_ALIGN_LEFT,
 }
 TextAlign;
@@ -192,6 +197,8 @@ struct Font
 typedef enum RenderEntryType
 {
     RENDER_ENTRY_QuadEntry,
+
+
 
 
 
@@ -370,6 +377,8 @@ typedef enum RenderEntryType
 
 
 
+
+
     RENDER_ENTRY_Model,
 }
 RenderEntryType;
@@ -381,6 +390,8 @@ struct RenderEntryHeader
 typedef enum ShaderId
 {
     SHADER_ID_NORMAL,
+
+
 
 
 
@@ -583,7 +594,11 @@ typedef enum ShaderId
 
 
 
+
+
     SHADER_ID_SB_QUAD,
+
+
 
 
 
@@ -790,6 +805,8 @@ typedef enum ShaderId
 
 
 
+
+
     NUM_SHADERS,
 }
 ShaderId;
@@ -827,6 +844,8 @@ struct RenderSetup
 typedef enum UniformType
 {
     UNIFORM_F32,
+
+
 
 
 
@@ -1109,7 +1128,11 @@ typedef enum UniformType
 
 
 
+
+
     UNIFORM_I32,
+
+
 
 
 
@@ -1396,7 +1419,11 @@ typedef enum UniformType
 
 
 
+
+
     UNIFORM_VEC2,
+
+
 
 
 
@@ -1687,7 +1714,11 @@ typedef enum UniformType
 
 
 
+
+
     UNIFORM_VEC4,
+
+
 
 
 
@@ -1982,6 +2013,8 @@ typedef enum UniformType
 
 
 
+
+
     UNIFORM_TEXTURE2D,
 }
 UniformType;
@@ -2007,6 +2040,370 @@ struct Shader
     Uniform *uniforms;
     i32 num_uniforms;
 };
+typedef enum AssetType
+{
+    SPRITE_ASSET,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    MODEL_ASSET,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    SOUND_ASSET,
+}
+AssetType;
 typedef struct Assets Assets;
 struct Assets
 {
@@ -2032,6 +2429,15 @@ struct RenderGroup
 
     u32 sort_element_count;
 };
+typedef struct Light Light;
+struct Light
+{
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+
+    vec3 position;
+};
 typedef struct Material Material;
 struct Material
 {
@@ -2049,6 +2455,7 @@ struct Mesh
 
     u32 *indices;
     u32 num_indices;
+
 
     Material material;
 
@@ -2083,6 +2490,7 @@ struct Renderer2D
     u32 white_sprite;
 
     Mesh mesh;
-    Camera camera;
+    Camera *camera;
+    Light light;
     u32 shader_program_3D;
 };

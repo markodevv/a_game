@@ -10,6 +10,7 @@
 #include <io.h>
 #include <fcntl.h>
 #include <iostream>
+#include <intrin.h>
 
 #define WGL_CONTEXT_MAJOR_VERSION_ARB             0x2091
 #define WGL_CONTEXT_MINOR_VERSION_ARB             0x2092
@@ -35,6 +36,7 @@ struct DebugState* global_debug_state;
 #include "generated/debug.h"
 #include "debug_profiler.cpp"
 #include "generated/game.h"
+#include "generated_print.c"
 #include "asset.cpp"
 #include "opengl_renderer.h"
 #include "opengl_renderer.cpp"
@@ -64,7 +66,7 @@ global_variable b8 global_running = true;
 
 
 inline internal u32
-safe_truncate_u64(u64 value)
+SafeTruncateU64(u64 value)
 {
     Assert(value <= 0xFFFFFFFF);
     u32 result = (u32)value;
@@ -92,7 +94,7 @@ ReadEntireFile(char* file_name)
         LARGE_INTEGER file_size;
         if(GetFileSizeEx(file_handle, &file_size))
         {
-            u32 file_size_32 = safe_truncate_u64(file_size.QuadPart);
+            u32 file_size_32 = SafeTruncateU64(file_size.QuadPart);
             result.data = malloc(sizeof(i8) * file_size_32);
             if(result.data)
             {
@@ -163,7 +165,7 @@ WriteEntireFile(char* file_name, u32 size, void* memory)
 
 
 internal void
-win32_init_dsound(HWND window, i32 samples_per_sec, i32 buffer_size)
+Win32InitDSound(HWND window, i32 samples_per_sec, i32 buffer_size)
 {
     
     LPDIRECTSOUND8 direct_sound;
@@ -212,7 +214,7 @@ struct Win32SoundState
 };
 
 internal b8
-win32_clear_sound_buffer(Win32SoundState* sound_output)
+Win32ClearSoundBuffer(Win32SoundState* sound_output)
 {
     VOID* region_1;
     DWORD region_1_size;
@@ -252,7 +254,7 @@ win32_clear_sound_buffer(Win32SoundState* sound_output)
 }
 
 internal void
-win32_fill_sound_buffer(Win32SoundState* sound_output, GameSoundBuffer* sound_buffer, DWORD byte_offset, DWORD bytes_to_write)
+Win32FillSoundBuffer(Win32SoundState* sound_output, GameSoundBuffer* sound_buffer, DWORD byte_offset, DWORD bytes_to_write)
 {
     VOID* region_1;
     DWORD region_1_size;
@@ -360,7 +362,7 @@ Win32UnloadGameCode(Win32GameCode* game_code)
 }
 
 internal i32
-win32_get_last_write_time(char* file_name) 
+Win32GetLastWriteTime(char* file_name) 
 {
     FILETIME last_write_time = {};
     WIN32_FIND_DATA find_data = {};
@@ -547,7 +549,7 @@ Win32InitOpenGL(HWND window_handle)
 }
 
 internal void
-set_button_state(GameInput* input, ButtonCode button, b8 is_down, b8 was_down)
+SetButtonState(GameInput* input, ButtonCode button, b8 is_down, b8 was_down)
 {
     input->buttons[button].is_down = is_down;
     input->buttons[button].pressed =  (!was_down) && (is_down);
@@ -584,39 +586,39 @@ Win32ProcessInputMessages(GameInput* game_input)
                 {
                     case 'A':
                     {
-                        set_button_state(game_input, BUTTON_LEFT, is_down, was_down);
+                        SetButtonState(game_input, BUTTON_LEFT, is_down, was_down);
                     } break;
                     case 'D':
                     {
-                        set_button_state(game_input, BUTTON_RIGHT, is_down, was_down);
+                        SetButtonState(game_input, BUTTON_RIGHT, is_down, was_down);
                     } break;
                     case 'W':
                     {
-                        set_button_state(game_input, BUTTON_UP, is_down, was_down);
+                        SetButtonState(game_input, BUTTON_UP, is_down, was_down);
                     } break;
                     case 'S':
                     {
-                        set_button_state(game_input, BUTTON_DOWN, is_down, was_down);
+                        SetButtonState(game_input, BUTTON_DOWN, is_down, was_down);
                     } break;
                     case 'P':
                     {
-                        set_button_state(game_input, BUTTON_PAUSE, is_down, was_down);
+                        SetButtonState(game_input, BUTTON_PAUSE, is_down, was_down);
                     } break;
                     case VK_BACK:
                     {
-                        set_button_state(game_input, BUTTON_BACKSPACE, is_down, was_down);
+                        SetButtonState(game_input, BUTTON_BACKSPACE, is_down, was_down);
                     } break;
                     case VK_ESCAPE:
                     {
-                        set_button_state(game_input, BUTTON_ESCAPE, is_down, was_down);
+                        SetButtonState(game_input, BUTTON_ESCAPE, is_down, was_down);
                     } break;
                     case VK_RETURN:
                     {
-                        set_button_state(game_input, BUTTON_ENTER, is_down, was_down);
+                        SetButtonState(game_input, BUTTON_ENTER, is_down, was_down);
                     } break;
                     case VK_F1:
                     {
-                        set_button_state(game_input, BUTTON_F1, is_down, was_down);
+                        SetButtonState(game_input, BUTTON_F1, is_down, was_down);
                     } break;
                 }
                 TranslateMessage(&message);
@@ -665,12 +667,8 @@ Win32ProcessInputMessages(GameInput* game_input)
     
 }
 
-
-i32
-WinMain(HINSTANCE hinstance,
-        HINSTANCE prev_hinstance,
-        LPSTR cmd_line,
-        i32 show_code)
+internal void
+Win32CreateConsole()
 {
     AllocConsole();
     
@@ -686,7 +684,151 @@ WinMain(HINSTANCE hinstance,
     setvbuf(hf_in, NULL, _IONBF, 128);
     *stdin = *hf_in;
     freopen("CONOUT$", "w+", stdout);
+}
+
+struct WorkEntry
+{
+    void* data;
+    WorkCallback* work_callback;
+};
+
+
+struct WorkQueue
+{
+    u32 volatile completion_count = 0;
+    u32 volatile completion_goal = 0;
     
+    u32 volatile next_entry_to_write = 0;
+    u32 volatile next_entry_to_read = 0;
+    HANDLE semaphore;
+    
+    WorkEntry entries[256];
+};
+
+
+struct ThreadParam
+{
+    WorkQueue* queue;
+};
+
+void PushWorkEntry(WorkQueue* queue, WorkCallback* work_callback, void* data)
+{
+    u32 new_next_entry_to_write = (queue->next_entry_to_write + 1) % ArrayCount(queue->entries);
+    Assert(new_next_entry_to_write != queue->next_entry_to_read);
+    
+    WorkEntry* entry = queue->entries + queue->next_entry_to_write;
+    entry->data = data;
+    entry->work_callback = work_callback;
+    ++queue->completion_goal;
+    
+    _WriteBarrier();
+    _mm_sfence();
+    queue->next_entry_to_write = new_next_entry_to_write;
+    ReleaseSemaphore(queue->semaphore, 1, 0);
+}
+
+internal b8
+WorkerDoWork(WorkQueue* queue)
+{
+    b8 result = false;
+    u32 original_next_entry_to_read = queue->next_entry_to_read;
+    u32 new_next_entry_to_read = (original_next_entry_to_read + 1) % ArrayCount(queue->entries);
+    
+    if (original_next_entry_to_read != queue->next_entry_to_write)
+    {
+        u32 index = InterlockedCompareExchange(&queue->next_entry_to_read, 
+                                               new_next_entry_to_read,
+                                               original_next_entry_to_read);
+        if (original_next_entry_to_read == index)
+        {
+            WorkEntry* entry = queue->entries + index;
+            entry->work_callback(entry->data);
+            InterlockedIncrement(&queue->completion_count);
+        }
+    }
+    else
+    {
+        result = true;
+    }
+    return result;
+}
+
+
+DWORD WINAPI
+ThreadLoop(LPVOID _param)
+{
+    WorkQueue* queue = (WorkQueue*)_param;
+    for (;;)
+    {
+        if (!WorkerDoWork(queue))
+        {
+            WaitForSingleObjectEx(queue->semaphore, INFINITE, FALSE);
+        }
+    }
+    
+    return 0;
+}
+
+internal void
+WaitForWorkers(WorkQueue* queue)
+{
+    while (queue->completion_goal != queue->completion_count)
+    {
+        WorkerDoWork(queue);
+    }
+    
+    queue->completion_count = 0;
+    queue->completion_goal = 0;
+}
+
+struct StringWork
+{
+    int i;
+};
+
+internal void 
+PrintStringWork(void* data)
+{
+    StringWork* string = (StringWork*)data;
+    LogM("Thread %i I is %i\n", GetCurrentThreadId(), string->i);
+}
+
+
+internal void
+Win32InitThreads(Platform* platform)
+{
+    u32 thread_count = 3;
+    platform->work_queue = (WorkQueue*)calloc(1, sizeof(WorkQueue));
+    platform->work_queue->semaphore = CreateSemaphoreExA(0, 0, thread_count, 0, 0,SEMAPHORE_ALL_ACCESS);
+    
+    for (u32 i = 0; i < thread_count; ++i)
+    {
+        DWORD thread_id;
+        HANDLE thread_handle = CreateThread(0, 0, ThreadLoop, platform->work_queue, 0, &thread_id);
+    }
+    
+    /*
+        StringWork string_work[32];
+        
+        for (u32 i = 0; i < 32; ++i)
+        {
+            string_work[i].i = i;
+            PushWorkEntry(platform->work_queue, 
+                          PrintStringWork, 
+                          &string_work[i]);
+        }
+        
+        WaitForWorkers(platform->work_queue);
+    */
+}
+
+i32
+WinMain(HINSTANCE hinstance,
+        HINSTANCE prev_hinstance,
+        LPSTR cmd_line,
+        i32 show_code)
+{
+    Win32CreateConsole();
     
     WNDCLASS window_class = {};
     window_class.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
@@ -695,8 +837,7 @@ WinMain(HINSTANCE hinstance,
     window_class.lpszClassName = "Win32WindowClass";
     
     RegisterClass(&window_class);
-    HWND window_handle = CreateWindowEx(
-                                        0,
+    HWND window_handle = CreateWindowEx(0,
                                         window_class.lpszClassName,
                                         "Game",
                                         WS_OVERLAPPEDWINDOW | WS_VISIBLE,
@@ -771,7 +912,12 @@ WinMain(HINSTANCE hinstance,
     game_memory.platform.GetPrefCounter = Win32GetPerformanceCounter;
     game_memory.platform.GetElapsedSeconds = Win32GetElapsedSeconds;
     
-    game_memory.platform.LogM = printf;
+    game_memory.platform.PushWorkEntry = PushWorkEntry;
+    game_memory.platform.WaitForWorkers = WaitForWorkers;
+    
+    Win32InitThreads(&game_memory.platform);
+    
+    game_memory.platform.LogFunction = printf;
     g_Platform = game_memory.platform;
     
     Win32SoundState sound_output = {};
@@ -782,7 +928,7 @@ WinMain(HINSTANCE hinstance,
     sound_output.latency_sample_count = (i32)(sound_output.samples_per_sec / target_fps) * 3;
     
     GameInput game_input = {};
-    win32_init_dsound(window_handle, sound_output.samples_per_sec, sound_output.buffer_size);
+    Win32InitDSound(window_handle, sound_output.samples_per_sec, sound_output.buffer_size);
     
     
     u64 last_counter = Win32GetPerformanceCounter();
@@ -791,7 +937,7 @@ WinMain(HINSTANCE hinstance,
     b8 sound_is_valid = false;
     b8 sound_is_playing = false;
     
-    i32 last_game_dll_write_time = win32_get_last_write_time("game.dll");
+    i32 last_game_dll_write_time = Win32GetLastWriteTime("game.dll");
     
     b8 paused = false;
     // ASSIMP 
@@ -822,7 +968,7 @@ WinMain(HINSTANCE hinstance,
         f64 delta_time = Win32GetElapsedSeconds(last_counter);
         last_counter = Win32GetPerformanceCounter();
         
-        i32 game_dll_write_time = win32_get_last_write_time("game.dll");
+        i32 game_dll_write_time = Win32GetLastWriteTime("game.dll");
         if (last_game_dll_write_time != game_dll_write_time)
         {
             Win32UnloadGameCode(&game);
@@ -874,7 +1020,7 @@ WinMain(HINSTANCE hinstance,
         
         if (sound_is_valid)
         {
-            win32_fill_sound_buffer(&sound_output, &sound_buffer, byte_offset, bytes_to_write);
+            Win32FillSoundBuffer(&sound_output, &sound_buffer, byte_offset, bytes_to_write);
             if (!sound_is_playing)
             {
                 HRESULT hresult = global_sound_buffer->Play(0, 0, DSBPLAY_LOOPING);

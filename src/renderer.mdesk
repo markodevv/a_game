@@ -39,10 +39,12 @@ SpriteType :: enum
     TYPE_SUBSPRITE,
 }
 
+@Print
 Sprite :: struct
 {
     main_sprite: u32,
-    uvs: [4]vec2,
+    @NoPrint
+        uvs: [4]vec2,
     name: *char,
     data: *void,
     width: i32,
@@ -171,6 +173,13 @@ Shader :: struct
     num_uniforms: i32,
 }
 
+AssetType :: enum
+{
+    SPRITE_ASSET,
+    MODEL_ASSET,
+    SOUND_ASSET,
+}
+
 Assets :: struct
 {
     arena: MemoryArena,
@@ -197,6 +206,15 @@ RenderGroup :: struct
     sort_element_count: u32,
 }
 
+Light :: struct
+{
+    ambient: vec3,
+    diffuse: vec3,
+    specular: vec3,
+    
+    position: vec3,
+}
+
 Material :: struct
 {
     ambient: vec3,
@@ -213,6 +231,7 @@ Mesh :: struct
     
     indices: *u32,
     num_indices: u32,
+    
     
     material: Material,
     
@@ -248,7 +267,8 @@ Renderer2D :: struct
     white_sprite: u32,
     
     mesh: Mesh,
-    camera: Camera,
+    camera: *Camera,
+    light: Light,
     shader_program_3D: u32,
 }
 

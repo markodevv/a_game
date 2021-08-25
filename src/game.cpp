@@ -29,17 +29,14 @@ struct DebugState* global_debug_state;
 #include "debug_profiler.cpp"
 #include "generated/game.h"
 #include "render_group.cpp"
+#include "generated_print.c"
 #include "asset.cpp"
 #include "entity.cpp"
-#include "generated_print.c"
 #include "debug_ui.cpp"
 
 
 
-
 Platform g_Platform;
-
-// NOTE: Debug data
 
 global_variable b8 global_is_edit_mode = 0;
 
@@ -280,14 +277,36 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
     
     // NOTE: needs to be first image loaded
     Assert(game_state->assets.num_sprites == 0);
-    ren->white_sprite = LoadSprite(&g_Platform, &game_state->assets, "../assets/white.png");
+    
+    
+    LoadSpriteWorkData sprites[4];
+    
+    sprites[0].assets = &game_state->assets;
+    sprites[0].sprite_path = "../assets/white.png";
+    sprites[1].assets = &game_state->assets;
+    sprites[1].sprite_path  = "../assets/red.png";
+    sprites[2].assets = &game_state->assets;
+    sprites[2].sprite_path = "../assets/green.png";
+    sprites[3].assets = &game_state->assets;
+    sprites[3].sprite_path = "../assets/blue.png";
+    
+    g_Platform.PushWorkEntry(g_Platform.work_queue, LoadSpriteWork, &sprites[0]);
+    g_Platform.PushWorkEntry(g_Platform.work_queue, LoadSpriteWork, &sprites[1]);
+    g_Platform.PushWorkEntry(g_Platform.work_queue, LoadSpriteWork, &sprites[2]);
+    g_Platform.PushWorkEntry(g_Platform.work_queue, LoadSpriteWork, &sprites[3]);
+    
+    g_Platform.WaitForWorkers(g_Platform.work_queue);
+    
+    LoadOBJModel(&g_Platform, &game_state->assets, "../assets/models/cube.obj");
     
     g_Platform.InitRenderer(&game_state->renderer);
     game_state->render_group = CreateRenderGroup(&game_state->flush_arena, Mat4Orthographic((f32)ren->screen_width, (f32)ren->screen_height),
-                                                 CreateCamera(Vec3Up(), Vec3Forward(), V3(0.0f, 0.0f, 3000.0f)),
+                                                 CreateCamera(Vec3Up(), Vec3Forward(), V3(0.0f, 0.0f, 200.0f)),
                                                  &game_state->renderer,
                                                  &game_state->assets);
     
+    // TODO: temporary
+    ren->camera = &game_state->render_group->setup.camera;
     
     UiInit(memory->debug, ren, &memory->platform, &game_state->assets);
     
@@ -316,8 +335,11 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
     AddComponent(world, player, Rigidbody);
     AddComponent(world, player, ParticleEmitter);
     
-    ParticleEmitter* player_particles = GetComponent(world, player, ParticleEmitter);
-    *player_particles = CreateParticleEmitter(&game_state->flush_arena, world, V2(-100), V2(100), 4, NewColor(255), V2(30), 10000);
+    /*
+        ParticleEmitter* player_particles = GetComponent(world, player, ParticleEmitter);
+        *player_particles = CreateParticleEmitter(&game_state->flush_arena, world, V2(-100), V2(100), 4,
+     NewColor(255), V2(30), 10000);
+    */
     
     Transform* player_transform = GetComponent(world, player, Transform);
     *player_transform = {
@@ -351,6 +373,7 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
     InitGrid(world);
     
 }
+
 
 extern "C" PLATFORM_API void
 GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
@@ -502,12 +525,6 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
                 WriteUiConfig(debug);
             }
             
-        }
-        
-        if (UiSubmenu(debug, "Debug"))
-        {
-            
-            UiFloat32Editbox(debug, &ren->camera.position, "cam pos");
         }
         
         

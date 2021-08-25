@@ -92,6 +92,13 @@ typedef f64 GetElapsedSeconds(u64 start);
 typedef u64 GetPrefCounter();
 
 
+typedef void (WorkCallback)(void* data);
+
+struct WorkQueue;
+
+typedef void (PushWorkEntryProc)(WorkQueue* queue, WorkCallback* callback, void* data);
+typedef void (WaitForWorkersProc)(WorkQueue* queue);
+
 struct Platform
 {
     ReadEntireFileProc* ReadEntireFile;
@@ -109,7 +116,11 @@ struct Platform
     Free* Free;
     
     typedef i32 LogFunc(const char* text, ...);
-    LogFunc* LogM;
+    LogFunc* LogFunction;
+    
+    WorkQueue* work_queue;
+    PushWorkEntryProc* PushWorkEntry;
+    WaitForWorkersProc* WaitForWorkers;
 };
 
 internal void*
