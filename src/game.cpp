@@ -28,9 +28,9 @@ struct DebugState* global_debug_state;
 #include "generated/debug.h"
 #include "debug_profiler.cpp"
 #include "generated/game.h"
+#include "asset.cpp"
 #include "render_group.cpp"
 #include "generated_print.c"
-#include "asset.cpp"
 #include "entity.cpp"
 #include "debug_ui.cpp"
 
@@ -279,21 +279,28 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
     Assert(game_state->assets.num_sprites == 0);
     
     
-    LoadSpriteWorkData sprites[4];
+    LoadSpriteWorkData sprites[5];
     
     sprites[0].assets = &game_state->assets;
+    sprites[0].sprite_id = WHITE_SPRITE;
     sprites[0].sprite_path = "../assets/white.png";
     sprites[1].assets = &game_state->assets;
+    sprites[1].sprite_id = RED_SPRITE;
     sprites[1].sprite_path  = "../assets/red.png";
     sprites[2].assets = &game_state->assets;
+    sprites[2].sprite_id = GREEN_SPRITE;
     sprites[2].sprite_path = "../assets/green.png";
     sprites[3].assets = &game_state->assets;
+    sprites[3].sprite_id = BLUE_SPRITE;
     sprites[3].sprite_path = "../assets/blue.png";
+    sprites[4].assets = &game_state->assets;
+    sprites[4].sprite_id = PINK_SPRITE;
+    sprites[4].sprite_path = "../assets/pink.png";
     
-    g_Platform.PushWorkEntry(g_Platform.work_queue, LoadSpriteWork, &sprites[0]);
-    g_Platform.PushWorkEntry(g_Platform.work_queue, LoadSpriteWork, &sprites[1]);
-    g_Platform.PushWorkEntry(g_Platform.work_queue, LoadSpriteWork, &sprites[2]);
-    g_Platform.PushWorkEntry(g_Platform.work_queue, LoadSpriteWork, &sprites[3]);
+    for (u32 i = 0; i < ArrayCount(sprites); ++i)
+    {
+        g_Platform.PushWorkEntry(g_Platform.work_queue, LoadSpriteWork, &sprites[i]);
+    }
     
     g_Platform.WaitForWorkers(g_Platform.work_queue);
     

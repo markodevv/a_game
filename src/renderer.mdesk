@@ -39,21 +39,34 @@ SpriteType :: enum
     TYPE_SUBSPRITE,
 }
 
+SpriteID :: enum
+{
+    WHITE_SPRITE,
+    RED_SPRITE,
+    GREEN_SPRITE,
+    BLUE_SPRITE,
+    PINK_SPRITE,
+    NUM_SPRITES,
+}
+
+
 @Print
 Sprite :: struct
 {
-    main_sprite: u32,
-    @NoPrint
-        uvs: [4]vec2,
     name: *char,
     data: *void,
     width: i32,
     height: i32,
     channels: i32,
+    // TODO: this should't be u32
+    main_sprite: u32,
     
+    @NoPrint
+        uvs: [4]vec2,
+    
+    type: SpriteType,
     id: u32,
     slot: u32,
-    type: SpriteType,
 }
 
 
@@ -76,11 +89,11 @@ TextAlign :: enum
 
 Font :: struct
 {
-    sprite_handles: *u32,
+    sprite_ids: *RuntimeSpriteID,
     char_metrics: *CharMetric,
     num_chars: u16,
     font_size: u32,
-    font_sprite_handle: u32,
+    font_sprite_id: RuntimeSpriteID,
 }
 
 
@@ -111,7 +124,7 @@ QuadEntry :: struct
     position: vec3,
     size: vec2,
     color: Color,
-    sprite_handle: u32,
+    sprite: *Sprite,
     
     shader_id: ShaderId,
 }
@@ -120,7 +133,7 @@ TriangleEntry :: struct
 {
     points: [3]vec3,
     color: Color,
-    sprite_handle: u32,
+    sprite: *Sprite,
     
     shader_id: ShaderId,
 }
@@ -184,11 +197,17 @@ Assets :: struct
 {
     arena: MemoryArena,
     
-    loaded_sprite_queue: *u32,
+    loaded_sprite_queue: *SpriteID,
     num_queued_sprites: u32,
+    
+    runtime_sprite_queue: *RuntimeSpriteID,
+    num_runtime_queued_sprites: u32,
+    
     
     sprites: *Sprite,
     num_sprites: u32,
+    
+    num_runtime_sprites: u32,
     
     shaders: [NUM_SHADERS]Shader,
 }

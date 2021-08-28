@@ -501,15 +501,15 @@ internal Font
 UiLoadFont(MemoryArena* arena, Platform* platform, Assets* assets, char* font_path, i32 font_size)
 {
     Font font = {};
-    font.sprite_handles = PushMemory(arena, SpriteHandle, NUM_ASCII);
+    font.sprite_ids = PushMemory(arena, RuntimeSpriteID, NUM_ASCII);
     font.char_metrics = PushMemory(arena, CharMetric, NUM_ASCII);
     font.num_chars = NUM_ASCII;
     
     
-    font.font_sprite_handle = CreateEmpthySprite(assets, 512, 512, 1);
+    font.font_sprite_id = CreateEmpthySprite(assets, 512, 512, 1);
     font.font_size = font_size;
     
-    Sprite* font_sprite = GetLoadedSprite(assets, font.font_sprite_handle);
+    Sprite* font_sprite = GetRuntimeSprite(assets, font.font_sprite_id);
     FileResult font_file = platform->ReadEntireFile(font_path);
     
     if (font_file.data)
@@ -550,19 +550,19 @@ UiLoadFont(MemoryArena* arena, Platform* platform, Assets* assets, char* font_pa
             q.s1 = b->x1 * ipw;
             q.t1 = b->y1 * iph;
             
-            SpriteHandle sh = AddSprite(assets);
-            Sprite* sprite = GetLoadedSprite(assets, sh);
-            font.sprite_handles[i] = sh;
-            
-            sprite->type = TYPE_SUBSPRITE;
-            
-            sprite->uvs[0] = {q.s1, q.t1};
-            sprite->uvs[1] = {q.s1, q.t0};
-            sprite->uvs[2] = {q.s0, q.t0};
-            sprite->uvs[3] = {q.s0, q.t1};
+            RuntimeSpriteID id = AddSubsprite(assets);
+            Sprite* subsprite = GetRuntimeSprite(assets, id);
+            font.sprite_ids[i] = id;
             
             
-            sprite->main_sprite = font.font_sprite_handle;
+            subsprite->uvs[0] = {q.s1, q.t1};
+            subsprite->uvs[1] = {q.s1, q.t0};
+            subsprite->uvs[2] = {q.s0, q.t0};
+            subsprite->uvs[3] = {q.s0, q.t1};
+            
+            
+            // TODO:
+            subsprite->main_sprite = (u32)font.font_sprite_id;
         }
         platform->FreeFileMemory(font_file.data);
     }

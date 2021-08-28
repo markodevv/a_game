@@ -41,9 +41,10 @@ typedef double f64;
 typedef i8 b8;
 typedef size_t sizet;
 
-typedef u32 SpriteHandle;
 typedef u16 EntityId;
 typedef u32 Layer;
+
+typedef u32 RuntimeSpriteID;
 
 struct GameState;
 struct Array;

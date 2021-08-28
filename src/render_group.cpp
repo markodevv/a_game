@@ -68,7 +68,7 @@ PushQuad(RenderGroup* group,
          vec2 size, 
          Color color, 
          Layer layer,
-         SpriteHandle sprite_handle = 0,
+         SpriteID id = WHITE_SPRITE,
          ShaderId shader_id = SHADER_ID_NORMAL)
 {
     u32 key = shader_id;
@@ -79,13 +79,42 @@ PushQuad(RenderGroup* group,
     }
     
     QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
+    Sprite* sprite = GetLoadedSprite(group->assets, id);
+    
+    entry->position = V3(position, layer);
+    entry->size = size;
+    entry->color = color;
+    entry->sprite = sprite;
+    entry->shader_id = shader_id;
+}
+
+
+
+internal void
+PushQuad(RenderGroup* group, 
+         vec2 position, 
+         vec2 size, 
+         Color color, 
+         Layer layer,
+         RuntimeSpriteID id,
+         ShaderId shader_id = SHADER_ID_NORMAL)
+{
+    u32 key = shader_id;
+    
+    if (color.a != 255)
+    {
+        key += 100 + layer;
+    }
+    
+    QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
+    Sprite* sprite = GetRuntimeSprite(group->assets, id);
     
     
     
     entry->position = V3(position, layer);
     entry->size = size;
     entry->color = color;
-    entry->sprite_handle = sprite_handle;
+    entry->sprite = sprite;
     entry->shader_id = shader_id;
 }
 
@@ -99,7 +128,7 @@ PushTriangle(RenderGroup* group,
              vec2 p3, 
              Color color, 
              Layer layer,
-             SpriteHandle sprite_handle = 0,
+             SpriteID id = WHITE_SPRITE,
              ShaderId shader_id = SHADER_ID_NORMAL)
 {
     u32 key = shader_id;
@@ -110,12 +139,13 @@ PushTriangle(RenderGroup* group,
     }
     
     TriangleEntry* entry = PushRenderEntry(group, TriangleEntry, key);
+    Sprite* sprite = GetLoadedSprite(group->assets, id);
     
     entry->points[0] = V3(p1, layer);
     entry->points[1] = V3(p2, layer);
     entry->points[2] = V3(p3, layer);
     entry->color = color;
-    entry->sprite_handle = sprite_handle;
+    entry->sprite = sprite;
     entry->shader_id = shader_id;
 }
 
@@ -165,7 +195,7 @@ DrawText(RenderGroup* render_group,
             vec2 size = V2(cm->x1 - cm->x0,
                            -cm->y1 + cm->y0);
             
-            PushQuad(render_group, pos, size, color, layer, font->sprite_handles[index]);
+            PushQuad(render_group, pos, size, color, layer, font->sprite_ids[index]);
             
             position.x += cm->xadvance;
         }

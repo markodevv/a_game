@@ -3,39 +3,9 @@ AssetsInit(Assets* assets, MemoryArena* arena)
 {
     SubArena(arena, &assets->arena, Megabytes(64));
     
-    assets->sprites = PushMemory(&assets->arena, Sprite, 256);
-    assets->loaded_sprite_queue = PushMemory(&assets->arena, SpriteHandle, 50);
-}
-
-internal SpriteHandle
-LoadSprite(Assets* assets, char* sprite_path)
-{
-    FileResult file = g_Platform.ReadEntireFile(sprite_path);
-    SpriteHandle result = 0;
-    
-    if (file.data)
-    {
-        result = assets->num_sprites++;
-        Sprite* sprite = assets->sprites + result;
-        
-        stbi_set_flip_vertically_on_load(1);
-        sprite->data = stbi_load_from_memory((u8*)file.data,
-                                             file.size,
-                                             &sprite->width,
-                                             &sprite->height, 
-                                             &sprite->channels,
-                                             0);
-        
-        sprite->name = StringCopy(&assets->arena, sprite_path);
-        
-        g_Platform.FreeFileMemory(file.data);
-        assets->loaded_sprite_queue[assets->num_queued_sprites++] = result;
-    }
-    
-    
-    
-    
-    return result;
+    assets->sprites = PushMemory(&assets->arena, Sprite, 512);
+    assets->loaded_sprite_queue = PushMemory(&assets->arena, SpriteID, 50);
+    assets->runtime_sprite_queue = PushMemory(&assets->arena, RuntimeSpriteID, 50);
 }
 
 struct OBJFileInfo
@@ -193,68 +163,100 @@ LoadOBJModel(Platform* platform, Assets* assets, char* model_path)
 }
 
 
-internal SpriteHandle
-AddSprite(Assets* assets)
+internal Sprite*
+GetLoadedSprite(Assets* assets, SpriteID id)
 {
-    return assets->num_sprites++;
+    return assets->sprites + id;
 }
-
 
 internal Sprite*
-GetLoadedSprite(Assets* assets, SpriteHandle handle)
+GetRuntimeSprite(Assets* assets, RuntimeSpriteID id)
 {
-    Assert(handle < (i32)assets->num_sprites &&
-           handle >= 0);
-    
-    return assets->sprites + handle;
+    return assets->sprites + (id + NUM_SPRITES);
 }
 
-internal SpriteHandle
+internal RuntimeSpriteID
+AddSubsprite(Assets* assets)
+{
+    RuntimeSpriteID id = assets->num_runtime_sprites++;
+    assets->sprites[id + NUM_SPRITES].type = TYPE_SUBSPRITE;
+    return assets->num_runtime_sprites++;
+}
+
+internal RuntimeSpriteID
 SubspriteFromSprite(Assets* assets, 
-                    SpriteHandle sprite_handle, 
+                    SpriteID id, 
                     f32 x, f32 y, f32 sprite_width, f32 sprite_height)
 {
-    Sprite* sprite = GetLoadedSprite(assets, sprite_handle);
-    SpriteHandle sh = AddSprite(assets);
-    Sprite* subsprite = GetLoadedSprite(assets, sh);
-    
-    subsprite->type = TYPE_SUBSPRITE;
+    Sprite* sprite = GetLoadedSprite(assets, id);
+    RuntimeSpriteID runtime_id  = AddSubsprite(assets);
+    Sprite* subsprite = GetRuntimeSprite(assets, runtime_id);
     
     f32 sheet_width = (f32)sprite->width;
     f32 sheet_height = (f32)sprite->height;
     
-    subsprite->main_sprite = sprite_handle;
+    subsprite->main_sprite = id;
     subsprite->uvs[0] = V2(((x+1)*sprite_width) / sheet_width, ((y+1)*sprite_height) / sheet_height);
     subsprite->uvs[1] = V2(((x+1)*sprite_width) / sheet_width, (y*sprite_height)     / sheet_height);
     subsprite->uvs[2] = V2((x*sprite_width)     / sheet_width, (y*sprite_height)     / sheet_height);
     subsprite->uvs[3] = V2((x*sprite_width)     / sheet_width, ((y+1)*sprite_height) / sheet_height);
     
-    return sh;
+    subsprite->type = TYPE_SUBSPRITE;
+    
+    return runtime_id;
 }
 
 
-internal SpriteHandle
+internal RuntimeSpriteID
 CreateEmpthySprite(Assets* assets, u32 w, u32 h, u32 channels)
 {
-    Sprite sprite = {};
-    SpriteHandle result;
-    sprite.data = PushMemory(&assets->arena, u8, (w*h));
-    sprite.width = w;
-    sprite.height = h;
-    sprite.channels = channels;
+    RuntimeSpriteID id =  assets->num_runtime_sprites++;
+    Sprite* sprite = GetRuntimeSprite(assets, id);
     
-    assets->sprites[assets->num_sprites] = sprite;
-    result = assets->num_sprites++;
+    sprite->data = PushMemory(&assets->arena, u8, (w*h));
+    sprite->width = w;
+    sprite->height = h;
+    sprite->channels = channels;
     
-    // TODO: 
-    assets->loaded_sprite_queue[assets->num_queued_sprites++] = result;
+    sprite->type = TYPE_SPRITE;
     
-    return result;
+    assets->runtime_sprite_queue[assets->num_runtime_queued_sprites++] = id;
+    
+    return id;
+}
+
+internal void
+LoadSprite(Assets* assets, SpriteID id, char* sprite_path)
+{
+    FileResult file = g_Platform.ReadEntireFile(sprite_path);
+    
+    if (file.data)
+    {
+        Sprite* sprite = assets->sprites + id;
+        
+        stbi_set_flip_vertically_on_load(1);
+        sprite->data = stbi_load_from_memory((u8*)file.data,
+                                             file.size,
+                                             &sprite->width,
+                                             &sprite->height, 
+                                             &sprite->channels,
+                                             0);
+        
+        sprite->name = StringCopy(&assets->arena, sprite_path);
+        
+        g_Platform.FreeFileMemory(file.data);
+        assets->loaded_sprite_queue[assets->num_queued_sprites++] = id;
+    }
+    else
+    {
+        LogM("Failed to load sprite %s.\n", sprite_path);
+    }
 }
 
 struct LoadSpriteWorkData
 {
     Assets* assets;
+    SpriteID sprite_id;
     char* sprite_path;
 };
 
@@ -262,5 +264,5 @@ internal void
 LoadSpriteWork(void* data)
 {
     LoadSpriteWorkData* work_data = (LoadSpriteWorkData*)data;
-    LoadSprite(work_data->assets, work_data->sprite_path);
+    LoadSprite(work_data->assets, work_data->sprite_id, work_data->sprite_path);
 }

@@ -1,6 +1,6 @@
 #ifdef GAME_PROFILE
 
-#define PROFILER_FRAME_START() \
+#define DEBUG_FRAME_START() \
 ProfilerStart()
 #define PROFILE_FUNCTION() \
 Timer timer(__FUNCTION__)
@@ -8,7 +8,7 @@ Timer timer(__FUNCTION__)
 #define PROFILE_SCOPE(name) \
 Timer timer(name)
 
-#define PROFILER_FRAME_END() \
+#define DEBUG_FRAME_END() \
 ProfilerEnd()
 
 #else

@@ -1,0 +1,14 @@
+version(1);
+
+project_name = "Cool Game";
+
+patterns = {
+"*.cpp",
+"*.h",
+};
+
+load_paths = {
+ {  {
+     {"./src/", .relative = true, .recursive = true}
+    }, .os = "win"},
+};

@@ -77,23 +77,265 @@ typedef enum SpriteType
     TYPE_SUBSPRITE,
 }
 SpriteType;
+typedef enum SpriteID
+{
+    WHITE_SPRITE,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    RED_SPRITE,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    GREEN_SPRITE,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    BLUE_SPRITE,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    PINK_SPRITE,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    NUM_SPRITES,
+}
+SpriteID;
 // @Print
 typedef struct Sprite Sprite;
 struct Sprite
 {
-    u32 main_sprite;
-
-    // @NoPrint
-    vec2 uvs[4];
     char *name;
     void *data;
     i32 width;
     i32 height;
     i32 channels;
 
+    u32 main_sprite;
+
+
+    // @NoPrint
+    vec2 uvs[4];
+
+    SpriteType type;
     u32 id;
     u32 slot;
-    SpriteType type;
 };
 typedef struct CharMetric CharMetric;
 struct CharMetric
@@ -182,21 +424,47 @@ typedef enum TextAlign
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     TEXT_ALIGN_LEFT,
 }
 TextAlign;
 typedef struct Font Font;
 struct Font
 {
-    u32 *sprite_handles;
+    RuntimeSpriteID *sprite_ids;
     CharMetric *char_metrics;
     u16 num_chars;
     u32 font_size;
-    u32 font_sprite_handle;
+    RuntimeSpriteID font_sprite_id;
 };
 typedef enum RenderEntryType
 {
     RENDER_ENTRY_QuadEntry,
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -379,6 +647,19 @@ typedef enum RenderEntryType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     RENDER_ENTRY_Model,
 }
 RenderEntryType;
@@ -390,6 +671,19 @@ struct RenderEntryHeader
 typedef enum ShaderId
 {
     SHADER_ID_NORMAL,
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -596,7 +890,33 @@ typedef enum ShaderId
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     SHADER_ID_SB_QUAD,
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -807,6 +1127,19 @@ typedef enum ShaderId
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     NUM_SHADERS,
 }
 ShaderId;
@@ -816,7 +1149,7 @@ struct QuadEntry
     vec3 position;
     vec2 size;
     Color color;
-    u32 sprite_handle;
+    Sprite *sprite;
 
     ShaderId shader_id;
 };
@@ -825,7 +1158,7 @@ struct TriangleEntry
 {
     vec3 points[3];
     Color color;
-    u32 sprite_handle;
+    Sprite *sprite;
 
     ShaderId shader_id;
 };
@@ -844,6 +1177,19 @@ struct RenderSetup
 typedef enum UniformType
 {
     UNIFORM_F32,
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1130,7 +1476,33 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_I32,
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1421,7 +1793,33 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_VEC2,
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1716,7 +2114,33 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_VEC4,
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2015,6 +2439,19 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_TEXTURE2D,
 }
 UniformType;
@@ -2043,6 +2480,19 @@ struct Shader
 typedef enum AssetType
 {
     SPRITE_ASSET,
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2401,6 +2851,19 @@ typedef enum AssetType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     SOUND_ASSET,
 }
 AssetType;
@@ -2409,11 +2872,17 @@ struct Assets
 {
     MemoryArena arena;
 
-    u32 *loaded_sprite_queue;
+    SpriteID *loaded_sprite_queue;
     u32 num_queued_sprites;
+
+    RuntimeSpriteID *runtime_sprite_queue;
+    u32 num_runtime_queued_sprites;
+
 
     Sprite *sprites;
     u32 num_sprites;
+
+    u32 num_runtime_sprites;
 
     Shader shaders[NUM_SHADERS];
 };

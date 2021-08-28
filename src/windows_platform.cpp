@@ -711,7 +711,7 @@ struct ThreadParam
     WorkQueue* queue;
 };
 
-void PushWorkEntry(WorkQueue* queue, WorkCallback* work_callback, void* data)
+void Win32PushWorkEntry(WorkQueue* queue, WorkCallback* work_callback, void* data)
 {
     u32 new_next_entry_to_write = (queue->next_entry_to_write + 1) % ArrayCount(queue->entries);
     Assert(new_next_entry_to_write != queue->next_entry_to_read);
@@ -728,7 +728,7 @@ void PushWorkEntry(WorkQueue* queue, WorkCallback* work_callback, void* data)
 }
 
 internal b8
-WorkerDoWork(WorkQueue* queue)
+Win32WorkerDoWork(WorkQueue* queue)
 {
     b8 result = false;
     u32 original_next_entry_to_read = queue->next_entry_to_read;
@@ -755,12 +755,12 @@ WorkerDoWork(WorkQueue* queue)
 
 
 DWORD WINAPI
-ThreadLoop(LPVOID _param)
+Win32ThreadLoop(LPVOID _param)
 {
     WorkQueue* queue = (WorkQueue*)_param;
     for (;;)
     {
-        if (!WorkerDoWork(queue))
+        if (!Win32WorkerDoWork(queue))
         {
             WaitForSingleObjectEx(queue->semaphore, INFINITE, FALSE);
         }
@@ -770,29 +770,16 @@ ThreadLoop(LPVOID _param)
 }
 
 internal void
-WaitForWorkers(WorkQueue* queue)
+Win32WaitForWorkers(WorkQueue* queue)
 {
     while (queue->completion_goal != queue->completion_count)
     {
-        WorkerDoWork(queue);
+        Win32WorkerDoWork(queue);
     }
     
     queue->completion_count = 0;
     queue->completion_goal = 0;
 }
-
-struct StringWork
-{
-    int i;
-};
-
-internal void 
-PrintStringWork(void* data)
-{
-    StringWork* string = (StringWork*)data;
-    LogM("Thread %i I is %i\n", GetCurrentThreadId(), string->i);
-}
-
 
 internal void
 Win32InitThreads(Platform* platform)
@@ -804,22 +791,8 @@ Win32InitThreads(Platform* platform)
     for (u32 i = 0; i < thread_count; ++i)
     {
         DWORD thread_id;
-        HANDLE thread_handle = CreateThread(0, 0, ThreadLoop, platform->work_queue, 0, &thread_id);
+        HANDLE thread_handle = CreateThread(0, 0, Win32ThreadLoop, platform->work_queue, 0, &thread_id);
     }
-    
-    /*
-        StringWork string_work[32];
-        
-        for (u32 i = 0; i < 32; ++i)
-        {
-            string_work[i].i = i;
-            PushWorkEntry(platform->work_queue, 
-                          PrintStringWork, 
-                          &string_work[i]);
-        }
-        
-        WaitForWorkers(platform->work_queue);
-    */
 }
 
 i32
@@ -912,8 +885,8 @@ WinMain(HINSTANCE hinstance,
     game_memory.platform.GetPrefCounter = Win32GetPerformanceCounter;
     game_memory.platform.GetElapsedSeconds = Win32GetElapsedSeconds;
     
-    game_memory.platform.PushWorkEntry = PushWorkEntry;
-    game_memory.platform.WaitForWorkers = WaitForWorkers;
+    game_memory.platform.PushWorkEntry = Win32PushWorkEntry;
+    game_memory.platform.WaitForWorkers = Win32WaitForWorkers;
     
     Win32InitThreads(&game_memory.platform);
     
@@ -946,7 +919,7 @@ WinMain(HINSTANCE hinstance,
     
     while(global_running)
     {
-        PROFILER_FRAME_START();
+        DEBUG_FRAME_START();
         
         for (sizet i = 0; i < NUM_BUTTONS; ++i)
         {
@@ -1049,7 +1022,7 @@ WinMain(HINSTANCE hinstance,
         HDC window_dc = GetDC(window_handle);
         SwapBuffers(window_dc);
         
-        PROFILER_FRAME_END();
+        DEBUG_FRAME_END();
     }
     
     
