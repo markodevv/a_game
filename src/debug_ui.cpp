@@ -1,8 +1,8 @@
-global_variable Color bg_main_color = {43, 46, 74, 255};
-global_variable Color faint_bg_color = {25, 25, 45, 255};
-global_variable Color faint_red_color = {144, 55, 33, 255};
-global_variable Color faint_redblue_color = {83, 53, 74, 255};
-global_variable Color red_color = {232, 69, 69, 255};
+global_variable Color bg_main_color = {43, 46, 74, 150};
+global_variable Color faint_bg_color = {25, 25, 45, 150};
+global_variable Color faint_red_color = {144, 55, 33, 150};
+global_variable Color faint_redblue_color = {83, 53, 74, 150};
+global_variable Color red_color = {232, 69, 69, 150};
 
 #define PADDING 5.0f
 #define MAX_NAME_WIDTH 120
@@ -12,22 +12,22 @@ global_variable Color red_color = {232, 69, 69, 255};
 // WARNING: Macro madness bellow, don't look at it for too long!!
 
 #define UiFloat32Editbox(debug, var, name) \
-AnyTypeMultibox(debug, var, (sizeof(*var)/sizeof(f32)), name, f32, false)
+AnyTypeEditBox(debug, var, (sizeof(*var)/sizeof(f32)), name, f32, false)
 
 #define UiFloat64Editbox(debug, var, name) \
-AnyTypeMultibox(debug, var, (sizeof(*var)/sizeof(f64)), name, f64, false)
+AnyTypeEditBox(debug, var, (sizeof(*var)/sizeof(f64)), name, f64, false)
 
 #define UiInt32Editbox(debug, var, name) \
-AnyTypeMultibox(debug, var, (sizeof(*var)/sizeof(i32)), name, i32, true)
+AnyTypeEditBox(debug, var, (sizeof(*var)/sizeof(i32)), name, i32, true)
 
 #define UiInt8Editbox(debug, var, name) \
-AnyTypeMultibox(debug, var, (sizeof(*var)/sizeof(i8)), name, i8, true)
+AnyTypeEditBox(debug, var, (sizeof(*var)/sizeof(i8)), name, i8, true)
 
 #define UiUInt8Editbox(debug, var, name) \
-AnyTypeMultibox(debug, var, (sizeof(*var)/sizeof(u8)), name, u8, true)
+AnyTypeEditBox(debug, var, (sizeof(*var)/sizeof(u8)), name, u8, true)
 
 
-#define AnyTypeMultibox(debug, v, num_components, var_name, type, is_int) \
+#define AnyTypeEditBox(debug, v, num_components, var_name, type, is_int) \
 { \
 f32 total_width = (debug->current_window->size.x - MAX_NAME_WIDTH - 2*PADDING) - ((num_components-1) * PADDING); \
 type* iterator = (type*)v; \

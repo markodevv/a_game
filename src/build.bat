@@ -3,7 +3,7 @@
 set win32_compiler_flags= -I ..\third_party\stb\ -DEBUG -Gm- -GR- -EHa- -Od -Oi -WX -W3 -wd4996 -wd4311 -wd4302 -wd4201 -wd4100 -wd4189 -wd4129 -wd4244 -DPLATFORM_WIN32=1 -DGAME_DEBUG=1 -DGAME_PROFILE=1 -FC -Z7 -MTd -nologo
 set lib_paths= /LIBPATH:..\third_party\stb\build
 set win32_linker_flags=/OPT:REF %lib_paths% opengl32.lib winmm.lib user32.lib gdi32.lib shell32.lib dsound.lib 
-set game_linker_flags=/OPT:REF /PDB:game_%random%.pdb %lib_paths% stb_truetype.lib stb_image.lib
+set game_linker_flags=/OPT:REF /PDB:game_%random%.pdb %lib_paths% 
 
 @RD /S /Q ".\generated"
 mkdir .\generated

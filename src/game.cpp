@@ -368,7 +368,7 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         g_Platform = memory->platform;
         InitGame(memory, game_state, input);
         memory->is_initialized = true;
-        game_state->font = LoadFontTest(&game_state->assets, "../assets/fonts/consola.ttf", 14);
+        game_state->font = LoadFontTest(&game_state->assets, "../assets/fonts/consola.ttf", 32);
         
     }
     

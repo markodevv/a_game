@@ -577,7 +577,6 @@ Win32ProcessInputMessages(GameInput* game_input)
             } break;
             case WM_QUIT:
             global_running= false;
-            LogM("Closing game...\n");
             case WM_KEYUP:
             case WM_KEYDOWN:
             {
