@@ -62,14 +62,14 @@ if (NameIsTooLong(&debug->font, var_name)) \
 { \
 char* temp_name = StringCopy(&debug->temp_arena, var_name); \
 TruncateName(temp_name); \
-DrawText(group,  \
+DEBUGDrawText(group,  \
 &debug->font, temp_name,  \
 V2(pos.x, pos.y + (size.y - debug->font.font_size)),  \
 layer + LAYER_FRONT); \
 } \
 else \
 { \
-DrawText(group,  \
+DEBUGDrawText(group,  \
 &debug->font, var_name,  \
 V2(pos.x, pos.y + (size.y - debug->font.font_size)),  \
 layer + LAYER_FRONT); \
@@ -114,7 +114,7 @@ debug->active_item = 0;\
 } \
 \
 is_editing_box = true; \
-DrawText(group, &debug->font, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font.font_size)), layer + LAYER_FRONT); \
+DEBUGDrawText(group, &debug->font, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font.font_size)), layer + LAYER_FRONT); \
 debug->text_input_buffer[debug->text_insert_index] = '\0'; \
 \
 f32 cursor_x = pos.x + GetTextPixelWidth(&debug->font, debug->text_input_buffer); \
@@ -136,7 +136,7 @@ debug->editbox_value_to_set_size = sizeof(type); \
 debug->editbox_value_is_int = is_int; \
 } \
 } \
-DrawText(group,  \
+DEBUGDrawText(group,  \
 &debug->font, \
 text,  \
 V2(pos.x + (size.x / 2),  \
@@ -501,15 +501,15 @@ internal Font
 UiLoadFont(MemoryArena* arena, Platform* platform, Assets* assets, char* font_path, i32 font_size)
 {
     Font font = {};
-    font.sprite_ids = PushMemory(arena, RuntimeSpriteID, NUM_ASCII);
+    font.sprite_ids = PushMemory(arena, SpriteID, NUM_ASCII);
     font.char_metrics = PushMemory(arena, CharMetric, NUM_ASCII);
     font.num_chars = NUM_ASCII;
     
     
-    font.font_sprite_id = CreateEmpthySprite(assets, 512, 512, 1);
+    font.font_sprite_id = DEBUGCreateFontSprite(assets, 512, 512, 1);
     font.font_size = font_size;
     
-    Sprite* font_sprite = GetRuntimeSprite(assets, font.font_sprite_id);
+    Sprite* font_sprite = GetSprite(assets, font.font_sprite_id);
     FileResult font_file = platform->ReadEntireFile(font_path);
     
     if (font_file.data)
@@ -531,7 +531,6 @@ UiLoadFont(MemoryArena* arena, Platform* platform, Assets* assets, char* font_pa
         for(u8 i = 0; i < NUM_ASCII; ++i)
         {
             stbtt_aligned_quad q;
-            // i32 index = *text-32;
             stbtt_bakedchar* b = char_metrics + i;
             
             font.char_metrics[i].x0 = b->x0;
@@ -550,10 +549,10 @@ UiLoadFont(MemoryArena* arena, Platform* platform, Assets* assets, char* font_pa
             q.s1 = b->x1 * ipw;
             q.t1 = b->y1 * iph;
             
-            RuntimeSpriteID id = AddSubsprite(assets);
-            Sprite* subsprite = GetRuntimeSprite(assets, id);
+            SpriteID id = AddSubsprite(assets, font.font_sprite_id);
+            Sprite* subsprite = GetSprite(assets, id);
             font.sprite_ids[i] = id;
-            
+            subsprite->name = "Char";
             
             subsprite->uvs[0] = {q.s1, q.t1};
             subsprite->uvs[1] = {q.s1, q.t0};
@@ -562,7 +561,7 @@ UiLoadFont(MemoryArena* arena, Platform* platform, Assets* assets, char* font_pa
             
             
             // TODO:
-            subsprite->main_sprite = (u32)font.font_sprite_id;
+            subsprite->main_sprite = font.font_sprite_id;
         }
         platform->FreeFileMemory(font_file.data);
     }
@@ -604,13 +603,13 @@ UiSubmenuTitlebar(DebugState* debug, vec2 position, vec2 size, char* title)
     }
     
     PushQuad(debug->render_group, position, size, color, layer + LAYER_MID);
-    DrawText(debug->render_group, 
-             &debug->font, 
-             title, 
-             V2(position.x + (size.x / 2),
-                position.y + 2),
-             layer + LAYER_FRONT,
-             TEXT_ALIGN_MIDDLE);
+    DEBUGDrawText(debug->render_group, 
+                  &debug->font, 
+                  title, 
+                  V2(position.x + (size.x / 2),
+                     position.y + 2),
+                  layer + LAYER_FRONT,
+                  TEXT_ALIGN_MIDDLE);
 }
 
 internal void
@@ -935,13 +934,13 @@ UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(4
         }
         
         PushQuad(debug->render_group, titlebar_pos, titlebar_size, color, layer + LAYER_MID);
-        DrawText(debug->render_group, 
-                 &debug->font,
-                 title, 
-                 V2(titlebar_pos.x + (titlebar_size.x / 2),
-                    titlebar_pos.y + 4.0f),
-                 layer + LAYER_FRONT,
-                 TEXT_ALIGN_MIDDLE);
+        DEBUGDrawText(debug->render_group, 
+                      &debug->font,
+                      title, 
+                      V2(titlebar_pos.x + (titlebar_size.x / 2),
+                         titlebar_pos.y + 4.0f),
+                      layer + LAYER_FRONT,
+                      TEXT_ALIGN_MIDDLE);
     }
     
 }
@@ -970,7 +969,7 @@ UiFps(DebugState* debug)
     sprintf(out, fps_text, debug->game_fps);
     vec2 position = V2(0.0f, (f32)debug->screen_height - debug->font.font_size);
     
-    DrawText(group, &debug->font, out, position, 1 << 10);
+    DEBUGDrawText(group, &debug->font, out, position, 1 << 10);
 }
 
 
@@ -990,11 +989,11 @@ UiCheckbox(DebugState* debug, b8* toggle_var, char* var_name)
         TruncateName(var_name);
     }
     
-    DrawText(group,
-             &debug->font, 
-             var_name, 
-             V2(pos.x, pos.y + (size.y - debug->font.font_size)),
-             layer + LAYER_FRONT);
+    DEBUGDrawText(group,
+                  &debug->font, 
+                  var_name, 
+                  V2(pos.x, pos.y + (size.y - debug->font.font_size)),
+                  layer + LAYER_FRONT);
     pos.x += MAX_NAME_WIDTH;
     
     PushQuad(group, pos, size, bg_main_color, layer + LAYER_BACKMID);
@@ -1079,7 +1078,7 @@ UiButton(DebugState* debug, char* name, vec2 pos = V2(0), vec2 size = V2(80, 40)
                        pos.x + (size.x / 2.0f),
                        pos.y + (size.y / 2.0f) - (debug->font.font_size / 4.0f)
                        );
-    DrawText(group, &debug->font, name, text_pos, layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
+    DEBUGDrawText(group, &debug->font, name, text_pos, layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
     
     
     if (WindowIsFocused(debug, debug->current_window))
@@ -1116,11 +1115,11 @@ UiSilder(DebugState* debug,
         var_name = StringCopy(&debug->temp_arena, var_name);
         TruncateName(var_name);
     }
-    DrawText(group,
-             &debug->font, 
-             var_name, 
-             V2(pos.x, pos.y + (bar_size.y - debug->font.font_size)), 
-             layer + LAYER_FRONT);
+    DEBUGDrawText(group,
+                  &debug->font, 
+                  var_name, 
+                  V2(pos.x, pos.y + (bar_size.y - debug->font.font_size)), 
+                  layer + LAYER_FRONT);
     
     pos.x += MAX_NAME_WIDTH;
     
@@ -1165,7 +1164,7 @@ UiSilder(DebugState* debug,
     vec2 text_pos = V2(pos.x+(bar_size.x/2), pos.y + (bar_size.y - debug->font.font_size));
     char text[32];
     snprintf(text, 32, "%.2f", *value);
-    DrawText(debug->render_group, &debug->font, text, text_pos, layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
+    DEBUGDrawText(debug->render_group, &debug->font, text, text_pos, layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
     
     button_position.x += (((*value)-min)/range) * (bar_size.x - button_size.x);
     PushQuad(group, button_position, button_size, button_color, layer + LAYER_FRONT);
@@ -1372,11 +1371,11 @@ UiColorpicker(DebugState* debug, Color* var, char* var_name)
         TruncateName(var_name);
     }
     
-    DrawText(debug->render_group, 
-             &debug->font, 
-             var_name, 
-             V2(pos.x, pos.y + (size.y - debug->font.font_size)), 
-             layer + LAYER_FRONT);
+    DEBUGDrawText(debug->render_group, 
+                  &debug->font, 
+                  var_name, 
+                  V2(pos.x, pos.y + (size.y - debug->font.font_size)), 
+                  layer + LAYER_FRONT);
     pos.x += MAX_NAME_WIDTH;
     
     PushQuad(debug->render_group, pos, size, color, layer + LAYER_MID);

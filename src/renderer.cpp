@@ -1,12 +1,12 @@
 #define VERTICES_PER_QUAD 4
 #define INDICES_PER_QUAD 6
-#define NUM_ASCII 96
 
 const Layer LAYER_BACK = 0;
 const Layer LAYER_BACKMID = 1;
 const Layer LAYER_MID = 2;
 const Layer LAYER_MIDFRONT = 3;
 const Layer LAYER_FRONT = 4;
+const Color COLOR_WHITE = {255, 255, 255, 255};
 
 internal inline Color
 NewColor(u8 r, u8 b, u8 g, u8 a)
@@ -59,7 +59,6 @@ AddUniform(Shader* shader, char* name, MemoryArena* arena)
     return uniform->next;
 }
 
-// 
 
 #define SetShaderUniform(shader, n, value, type) \
 { \

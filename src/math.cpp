@@ -9,6 +9,7 @@
 #define Fmod_V3(v, x) fmod_vec3(v, x)
 #define IFloor(x) ((int) floor(x))
 #define Atof(x) atof(x)
+#define Roundf(x) roundf(x)
 
 internal vec3 
 fmod_vec3(vec3 v, f32 x)

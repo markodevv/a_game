@@ -39,7 +39,7 @@ SpriteType :: enum
     TYPE_SUBSPRITE,
 }
 
-SpriteID :: enum
+SpriteEnum :: enum
 {
     WHITE_SPRITE,
     RED_SPRITE,
@@ -58,11 +58,11 @@ Sprite :: struct
     width: i32,
     height: i32,
     channels: i32,
-    // TODO: this should't be u32
-    main_sprite: u32,
+@NoPrint
+    main_sprite: SpriteID,
     
-    @NoPrint
-        uvs: [4]vec2,
+@NoPrint
+    uvs: [4]vec2,
     
     type: SpriteType,
     id: u32,
@@ -81,6 +81,14 @@ CharMetric :: struct
     xadvance: f32,
 }
 
+CharInfo :: struct
+{
+    xoffset: f32,
+    width: f32,
+    height: f32,
+    sprite_id: SpriteID,
+}
+
 TextAlign :: enum
 {
     TEXT_ALIGN_MIDDLE,
@@ -89,11 +97,12 @@ TextAlign :: enum
 
 Font :: struct
 {
-    sprite_ids: *RuntimeSpriteID,
+    sprite_ids: *SpriteID,
     char_metrics: *CharMetric,
+    char_info: *CharInfo,
     num_chars: u16,
     font_size: u32,
-    font_sprite_id: RuntimeSpriteID,
+    font_sprite_id: SpriteID,
 }
 
 
@@ -197,17 +206,11 @@ Assets :: struct
 {
     arena: MemoryArena,
     
-    loaded_sprite_queue: *SpriteID,
+    loaded_sprite_queue: **Sprite,
     num_queued_sprites: u32,
-    
-    runtime_sprite_queue: *RuntimeSpriteID,
-    num_runtime_queued_sprites: u32,
-    
     
     sprites: *Sprite,
     num_sprites: u32,
-    
-    num_runtime_sprites: u32,
     
     shaders: [NUM_SHADERS]Shader,
 }
@@ -291,3 +294,4 @@ Renderer2D :: struct
     shader_program_3D: u32,
 }
 
+NUM_ASCII :: 96

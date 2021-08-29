@@ -21,6 +21,12 @@
 struct DebugState* global_debug_state;
 #endif
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#include <stb_truetype.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
+
+
 #include <stb_image.h>
 #include "log.h"
 #include "platform.h"
@@ -35,8 +41,8 @@ struct DebugState* global_debug_state;
 #include "generated/renderer.h"
 #include "generated/debug.h"
 #include "debug_profiler.cpp"
+#include "generated/entity.h"
 #include "generated/game.h"
-#include "generated_print.c"
 #include "asset.cpp"
 #include "opengl_renderer.h"
 #include "opengl_renderer.cpp"

@@ -79,7 +79,7 @@ PushQuad(RenderGroup* group,
     }
     
     QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
-    Sprite* sprite = GetLoadedSprite(group->assets, id);
+    Sprite* sprite = GetSprite(group->assets, id);
     
     entry->position = V3(position, layer);
     entry->size = size;
@@ -87,37 +87,6 @@ PushQuad(RenderGroup* group,
     entry->sprite = sprite;
     entry->shader_id = shader_id;
 }
-
-
-
-internal void
-PushQuad(RenderGroup* group, 
-         vec2 position, 
-         vec2 size, 
-         Color color, 
-         Layer layer,
-         RuntimeSpriteID id,
-         ShaderId shader_id = SHADER_ID_NORMAL)
-{
-    u32 key = shader_id;
-    
-    if (color.a != 255)
-    {
-        key += 100 + layer;
-    }
-    
-    QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
-    Sprite* sprite = GetRuntimeSprite(group->assets, id);
-    
-    
-    
-    entry->position = V3(position, layer);
-    entry->size = size;
-    entry->color = color;
-    entry->sprite = sprite;
-    entry->shader_id = shader_id;
-}
-
 
 
 
@@ -139,7 +108,7 @@ PushTriangle(RenderGroup* group,
     }
     
     TriangleEntry* entry = PushRenderEntry(group, TriangleEntry, key);
-    Sprite* sprite = GetLoadedSprite(group->assets, id);
+    Sprite* sprite = GetSprite(group->assets, id);
     
     entry->points[0] = V3(p1, layer);
     entry->points[1] = V3(p2, layer);
@@ -165,15 +134,39 @@ GetTextPixelWidth(Font* font, char* text)
     return out;
 }
 
-
 internal void
 DrawText(RenderGroup* render_group,
          Font* font,
          char* text,
          vec2 position,
-         Layer layer,
-         TextAlign align = TEXT_ALIGN_LEFT,
-         Color color = {255, 255, 255, 254})
+         Layer layer)
+{
+    while (*text)
+    {
+        if (*text >= 32 && *text <= 128)
+        {
+            i32 index = *text-32;
+            CharInfo* info = font->char_info + index;
+            
+            PushQuad(render_group, position,
+                     V2(info->width, info->height),
+                     COLOR_WHITE, layer, info->sprite_id);
+            
+            position.x += info->xoffset;
+        }
+        
+        text++;
+    }
+}
+
+internal void
+DEBUGDrawText(RenderGroup* render_group,
+              Font* font,
+              char* text,
+              vec2 position,
+              Layer layer,
+              TextAlign align = TEXT_ALIGN_LEFT,
+              Color color = {255, 255, 255, 254})
 {
     if (align == TEXT_ALIGN_MIDDLE)
     {

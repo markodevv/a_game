@@ -56,6 +56,18 @@ void main()
     {
         frag_color = color * texture(u_textures[4], uv);
     }
+    else if (index == 5)
+    {
+        frag_color = color * texture(u_textures[5], uv);
+    }
+    else if (index == 6)
+    {
+        frag_color = color * texture(u_textures[6], uv);
+    }
+    else if (index == 7)
+    {
+        frag_color = color * texture(u_textures[7], uv);
+    }
 }
 
 )";

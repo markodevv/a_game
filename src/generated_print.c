@@ -191,8 +191,6 @@ LogS("  ");
 LogS("channels : %i", object->channels);
 LogS(",\n");
 LogS("  ");
-LogS("main_sprite : %i", object->main_sprite);
-LogS(",\n");
 LogS("  ");
 LogS("  ");
 LogS("type\n");
@@ -214,57 +212,12 @@ LogS("}");
 LogS("\n\n");
 }
 
-void Log(UiWindow *object)
-{
-LogS("UiWindow\n");
-LogS("");
-LogS("{\n");
-LogS("  ");
-LogS("position\n");
-LogS("  ");
-LogS("{\n");
-LogS("    ");
-LogS("x : %f", object->position.x);
-LogS(",\n");
-LogS("    ");
-LogS("y : %f", object->position.y);
-LogS(",\n");
-LogS("  ");
-LogS("}");
-LogS(",\n");
-LogS("  ");
-LogS("size\n");
-LogS("  ");
-LogS("{\n");
-LogS("    ");
-LogS("x : %f", object->size.x);
-LogS(",\n");
-LogS("    ");
-LogS("y : %f", object->size.y);
-LogS(",\n");
-LogS("  ");
-LogS("}");
-LogS(",\n");
-LogS("  ");
-LogS("layer : %i", object->layer);
-LogS(",\n");
-LogS("  ");
-LogS("id : %s", object->id);
-LogS(",\n");
-LogS("  ");
-LogS("");
-LogS("}");
-LogS("\n\n");
-}
-
 void Log(Render *object)
 {
 LogS("Render\n");
 LogS("");
 LogS("{\n");
 LogS("  ");
-LogS("sprite : %i", object->sprite);
-LogS(",\n");
 LogS("  ");
 LogS("color\n");
 LogS("  ");
@@ -437,6 +390,49 @@ LogS(",\n");
 LogS("  ");
 LogS("}");
 LogS(",\n");
+LogS("");
+LogS("}");
+LogS("\n\n");
+}
+
+void Log(UiWindow *object)
+{
+LogS("UiWindow\n");
+LogS("");
+LogS("{\n");
+LogS("  ");
+LogS("position\n");
+LogS("  ");
+LogS("{\n");
+LogS("    ");
+LogS("x : %f", object->position.x);
+LogS(",\n");
+LogS("    ");
+LogS("y : %f", object->position.y);
+LogS(",\n");
+LogS("  ");
+LogS("}");
+LogS(",\n");
+LogS("  ");
+LogS("size\n");
+LogS("  ");
+LogS("{\n");
+LogS("    ");
+LogS("x : %f", object->size.x);
+LogS(",\n");
+LogS("    ");
+LogS("y : %f", object->size.y);
+LogS(",\n");
+LogS("  ");
+LogS("}");
+LogS(",\n");
+LogS("  ");
+LogS("layer : %i", object->layer);
+LogS(",\n");
+LogS("  ");
+LogS("id : %s", object->id);
+LogS(",\n");
+LogS("  ");
 LogS("");
 LogS("}");
 LogS("\n\n");

@@ -7,6 +7,8 @@
 #include <stb_image.h>
 #define STB_TRUETYPE_IMPLEMENTATION
 #include <stb_truetype.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
 
 #ifdef GAME_DEBUG
 struct DebugState* global_debug_state;
@@ -27,11 +29,12 @@ struct DebugState* global_debug_state;
 #include "renderer.cpp"
 #include "generated/debug.h"
 #include "debug_profiler.cpp"
+#include "generated/entity.h"
 #include "generated/game.h"
+#include "entity.cpp"
 #include "asset.cpp"
 #include "render_group.cpp"
 #include "generated_print.c"
-#include "entity.cpp"
 #include "debug_ui.cpp"
 
 
@@ -239,7 +242,7 @@ InitGrid(WorldState* world)
             
             *render = 
             {
-                0,
+                WHITE_SPRITE,
                 NewColor(120, 20, 40, 255),
                 LAYER_BACKMID,
             };
@@ -274,35 +277,6 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
     //ren->camera.position.z = 9000.0f;
     
     ren->assets = &game_state->assets;
-    
-    // NOTE: needs to be first image loaded
-    Assert(game_state->assets.num_sprites == 0);
-    
-    
-    LoadSpriteWorkData sprites[5];
-    
-    sprites[0].assets = &game_state->assets;
-    sprites[0].sprite_id = WHITE_SPRITE;
-    sprites[0].sprite_path = "../assets/white.png";
-    sprites[1].assets = &game_state->assets;
-    sprites[1].sprite_id = RED_SPRITE;
-    sprites[1].sprite_path  = "../assets/red.png";
-    sprites[2].assets = &game_state->assets;
-    sprites[2].sprite_id = GREEN_SPRITE;
-    sprites[2].sprite_path = "../assets/green.png";
-    sprites[3].assets = &game_state->assets;
-    sprites[3].sprite_id = BLUE_SPRITE;
-    sprites[3].sprite_path = "../assets/blue.png";
-    sprites[4].assets = &game_state->assets;
-    sprites[4].sprite_id = PINK_SPRITE;
-    sprites[4].sprite_path = "../assets/pink.png";
-    
-    for (u32 i = 0; i < ArrayCount(sprites); ++i)
-    {
-        g_Platform.PushWorkEntry(g_Platform.work_queue, LoadSpriteWork, &sprites[i]);
-    }
-    
-    g_Platform.WaitForWorkers(g_Platform.work_queue);
     
     LoadOBJModel(&g_Platform, &game_state->assets, "../assets/models/cube.obj");
     
@@ -342,11 +316,11 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
     AddComponent(world, player, Rigidbody);
     AddComponent(world, player, ParticleEmitter);
     
-    /*
-        ParticleEmitter* player_particles = GetComponent(world, player, ParticleEmitter);
-        *player_particles = CreateParticleEmitter(&game_state->flush_arena, world, V2(-100), V2(100), 4,
-     NewColor(255), V2(30), 10000);
-    */
+#if 0
+    ParticleEmitter* player_particles = GetComponent(world, player, ParticleEmitter);
+    *player_particles = CreateParticleEmitter(&game_state->flush_arena, world, V2(-100), V2(100), 4,
+                                              NewColor(255), V2(30), 10000);
+#endif
     
     Transform* player_transform = GetComponent(world, player, Transform);
     *player_transform = {
@@ -356,7 +330,7 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
     };
     Render* player_render = GetComponent(world, player, Render);
     *player_render = {
-        0,
+        WHITE_SPRITE,
         NewColor(255),
         LAYER_FRONT
     };
@@ -374,7 +348,7 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
     AddComponent(world, goblin, Transform);
     
     Render* goblin_render = GetComponent(world, goblin, Render);
-    *goblin_render = {0, NewColor(255), LAYER_FRONT};
+    *goblin_render = {WHITE_SPRITE, NewColor(255), LAYER_FRONT};
     
     
     InitGrid(world);
@@ -385,7 +359,21 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
 extern "C" PLATFORM_API void
 GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
 {
+    
     GameState* game_state = (GameState*)memory->permanent_storage;
+    
+    if (!memory->is_initialized)
+    {
+        global_debug_state = memory->debug;
+        g_Platform = memory->platform;
+        InitGame(memory, game_state, input);
+        memory->is_initialized = true;
+        game_state->font = LoadFontTest(&game_state->assets, "../assets/fonts/consola.ttf", 14);
+        
+    }
+    
+    PROFILE_FUNCTION();
+    
     game_state->delta_time = delta_time;
     Renderer2D* ren = &game_state->renderer;
     input->mouse.position.y = ren->screen_height - input->mouse.position.y;
@@ -402,16 +390,6 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
                                                                       ren->screen_height);
         }
     }
-    
-    
-    if (!memory->is_initialized)
-    {
-        global_debug_state = memory->debug;
-        g_Platform = memory->platform;
-        InitGame(memory, game_state, input);
-        memory->is_initialized = true;
-    }
-    PROFILE_FUNCTION();
     
     
     
@@ -489,6 +467,7 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         }
     }
     
+    DrawText(game_state->render_group, &game_state->font, "testing hello", V2(200, 200), LAYER_FRONT);
     
     
     
@@ -524,7 +503,6 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
             UiFloat32Editbox(debug, &trans->rotation, "rotation");
             UiFloat32Editbox(debug, &trans->scale, "scale");
             
-            //Log(&game_state->render_group->setup.camera);
             UiColorpicker(debug, &render->color, "color");
             
             if (UiButton(debug, "Save Ui Config", V2(200, 200), V2(150, 20)))

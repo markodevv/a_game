@@ -12,3 +12,16 @@ load_paths = {
      {"./src/", .relative = true, .recursive = true}
     }, .os = "win"},
 };
+
+command_list = {
+   {
+   .name = "run",
+   .out = "*run*", 
+   .footer_panel = true, 
+   .save_dirty_files = false, 
+   .cursor_at_end = true,
+   .cmd = {{"./build/windows_platform", .os = "win"},},
+   },
+};
+
+fkey_command[5] = "run";

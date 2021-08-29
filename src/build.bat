@@ -8,7 +8,7 @@ set game_linker_flags=/OPT:REF /PDB:game_%random%.pdb %lib_paths% stb_truetype.l
 @RD /S /Q ".\generated"
 mkdir .\generated
 
-data_desk --custom ../meta/datadesk_layer.dll memory.mdesk math.mdesk input.mdesk renderer.mdesk debug.mdesk game.mdesk
+data_desk --custom ../meta/datadesk_layer.dll memory.mdesk math.mdesk input.mdesk renderer.mdesk entity.mdesk debug.mdesk game.mdesk
 
 IF NOT EXIST ..\build mkdir ..\build
 pushd ..\build

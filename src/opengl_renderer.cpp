@@ -636,25 +636,11 @@ OpenGLEndFrame(Renderer2D* ren)
         glViewport(0, 0, w, h);
     }
     
-    
-    // NOTE: this is a default white texture 
-    // Sprite* white_sprite = GetLoadedSprite(ren->assets, ren->white_sprite);
-    // if (!white_sprite->loaded_to_gpu)
-    // {
-    // Assert(ren->slot == 0);
-    // white_sprite->id = OpenGLLoadTexture(white_sprite, ren->slot);
-    // white_sprite->slot = ren->slot;
-    // ++ren->slot;
-    // }
-    // glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, white_sprite->id);
-    
     if (ren->assets->num_queued_sprites)
     {
         for (u32 i = 0; i < ren->assets->num_queued_sprites; ++i)
         {
-            SpriteID id = ren->assets->loaded_sprite_queue[i];
-            Sprite* sprite = GetLoadedSprite(ren->assets, id);
+            Sprite* sprite = ren->assets->loaded_sprite_queue[i];
             OpenGLLoadTexture(sprite, ren->slot);
             sprite->slot = ren->slot;
             ++ren->slot;
@@ -664,21 +650,7 @@ OpenGLEndFrame(Renderer2D* ren)
         }
         ren->assets->num_queued_sprites = 0;
     }
-    else if (ren->assets->num_runtime_queued_sprites)
-    {
-        for (u32 i = 0; i < ren->assets->num_runtime_queued_sprites; ++i)
-        {
-            RuntimeSpriteID id = ren->assets->runtime_sprite_queue[i];
-            Sprite* sprite = GetRuntimeSprite(ren->assets, id);
-            OpenGLLoadTexture(sprite, ren->slot);
-            sprite->slot = ren->slot;
-            ++ren->slot;
-            
-            glActiveTexture(GL_TEXTURE0 + sprite->slot);
-            glBindTexture(GL_TEXTURE_2D, sprite->id);
-        }
-        ren->assets->num_runtime_queued_sprites = 0;
-    }
+    
     u32 header_size = sizeof(RenderEntryHeader);
     
     RenderGroup* render_group = ren->render_groups;
@@ -726,8 +698,7 @@ OpenGLEndFrame(Renderer2D* ren)
                         }
                         else if (quad->sprite->type == TYPE_SUBSPRITE)
                         {
-                            // TODO
-                            sprite_slot = GetLoadedSprite(ren->assets, (SpriteID)quad->sprite->main_sprite)->slot;
+                            sprite_slot = GetSprite(ren->assets, quad->sprite->main_sprite)->slot;
                             uvs[0] = quad->sprite->uvs[0];
                             uvs[1] = quad->sprite->uvs[1];
                             uvs[2] = quad->sprite->uvs[2];
@@ -836,6 +807,6 @@ OpenGLEndFrame(Renderer2D* ren)
         
         render_group = ren->render_groups + (group_id + 1);
     }
-    OpenGLDrawMesh(ren, &ren->mesh);
+    //OpenGLDrawMesh(ren, &ren->mesh);
 }
 
