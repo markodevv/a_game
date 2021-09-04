@@ -8,7 +8,8 @@
 #define Fmod(a, b) (f32)fmod((double)a, (double)b)
 #define Fmod_V3(v, x) fmod_vec3(v, x)
 #define IFloor(x) ((int) floor(x))
-#define Atof(x) atof(x)
+#define ToFloat(x) atof(x)
+#define ToInt(x) atoi(x)
 #define Roundf(x) roundf(x)
 
 internal vec3 
@@ -60,6 +61,13 @@ RandomRange(f32 min, f32 max)
     f32 diff = max - min;
     f32 r = random * diff;
     return min + r;
+}
+
+internal u8
+RandomRangeU8(u8 min, u8 max)
+{
+    f32 random = ((f32)rand()) / (f32)RAND_MAX;
+    return (255 * random);
 }
 
 internal u64
@@ -292,6 +300,26 @@ Vec2DistanceSquared(vec2 a, vec2 b)
     return Vec2Length(b - a);
 }
 
+internal inline f32& 
+Vec2At(vec2 &v, sizet i)
+{
+    Assert(i >= 0 && i < 2);
+    return *(&v.x + i);
+}
+
+internal 
+b8 Vec2Equal(vec2 a, vec2 b)
+{
+    return (a.x == b.x && a.y == b.y);
+}
+
+
+internal 
+b8 Vec3Equal(vec3 a, vec3 b)
+{
+    return (a.x == b.x && a.y == b.y && a.z == b.z);
+}
+
 vec3
 operator+(vec3& v1, vec3 v2)
 {
@@ -334,6 +362,7 @@ operator/(vec3& v, f32 n)
 {
     return {v.x/n, v.y/n, v.z/n};
 }
+
 
 f32
 Vec3Length(vec3 v)

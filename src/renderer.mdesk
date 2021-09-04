@@ -254,7 +254,6 @@ Mesh :: struct
     indices: *u32,
     num_indices: u32,
     
-    
     material: Material,
     
     VAO: u32,

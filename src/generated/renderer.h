@@ -3081,7 +3081,6 @@ struct Mesh
     u32 *indices;
     u32 num_indices;
 
-
     Material material;
 
     u32 VAO;

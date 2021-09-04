@@ -1,21 +1,29 @@
-#ifdef GAME_PROFILE
+#ifdef GAME_DEBUG
 
 #define DEBUG_FRAME_START() \
-ProfilerStart()
+DebugFrameStart()
+
+#define DEBUG_FRAME_END() \
+DebugFrameEnd()
+
+#ifdef GAME_PROFILE
+
 #define PROFILE_FUNCTION() \
 Timer timer(__FUNCTION__)
 
 #define PROFILE_SCOPE(name) \
 Timer timer(name)
+#else
 
-#define DEBUG_FRAME_END() \
-ProfilerEnd()
+#define PROFILE_FUNCTION()
+#define PROFILE_SCOPE(name) 
+
+#endif
 
 #else
 
-#define PROFILER_FRAME_START()
-#define PROFILER_FRAME_END()
-#define PROFILE_FUNCTION()
+#define DEBUG_FRAME_START()
+#define DEBUG_FRAME_END()
 
 #endif
 
@@ -64,24 +72,28 @@ PrintProfileData()
     }
 }
 
+
 internal void
-ProfilerStart()
+DebugFrameStart()
 {
-    
+#if GAME_PROFILE
     global_debug_state->profile_entries = 0;
     global_debug_state->frame_start_cycles = g_Platform.GetPrefCounter();
+#endif
     global_debug_state->temp_memory = BeginTemporaryMemory(&global_debug_state->temp_arena);
 }
 
 internal void
-ProfilerEnd()
+DebugFrameEnd()
 {
+#if GAME_PROFILE
     f64 elapsed_time = g_Platform.GetElapsedSeconds(global_debug_state->frame_start_cycles);
     global_debug_state->game_fps = 1.0f/elapsed_time;
     LogM("FRAME DATA\n");
     LogM("FPS %f\n", global_debug_state->game_fps);
     LogM("Frame Time: %.2fms\n", elapsed_time * 1000.0f);
     PrintProfileData();
+#endif
     EndTemporaryMemory(&global_debug_state->temp_memory);
 }
 

@@ -172,7 +172,7 @@ void main()
 {
     vec4 frag = u_viewproj * u_transform * vec4(att_pos, 1.0f);
     uv = att_uv;
-    normal = mat3(u_normal_trans) * att_normal;
+    normal = mat3(transpose(inverse(u_normal_trans))) * att_normal;
     tex_id = att_texid;
 
     gl_Position = frag;
@@ -200,6 +200,8 @@ struct Light
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+
+    vec3 position;
 };
 
 out vec4 frag_color;
@@ -210,18 +212,16 @@ in vec2 uv;
 in float tex_id;
 
 uniform vec3 u_cam_pos;
-uniform vec3 u_light_pos;
 uniform Material u_material;
 uniform Light u_light;
 
 uniform sampler2D u_textures[32];
 
-
 void main()
 {
     vec3 norm = normalize(normal);
 
-    vec3 light_dir = normalize(u_light_pos - frag_pos);
+    vec3 light_dir = normalize(u_light.position - frag_pos);
     float diff = max(dot(light_dir, norm), 0.0f);
 
     vec3 view_dir = normalize(u_cam_pos - frag_pos);
@@ -243,5 +243,6 @@ void main()
     {
         frag_color = vec4(diffuse + ambient + specular, 1.0f);
     }
+
 }
 )";

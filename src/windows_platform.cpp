@@ -42,6 +42,7 @@ struct DebugState* global_debug_state;
 #include "generated/debug.h"
 #include "debug_profiler.cpp"
 #include "generated/entity.h"
+#include "generated_print.c"
 #include "generated/game.h"
 #include "asset.cpp"
 #include "opengl_renderer.h"
@@ -486,7 +487,7 @@ Win32InitOpenGL(HWND window_handle)
     
     
     // NOTE: Vsync
-    ((BOOL(WINAPI*)(int))wglGetProcAddress("wglSwapIntervalEXT"))(0);
+    ((BOOL(WINAPI*)(int))wglGetProcAddress("wglSwapIntervalEXT"))(1);
     
     Win32LoadOpenGLFunction(glAttachShader);
     Win32LoadOpenGLFunction(glBindBuffer);
@@ -853,7 +854,7 @@ WinMain(HINSTANCE hinstance,
     
     GameMemory game_memory = {};
     game_memory.permanent_storage_size = Megabytes(64);
-    game_memory.temporary_storage_size = Megabytes(128);
+    game_memory.temporary_storage_size = Megabytes(512);
     game_memory.debug_storage_size = Megabytes(48);
     
     game_memory.is_initialized = false;
@@ -918,8 +919,6 @@ WinMain(HINSTANCE hinstance,
     i32 last_game_dll_write_time = Win32GetLastWriteTime("game.dll");
     
     b8 paused = false;
-    // ASSIMP 
-    
     
     
     while(global_running)

@@ -1,5 +1,17 @@
 #define PushMemory(arena, type, ...)  (type *)_PushMemory(arena, sizeof(type), ##__VA_ARGS__)
 
+internal void
+MemoryClear(void* memory, sizet size)
+{
+    u8* next_to_clear = (u8*)memory;
+    
+    for (u32 i = 0; i < size; ++i)
+    {
+        *next_to_clear = 0;
+        next_to_clear++;
+    }
+}
+
 
 internal void*
 _PushMemory(MemoryArena* arena, sizet type_size, sizet count = 1)
@@ -7,6 +19,8 @@ _PushMemory(MemoryArena* arena, sizet type_size, sizet count = 1)
     Assert((arena->size - arena->used) > (type_size * count));
     u8* out = arena->base + arena->used;
     arena->used += type_size * count;
+    
+    MemoryClear(out, type_size);
     
     return out;
 }
@@ -48,16 +62,4 @@ EndTemporaryMemory(TemporaryArena* temp_arena)
     *temp_arena = {};
     
     --arena->temp_arena_count;
-}
-
-internal void
-MemoryClear(void* memory, u32 size)
-{
-    u8* next_to_clear = (u8*)memory;
-    
-    for (u32 i = 0; i < size; ++i)
-    {
-        *next_to_clear = 0;
-        next_to_clear++;
-    }
 }

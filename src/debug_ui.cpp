@@ -613,81 +613,6 @@ UiSubmenuTitlebar(DebugState* debug, vec2 position, vec2 size, char* title)
 }
 
 internal void
-UiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer2D* ren)
-{
-    
-    debug->prev_mouse_pos = debug->input.mouse.position;
-    debug->input = *input;
-    debug->screen_width = ren->screen_width;
-    debug->screen_height = ren->screen_height;
-    debug->current_window = 0;
-    debug->sub_menu_index = 0;
-    
-    debug->next_hot_item = debug->hot_item;
-    debug->hot_item = 0;
-    
-    
-    if (ButtonPressed(input, BUTTON_MOUSE_LEFT))
-    {
-        UiWindow** windows =  PushMemory(&debug->temp_arena, 
-                                         UiWindow*, 
-                                         ArrayCount(debug->window_table));
-        u32 len = 0;
-        
-        for (u32 i = 0; i < ArrayCount(debug->window_table); ++i)
-        {
-            for (UiWindow* window = debug->window_table[i]; 
-                 window; 
-                 window= window->next)
-            {
-                Log(window);
-                windows[len] = window;
-                len++;
-            }
-        }
-        
-        LogM("Number of windows %i\n", len);
-        
-        // TODO: better sort
-        // Sort by layer
-        for (i32 i = 0; i < (i32)len; ++i)
-        {
-            UiWindow* win = windows[i];
-            
-            i32 j = i - 1;
-            while (j >= 0 && windows[j]->layer < win->layer)
-            {
-                windows[j+1] = windows[j];
-                --j;
-            }
-            windows[j+1] = win;
-        }
-        
-        
-        // Top window should always be focused
-        UiWindow* focused_window = windows[0];
-        if (PointInsideRect(input->mouse.position,
-                            focused_window->position,
-                            focused_window->size))
-        {
-            return;
-        }
-        
-        for (u32 i = 1; i < len; ++i)
-        {
-            UiWindow* window = windows[i];
-            if (PointInsideRect(input->mouse.position,
-                                window->position,
-                                window->size))
-            {
-                SetWindowFocus(debug, window);
-                break;
-            }
-        }
-    }
-}
-
-internal void
 ReadUiConfig(DebugState* debug)
 {
     FileResult file = g_Platform.ReadEntireFile("./config.ui");
@@ -766,14 +691,92 @@ WriteUiConfig(DebugState* debug)
 }
 
 internal void
-UiEnd(DebugState* debug)
+UiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer2D* ren)
 {
+    Assert(debug->temp_memory.arena);
+    debug->prev_mouse_pos = debug->input.mouse.position;
+    debug->input = *input;
+    debug->screen_width = ren->screen_width;
+    debug->screen_height = ren->screen_height;
+    debug->current_window = 0;
+    debug->sub_menu_index = 0;
+    
+    debug->next_hot_item = debug->hot_item;
+    debug->hot_item = 0;
+    
     if (!debug->have_read_config)
     {
         ReadUiConfig(debug);
         debug->have_read_config = true;
     }
+    
     Assert(debug->temp_memory.arena);
+    
+    
+    if (ButtonPressed(input, BUTTON_MOUSE_LEFT))
+    {
+        UiWindow** windows =  PushMemory(&debug->temp_arena, 
+                                         UiWindow*, 
+                                         ArrayCount(debug->window_table));
+        u32 len = 0;
+        
+        for (u32 i = 0; i < ArrayCount(debug->window_table); ++i)
+        {
+            for (UiWindow* window = debug->window_table[i]; 
+                 window; 
+                 window= window->next)
+            {
+                Log(window);
+                windows[len] = window;
+                len++;
+            }
+        }
+        
+        LogM("Number of windows %i\n", len);
+        
+        // TODO: better sort
+        // Sort by layer
+        for (i32 i = 0; i < (i32)len; ++i)
+        {
+            UiWindow* win = windows[i];
+            
+            i32 j = i - 1;
+            while (j >= 0 && windows[j]->layer < win->layer)
+            {
+                windows[j+1] = windows[j];
+                --j;
+            }
+            windows[j+1] = win;
+        }
+        
+        
+        // Top window should always be focused
+        UiWindow* focused_window = windows[0];
+        if (PointInsideRect(input->mouse.position,
+                            focused_window->position,
+                            focused_window->size))
+        {
+            return;
+        }
+        
+        for (u32 i = 1; i < len; ++i)
+        {
+            UiWindow* window = windows[i];
+            if (PointInsideRect(input->mouse.position,
+                                window->position,
+                                window->size))
+            {
+                SetWindowFocus(debug, window);
+                break;
+            }
+        }
+    }
+}
+
+internal void
+UiEnd(DebugState* debug)
+{
+    
 }
 
 internal void

@@ -32,9 +32,9 @@ struct DebugState* global_debug_state;
 #include "generated/entity.h"
 #include "generated/game.h"
 #include "entity.cpp"
+#include "generated_print.c"
 #include "asset.cpp"
 #include "render_group.cpp"
-#include "generated_print.c"
 #include "debug_ui.cpp"
 
 
@@ -144,7 +144,7 @@ ParticleUpdate(GameState* game_state, Array* entities)
             PushQuad(game_state->render_group, 
                      particle->position,
                      emitter->size,
-                     emitter->color,
+                     RandomColor(),
                      LAYER_MID);
         }
         
@@ -272,13 +272,9 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
     AssetsInit(&game_state->assets, &game_state->flush_arena);
     
     
-    //ren->camera.up = V3(0, 1, 0);
-    //ren->camera.direction = V3(0, 0, 1);
-    //ren->camera.position.z = 9000.0f;
-    
     ren->assets = &game_state->assets;
     
-    LoadOBJModel(&g_Platform, &game_state->assets, "../assets/models/cube.obj");
+    ren->mesh = LoadOBJModel(&g_Platform, &game_state->assets, "../assets/models/cube.obj");
     
     g_Platform.InitRenderer(&game_state->renderer);
     game_state->render_group = CreateRenderGroup(&game_state->flush_arena, Mat4Orthographic((f32)ren->screen_width, (f32)ren->screen_height),
@@ -470,7 +466,6 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
     DrawText(game_state->render_group, &game_state->font, "testing hello", V2(200, 200), LAYER_FRONT);
     
     
-    
     if (global_is_edit_mode)
     {
         DebugState* debug = memory->debug;
@@ -533,6 +528,24 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
             UiFloat32Editbox(debug, &pe->size, "size");
             UiInt32Editbox(debug, &pe->particle_spawn_rate, "spawn rate");
             UiColorpicker(debug, &pe->color, "color");
+        }
+        if (UiSubmenu(debug, "3D rendering"))
+        {
+            if (UiSubmenu(debug, "Lighting"))
+            {
+                UiFloat32Editbox(debug, &ren->light.position, "Light position");
+                UiFloat32Editbox(debug, &ren->light.ambient, "Ambient light");
+                UiFloat32Editbox(debug, &ren->light.diffuse, "Diffuse light");
+                UiFloat32Editbox(debug, &ren->light.specular, "Specular light");
+            }
+            if (UiSubmenu(debug, "Material"))
+            {
+                UiFloat32Editbox(debug, &ren->mesh.material.ambient, "ambient");
+                UiFloat32Editbox(debug, &ren->mesh.material.diffuse, "diffuse");
+                UiFloat32Editbox(debug, &ren->mesh.material.specular, "specular");
+                UiFloat32Editbox(debug, &ren->mesh.material.shininess, "shininess");
+            }
+            
         }
         
         UiWindowEnd(memory->debug);

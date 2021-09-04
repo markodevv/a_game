@@ -285,12 +285,15 @@ OpenGLLoadMesh(Mesh* mesh)
     glBindVertexArray(mesh->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
     
-    glGenBuffers(1, &mesh->EBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
-    u32 size = mesh->num_indices * sizeof(u32);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, (void*)mesh->indices, GL_STATIC_DRAW);
+    if (mesh->num_indices)
+    {
+        glGenBuffers(1, &mesh->EBO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
+        u32 size = mesh->num_indices * sizeof(u32);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, (void*)mesh->indices, GL_STATIC_DRAW);
+    }
     
-    size = sizeof(Vertex3D) * mesh->num_vertices;
+    u32 size = sizeof(Vertex3D) * mesh->num_vertices;
     glBufferData(GL_ARRAY_BUFFER, size, (void*)mesh->vertices, GL_STATIC_DRAW);
     
     // position
@@ -312,29 +315,6 @@ OpenGLLoadMesh(Mesh* mesh)
     glBindVertexArray(0);
     
 }
-
-Vertex3D cube_vertices[] = 
-{
-    {{-0.5f, -0.5f, -0.5f}, {0, 0, 1}},
-    {{0.5f, -0.5f, -0.5f}, {1, 0, 0}},
-    {{0.5f, 0.5f, -0.5f}, {0, 0, -1}},
-    {{-0.5f, 0.5f, -0.5f}, {-1, 0, 0}},
-    {{-0.5f, -0.5f, 0.5f}, {0, 1, 0}},
-    {{0.5f, -0.5f, 0.5f}, {0, -1, 0}},
-    {{0.5f, 0.5f, 0.5f}},
-    {{-0.5f, 0.5f, 0.5f}},
-};
-
-u32 cube_indices[] =
-{
-    0, 1, 3, 3, 1, 2,
-    1, 5, 2, 2, 5, 6,
-    5, 4, 6, 6, 4, 7,
-    4, 0, 7, 7, 0, 3,
-    3, 2, 7, 7, 2, 6,
-    4, 5, 0, 0, 5, 1
-};
-
 
 
 internal void
@@ -391,11 +371,6 @@ OpenGLInit(Renderer2D* ren)
     
     glBindVertexArray(0);
     
-    ren->mesh.vertices = cube_vertices,
-    ren->mesh.num_vertices = ArrayCount(cube_vertices);
-    
-    ren->mesh.indices = cube_indices;
-    ren->mesh.num_indices = ArrayCount(cube_vertices);
     
     ren->mesh.material = CreateMaterial(V3(0.2f), V3(0.1f), V3(0.5f), 1.0f);
     
@@ -554,14 +529,17 @@ OpenGLDraw(Renderer2D* ren, RenderSetup* setup, ShaderId shader_id)
 internal void
 OpenGLSetLightUniform(u32 shader_program, Light* light)
 {
-    i32 amb, spec, diff;
+    i32 amb, spec, diff, pos;
+    
     amb = OpenGLGetUniformLocation(shader_program, "u_light.ambient");
     spec = OpenGLGetUniformLocation(shader_program, "u_light.specular");
     diff = OpenGLGetUniformLocation(shader_program, "u_light.diffuse");
+    pos = OpenGLGetUniformLocation(shader_program, "u_light.position");
     
     glUniform3fv(amb, 1, &light->ambient.x);
     glUniform3fv(spec, 1, &light->specular.x);
     glUniform3fv(diff, 1, &light->diffuse.x);
+    glUniform3fv(pos, 1, &light->position.x);
 }
 
 
@@ -595,7 +573,7 @@ OpenGLDrawMesh(Renderer2D* ren, Mesh* mesh)
     
     mat4 view = CameraTransform(ren->camera);
     mat4 vp = projection * view;
-    mat4 normal_transform = Mat4Transpose(Mat4Inverse(transform));
+    //mat4 normal_transform = Mat4Transpose(Mat4Inverse(transform));
     b8 do_transpose = true;
     
     i32 vp_loc = OpenGLGetUniformLocation(ren->shader_program_3D, "u_viewproj");
@@ -606,7 +584,7 @@ OpenGLDrawMesh(Renderer2D* ren, Mesh* mesh)
     glUniformMatrix4fv(transform_loc, 1, do_transpose, (f32*)&transform.rows[0].x);
     
     i32 normal_loc =  OpenGLGetUniformLocation(ren->shader_program_3D, "u_normal_trans");
-    glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)&normal_transform.rows[0].x);
+    glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)&transform.rows[0].x);
     
     
     OpenGLSetMaterialUniform(ren->shader_program_3D, &mesh->material);
@@ -614,10 +592,16 @@ OpenGLDrawMesh(Renderer2D* ren, Mesh* mesh)
     // TODO(Marko): textures
     glBindVertexArray(mesh->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
     
-    
-    glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, 0);
+    if (mesh->num_indices)
+    {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
+        glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, 0);
+    }
+    else
+    {
+        glDrawArrays(GL_TRIANGLES, 0, mesh->num_vertices);
+    }
 }
 
 internal void
@@ -807,6 +791,6 @@ OpenGLEndFrame(Renderer2D* ren)
         
         render_group = ren->render_groups + (group_id + 1);
     }
-    //OpenGLDrawMesh(ren, &ren->mesh);
+    OpenGLDrawMesh(ren, &ren->mesh);
 }
 

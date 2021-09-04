@@ -8,6 +8,17 @@ const Layer LAYER_MIDFRONT = 3;
 const Layer LAYER_FRONT = 4;
 const Color COLOR_WHITE = {255, 255, 255, 255};
 
+internal Color
+RandomColor()
+{
+    return {
+        RandomRangeU8(0, 255),
+        RandomRangeU8(0, 255), 
+        RandomRangeU8(0, 255), 
+        255
+    };
+}
+
 internal inline Color
 NewColor(u8 r, u8 b, u8 g, u8 a)
 {
@@ -88,9 +99,9 @@ CreateMaterial(vec3 ambient, vec3 diffuse, vec3 specular, f32 shininess)
 }
 
 inline internal Light
-CreateLight(vec3 position ,vec3 ambient, vec3 diffuse, vec3 specular)
+CreateLight(vec3 position, vec3 ambient, vec3 diffuse, vec3 specular)
 {
-    return {position, ambient, diffuse, specular};
+    return {ambient, diffuse, specular, position};
 }
 
 inline internal Camera
