@@ -68,7 +68,7 @@ PushQuad(RenderGroup* group,
          vec2 size, 
          Color color, 
          Layer layer,
-         SpriteID id = WHITE_SPRITE,
+         SpriteID sprite_id = WHITE_SPRITE,
          ShaderId shader_id = SHADER_ID_NORMAL)
 {
     u32 key = shader_id;
@@ -79,12 +79,34 @@ PushQuad(RenderGroup* group,
     }
     
     QuadEntry* entry = PushRenderEntry(group, QuadEntry, key);
-    Sprite* sprite = GetSprite(group->assets, id);
     
     entry->position = V3(position, layer);
     entry->size = size;
     entry->color = color;
+    entry->sprite_id = sprite_id;
+    entry->shader_id = shader_id;
+}
+
+
+internal void
+PushMesh(RenderGroup* group, 
+         vec3 position, 
+         vec3 scale, 
+         Color color, 
+         MeshEnum id,
+         ShaderId shader_id = SHADER_ID_BASIC_3D)
+{
+    u32 key = shader_id;
+    
+    // TODO(Marko): Probably don't need to sort meshes 
+    MeshEntry* entry = PushRenderEntry(group, MeshEntry, 0);
+    Sprite* sprite = GetSprite(group->assets, id);
+    
+    entry->position = position;
+    entry->scale = scale;
+    entry->color = color;
     entry->sprite = sprite;
+    entry->mesh = GetMesh(group->assets, id);
     entry->shader_id = shader_id;
 }
 
@@ -135,7 +157,7 @@ GetTextPixelWidth(Font* font, char* text)
 }
 
 internal void
-DrawText(RenderGroup* render_group,
+PushText(RenderGroup* render_group,
          Font* font,
          char* text,
          vec2 position,

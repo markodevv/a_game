@@ -1,4 +1,4 @@
-// SPRITE LOADING
+///// SPRITE LOADING //////
 
 internal Sprite*
 GetSprite(Assets* assets, SpriteID id)
@@ -6,14 +6,24 @@ GetSprite(Assets* assets, SpriteID id)
     return assets->sprites + id;
 }
 
-internal void
-LoadSprite(Assets* assets, SpriteEnum sprite_enum, char* sprite_path)
+struct LoadSpriteWorkData
 {
-    FileResult file = g_Platform.ReadEntireFile(sprite_path);
+    MemoryTask* task;
+    Assets* assets;
+    SpriteEnum sprite_id;
+    char* sprite_path;
+};
+
+
+internal void
+LoadSpriteWork(void* data)
+{
+    LoadSpriteWorkData* sprite_data = (LoadSpriteWorkData*)(data);
+    FileResult file = g_Platform.ReadEntireFile(sprite_data->sprite_path);
     
     if (file.data)
     {
-        Sprite* sprite = GetSprite(assets, (SpriteID)sprite_enum);
+        Sprite* sprite = GetSprite(sprite_data->assets, (SpriteID)sprite_data->sprite_id);
         
         stbi_set_flip_vertically_on_load(1);
         sprite->data = stbi_load_from_memory((u8*)file.data,
@@ -23,68 +33,58 @@ LoadSprite(Assets* assets, SpriteEnum sprite_enum, char* sprite_path)
                                              &sprite->channels,
                                              0);
         
-        sprite->name = StringCopy(&assets->arena, sprite_path);
-        
         g_Platform.FreeFileMemory(file.data);
-        assets->loaded_sprite_queue[assets->num_queued_sprites++] = sprite;
+        sprite_data->assets->loaded_sprite_queue[sprite_data->assets->num_queued_sprites++] = sprite_data->sprite_id;
     }
     else
     {
-        LogM("Failed to load sprite %s.\n", sprite_path);
+        LogM("Failed to load sprite %s.\n", sprite_data->sprite_path);
     }
-}
-
-struct LoadSpriteWorkData
-{
-    Assets* assets;
-    SpriteEnum sprite_id;
-    char* sprite_path;
-};
-
-internal void
-LoadSpriteWork(void* data)
-{
-    LoadSpriteWorkData* work_data = (LoadSpriteWorkData*)data;
-    LoadSprite(work_data->assets, work_data->sprite_id, work_data->sprite_path);
+    
+    EndMemoryTask(sprite_data->task);
 }
 
 internal void
-AssetsInit(Assets* assets, MemoryArena* arena)
+LoadSprite(Assets* assets, SpriteEnum sprite_enum)
 {
-    SubArena(arena, &assets->arena, Megabytes(128));
-    
-    assets->sprites = PushMemory(&assets->arena, Sprite, 512);
-    assets->loaded_sprite_queue = PushMemory(&assets->arena, Sprite*, 50);
-    
-    Assert(assets->num_sprites == 0);
-    
-    
-    LoadSpriteWorkData sprites[5];
-    
-    sprites[0].assets = assets;
-    sprites[0].sprite_id = WHITE_SPRITE;
-    sprites[0].sprite_path = "../assets/white.png";
-    sprites[1].assets = assets;
-    sprites[1].sprite_id = RED_SPRITE;
-    sprites[1].sprite_path  = "../assets/red.png";
-    sprites[2].assets = assets;
-    sprites[2].sprite_id = GREEN_SPRITE;
-    sprites[2].sprite_path = "../assets/green.png";
-    sprites[3].assets = assets;
-    sprites[3].sprite_id = BLUE_SPRITE;
-    sprites[3].sprite_path = "../assets/blue.png";
-    sprites[4].assets = assets;
-    sprites[4].sprite_id = PINK_SPRITE;
-    sprites[4].sprite_path = "../assets/pink.png";
-    
-    for (u32 i = 0; i < ArrayCount(sprites); ++i)
+    MemoryTask* task = BeginMemoryTask(&assets->task_queue);
+    if (task)
     {
-        g_Platform.PushWorkEntry(g_Platform.work_queue, LoadSpriteWork, &sprites[i]);
+        LoadSpriteWorkData* work_data = PushMemory(&task->arena, LoadSpriteWorkData);
+        work_data->task = task;
+        work_data->assets = assets;
+        work_data->sprite_id = sprite_enum;
+        
+        switch(sprite_enum)
+        {
+            case WHITE_SPRITE:
+            {
+                work_data->sprite_path = "../assets/white.png";
+            } break;
+            case RED_SPRITE:
+            {
+                work_data->sprite_path  = "../assets/red.png";
+            } break;
+            case GREEN_SPRITE:
+            {
+                work_data->sprite_path = "../assets/green.png";
+            } break;
+            case BLUE_SPRITE:
+            {
+                work_data->sprite_path = "../assets/blue.png";
+            } break;
+            case PINK_SPRITE:
+            {
+                work_data->sprite_path = "../assets/pink.png";
+            } break;
+            default:
+            {
+                LogM("No path for sprite enum %i!", sprite_enum);
+            }
+        }
+        
+        g_Platform.PushWorkEntry(g_Platform.work_queue, LoadSpriteWork, work_data);
     }
-    
-    assets->num_sprites = NUM_SPRITES;
-    
-    g_Platform.WaitForWorkers(g_Platform.work_queue);
     
 }
 
@@ -161,7 +161,7 @@ DEBUGCreateFontSprite(Assets* assets, u32 w, u32 h, u32 channels)
     
     sprite->type = TYPE_SPRITE;
     
-    assets->loaded_sprite_queue[assets->num_queued_sprites++] = sprite;
+    assets->loaded_sprite_queue[assets->num_queued_sprites++] = id;
     
     return id;
 }
@@ -235,9 +235,7 @@ LoadFontTest(Assets* assets, char* font_path, i8 font_size)
 struct OBJIndexBucket
 {
     u32 index;
-    vec3 position;
-    vec3 normal;
-    vec2 uv;
+    vec3 key;
     
     OBJIndexBucket* next;
 };
@@ -510,12 +508,9 @@ OBJSkipLine(OBJFileInfo* obj_info)
 }
 
 internal void
-OBJPutIndex(MemoryArena* arena, OBJFileInfo* obj_info, vec3 pos, vec3 norm, vec2 uv, u32 current_index)
+OBJPutIndex(MemoryArena* arena, OBJFileInfo* obj_info, vec3 key, u32 current_index)
 {
-    u32 hash = 
-        pos.x * 3 + pos.y * 9 + pos.z + 17 + 
-        norm.x * 3 + norm.y * 9 + norm.z + 17 +
-        uv.x * 3 + uv.y * 9;
+    u32 hash = key.x * 3 + key.y * 9 + key.z + 17;
     u32 hash_index = hash % (4096-1);
     
     OBJIndexBucket** bucket = &obj_info->index_map[hash_index];
@@ -524,9 +519,7 @@ OBJPutIndex(MemoryArena* arena, OBJFileInfo* obj_info, vec3 pos, vec3 norm, vec2
     if (!(*bucket))
     {
         *bucket = PushMemory(arena, OBJIndexBucket);
-        (*bucket)->position = pos;
-        (*bucket)->uv = uv;
-        (*bucket)->normal = norm;
+        (*bucket)->key = key;
         (*bucket)->index = current_index;
     }
     else
@@ -534,30 +527,23 @@ OBJPutIndex(MemoryArena* arena, OBJFileInfo* obj_info, vec3 pos, vec3 norm, vec2
         OBJIndexBucket* temp = PushMemory(arena, OBJIndexBucket);
         temp->next = *bucket;
         *bucket = temp;
-        (*bucket)->position = pos;
-        (*bucket)->uv = uv;
-        (*bucket)->normal = norm;
+        (*bucket)->key = key;
+        (*bucket)->index = current_index;
     }
     
 }
 
 internal OBJIndexBucket*
-OBJGetIndex(OBJFileInfo* obj_info, vec3 pos, vec3 norm, vec2 uv)
+OBJGetIndex(OBJFileInfo* obj_info, vec3 key)
 {
-    u32 hash = 
-        pos.x * 3 + pos.y * 9 + pos.z + 17 + 
-        norm.x * 3 + norm.y * 9 + norm.z + 17 +
-        uv.x * 3 + uv.y * 9;
-    
+    u32 hash = key.x * 3 + key.y * 9 + key.z + 17;
     u32 hash_index = hash % (4096-1);
     
     OBJIndexBucket* result = obj_info->index_map[hash_index];
     
     for (; result; result = result->next)
     {
-        if (Vec3Equal(pos, result->position) &&
-            Vec2Equal(uv, result->uv) &&
-            Vec3Equal(norm, result->normal))
+        if (Vec3Equal(key, result->key))
         {
             return result;
         }
@@ -567,15 +553,27 @@ OBJGetIndex(OBJFileInfo* obj_info, vec3 pos, vec3 norm, vec2 uv)
     return result;
 }
 
-internal Mesh
-LoadOBJModel(Platform* platform, Assets* assets, char* model_path)
+struct LoadOBJMeshWorkData
 {
-    Mesh result = {};
-    FileResult file = platform->ReadEntireFile(model_path);
+    MemoryTask* task;
+    
+    Assets* assets;
+    MeshEnum mesh_id;
+    char* mesh_path;
+};
+
+internal void
+LoadOBJMeshWork(void* param)
+{
+    LoadOBJMeshWorkData* work_data = (LoadOBJMeshWorkData*)param;
+    Assets* assets = work_data->assets;
+    Mesh* mesh = assets->meshes + work_data->mesh_id;
+    
+    FileResult file = g_Platform.ReadEntireFile(work_data->mesh_path);
     OBJFileInfo obj_info = GetOBJFileInfo(&assets->arena, file);
     
-    result.vertices = PushMemory(&assets->arena, Vertex3D, obj_info.face_count * 3);
-    result.indices = PushMemory(&assets->arena, u32, obj_info.face_count * 3);
+    mesh->vertices = PushMemory(&assets->arena, Vertex3D, obj_info.face_count * 3);
+    mesh->indices = PushMemory(&assets->arena, u32, obj_info.face_count * 3);
     
     TemporaryArena temp_memory = BeginTemporaryMemory(&assets->arena);
     
@@ -612,27 +610,26 @@ LoadOBJModel(Platform* platform, Assets* assets, char* model_path)
             
             for (u32 i = 0; i < 3; ++i)
             {
-                vec3 vertex_pos = obj_positions[face.position_indices[i]];
-                vec3 vertex_norm = obj_normals[face.normal_indices[i]];
-                vec2 vertex_uv = obj_uvs[face.uv_indices[i]];
+                vec3 key = V3(face.position_indices[i],
+                              face.normal_indices[i],
+                              face.uv_indices[i]);
                 
-                OBJIndexBucket* index_bucket = OBJGetIndex(&obj_info, vertex_pos, vertex_norm, vertex_uv);
+                OBJIndexBucket* index_bucket = OBJGetIndex(&obj_info, key);
                 
                 if (!index_bucket)
                 {
-                    u32 vertex_array_index = result.num_vertices;
+                    u32 vertex_array_index = mesh->num_vertices;
+                    
                     OBJPutIndex(&assets->arena, &obj_info, 
-                                vertex_pos, vertex_norm, vertex_uv, 
+                                key,
                                 vertex_array_index);
-                    result.indices[result.num_indices++] = vertex_array_index;
+                    mesh->indices[mesh->num_indices++] = vertex_array_index;
                     
-                    Vertex3D* vertex = result.vertices + result.num_vertices;
-                    vertex->position = vertex_pos;
-                    vertex->normal = vertex_norm;
-                    vertex->uv = vertex_uv;
+                    Vertex3D* vertex = mesh->vertices + mesh->num_vertices++;
                     
-                    vertex++;
-                    result.num_vertices++;
+                    vertex->position = obj_positions[face.position_indices[i]];
+                    vertex->normal = obj_normals[face.normal_indices[i]];
+                    vertex->uv = obj_uvs[face.uv_indices[i]];
                     
                     LogM("Position ");
                     Log(&vertex->position);
@@ -641,7 +638,13 @@ LoadOBJModel(Platform* platform, Assets* assets, char* model_path)
                 }
                 else
                 {
-                    result.indices[result.num_indices++] = index_bucket->index;
+                    Vertex3D* vertex = mesh->vertices + index_bucket->index;
+                    LogM("Position ");
+                    Log(&vertex->position);
+                    LogM("Normal ");
+                    Log(&vertex->normal);
+                    
+                    mesh->indices[mesh->num_indices++] = index_bucket->index;
                 }
             }
             
@@ -651,8 +654,6 @@ LoadOBJModel(Platform* platform, Assets* assets, char* model_path)
         OBJSkipLine(&obj_info);
     }
     
-    
-    LogM("Num vertices %d", result.num_vertices);
     /*
         if (result.num_indices == obj_info.face_count * 3)
         {
@@ -661,8 +662,74 @@ LoadOBJModel(Platform* platform, Assets* assets, char* model_path)
     */
     
     EndTemporaryMemory(&temp_memory);
-    platform->FreeFileMemory(file.data);
+    g_Platform.FreeFileMemory(file.data);
     
-    return result;
+    assets->loaded_mesh_queue[assets->num_queued_meshes++] = work_data->mesh_id;
 }
 
+internal void 
+LoadOBJMesh(Assets* assets, MeshEnum mesh_id)
+{
+    MemoryTask* task = BeginMemoryTask(&assets->task_queue);
+    
+    LoadOBJMeshWorkData* data = PushMemory(&task->arena, LoadOBJMeshWorkData);
+    data->assets = assets;
+    data->task = task;
+    data->mesh_id = mesh_id;
+    
+    if (task)
+    {
+        switch(mesh_id)
+        {
+            case MESH_HOUSE:
+            {
+                data->mesh_path = "../assets/models/cottage.obj";
+            } break;
+            case MESH_CUBE:
+            {
+                data->mesh_path = "../assets/models/cube.obj";
+            } break;
+        }
+        
+        g_Platform.PushWorkEntry(g_Platform.work_queue, LoadOBJMeshWork, data);
+    }
+}
+
+internal Mesh*
+GetMesh(Assets* assets, MeshEnum mesh_id)
+{
+    return assets->meshes + mesh_id;
+}
+
+/////// ASSET INIT //////////
+
+internal void
+AssetsInit(Assets* assets, MemoryArena* arena)
+{
+    SubArena(arena, &assets->arena, Megabytes(128));
+    
+    assets->task_queue = CreateTaskQueue(&assets->arena, 10);
+    
+    
+    assets->sprites = PushMemory(&assets->arena, Sprite, 512);
+    assets->meshes = PushMemory(&assets->arena, Mesh, NUM_MESHES);
+    
+    assets->loaded_sprite_queue = PushMemory(&assets->arena, SpriteID, 50);
+    assets->loaded_mesh_queue = PushMemory(&assets->arena, MeshEnum, NUM_MESHES);
+    
+    
+    for (u32 i = 0; i < NUM_SPRITES; ++i)
+    {
+        LoadSprite(assets, (SpriteEnum)i);
+    }
+    assets->num_sprites = NUM_SPRITES;
+    
+    for (u32 i = 0; i < NUM_MESHES; ++i)
+    {
+        LoadOBJMesh(assets, (MeshEnum)i);
+    }
+    
+    assets->num_meshes = NUM_MESHES;
+    
+    g_Platform.WaitForWorkers(g_Platform.work_queue);
+}

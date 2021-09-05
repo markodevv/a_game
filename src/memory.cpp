@@ -57,9 +57,59 @@ EndTemporaryMemory(TemporaryArena* temp_arena)
 {
     MemoryArena *arena = temp_arena->arena;
     Assert(arena->used >= temp_arena->used);
-    arena->used = temp_arena->used;
+    
+    if (arena->temp_arena_count == 1)
+    {
+        arena->used = temp_arena->used;
+    }
     
     *temp_arena = {};
     
     --arena->temp_arena_count;
+}
+
+internal TaskQueue
+CreateTaskQueue(MemoryArena* arena, u32 count)
+{
+    TaskQueue result = {};
+    result.tasks = PushMemory(arena, MemoryTask, count);
+    result.count = count;
+    
+    for (u32 task_index = 0; 
+         task_index < count; 
+         ++task_index)
+    {
+        MemoryTask* task = result.tasks + task_index;
+        SubArena(arena, &task->arena, Megabytes(1));
+        task->is_used = false;
+    }
+    
+    return result;
+}
+
+internal MemoryTask*
+BeginMemoryTask(TaskQueue* task_queue)
+{
+    MemoryTask* result = 0;
+    
+    for (u32 i = 0; i < task_queue->count; ++i)
+    {
+        MemoryTask* task = task_queue->tasks + i;
+        if (!task->is_used)
+        {
+            task->temp_memory = BeginTemporaryMemory(&task->arena);
+            task->is_used = true;
+            result = task;
+            break;
+        }
+    }
+    
+    return result;
+}
+
+internal void 
+EndMemoryTask(MemoryTask* task)
+{
+    EndTemporaryMemory(&task->temp_memory);
+    task->is_used = false;
 }

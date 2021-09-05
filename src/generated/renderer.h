@@ -581,7 +581,6 @@ typedef enum RenderEntryType
 
 
 
-
     RENDER_ENTRY_TriangleEntry,
 
 
@@ -695,8 +694,7 @@ typedef enum RenderEntryType
 
 
 
-
-    RENDER_ENTRY_Model,
+    RENDER_ENTRY_MeshEntry,
 }
 RenderEntryType;
 typedef struct RenderEntryHeader RenderEntryHeader;
@@ -707,7 +705,6 @@ struct RenderEntryHeader
 typedef enum ShaderId
 {
     SHADER_ID_NORMAL,
-
 
 
 
@@ -956,9 +953,7 @@ typedef enum ShaderId
 
 
 
-
     SHADER_ID_SB_QUAD,
-
 
 
 
@@ -1211,7 +1206,6 @@ typedef enum ShaderId
 
 
 
-
     NUM_SHADERS,
 }
 ShaderId;
@@ -1221,7 +1215,7 @@ struct QuadEntry
     vec3 position;
     vec2 size;
     Color color;
-    Sprite *sprite;
+    SpriteID sprite_id;
 
     ShaderId shader_id;
 };
@@ -1231,6 +1225,372 @@ struct TriangleEntry
     vec3 points[3];
     Color color;
     Sprite *sprite;
+
+    ShaderId shader_id;
+};
+typedef struct Material Material;
+struct Material
+{
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+
+    f32 shininess;
+};
+typedef enum MeshEnum
+{
+    MESH_HOUSE,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    MESH_CUBE,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    NUM_MESHES,
+}
+MeshEnum;
+typedef struct Mesh Mesh;
+struct Mesh
+{
+    Vertex3D *vertices;
+    u32 num_vertices;
+
+    u32 *indices;
+    u32 num_indices;
+
+    Material material;
+
+    u32 VAO;
+    u32 EBO;
+    u32 VBO;
+};
+typedef struct MeshEntry MeshEntry;
+struct MeshEntry
+{
+    vec3 position;
+    vec3 rotation;
+    vec3 scale;
+
+    Color color;
+    Sprite *sprite;
+
+    Mesh *mesh;
 
     ShaderId shader_id;
 };
@@ -1249,6 +1609,51 @@ struct RenderSetup
 typedef enum UniformType
 {
     UNIFORM_F32,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1579,7 +1984,97 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_I32,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1914,7 +2409,97 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_VEC2,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2253,7 +2838,97 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_VEC4,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2596,6 +3271,51 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_TEXTURE2D,
 }
 UniformType;
@@ -2621,426 +3341,26 @@ struct Shader
     Uniform *uniforms;
     i32 num_uniforms;
 };
-typedef enum AssetType
-{
-    SPRITE_ASSET,
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    MODEL_ASSET,
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    SOUND_ASSET,
-}
-AssetType;
 typedef struct Assets Assets;
 struct Assets
 {
     MemoryArena arena;
 
-    Sprite **loaded_sprite_queue;
+    SpriteID *loaded_sprite_queue;
     u32 num_queued_sprites;
 
     Sprite *sprites;
     u32 num_sprites;
 
+    Mesh *meshes;
+    u32 num_meshes;
+
+    MeshEnum *loaded_mesh_queue;
+    u32 num_queued_meshes;
+
     Shader shaders[NUM_SHADERS];
+
+    TaskQueue task_queue;
 };
 typedef struct RenderGroup RenderGroup;
 struct RenderGroup
@@ -3062,30 +3382,6 @@ struct Light
     vec3 specular;
 
     vec3 position;
-};
-typedef struct Material Material;
-struct Material
-{
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
-
-    f32 shininess;
-};
-typedef struct Mesh Mesh;
-struct Mesh
-{
-    Vertex3D *vertices;
-    u32 num_vertices;
-
-    u32 *indices;
-    u32 num_indices;
-
-    Material material;
-
-    u32 VAO;
-    u32 EBO;
-    u32 VBO;
 };
 #define MAX_VERTICES (100000)
 #define MAX_INDICES (150000)
@@ -3113,7 +3409,6 @@ struct Renderer2D
 
     u32 white_sprite;
 
-    Mesh mesh;
     Camera *camera;
     Light light;
     u32 shader_program_3D;

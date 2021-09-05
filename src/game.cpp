@@ -272,9 +272,11 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
     AssetsInit(&game_state->assets, &game_state->flush_arena);
     
     
+    
     ren->assets = &game_state->assets;
     
-    ren->mesh = LoadOBJModel(&g_Platform, &game_state->assets, "../assets/models/cube.obj");
+    //ren->mesh = LoadOBJModel(&g_Platform, &game_state->assets, "../assets/models/cube.obj");
+    //ren->mesh = LoadOBJModel(&g_Platform, &game_state->assets, "../assets/models/cottage.obj");
     
     g_Platform.InitRenderer(&game_state->renderer);
     game_state->render_group = CreateRenderGroup(&game_state->flush_arena, Mat4Orthographic((f32)ren->screen_width, (f32)ren->screen_height),
@@ -463,7 +465,10 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         }
     }
     
-    DrawText(game_state->render_group, &game_state->font, "testing hello", V2(200, 200), LAYER_FRONT);
+    PushText(game_state->render_group, &game_state->font, "testing hello", V2(200, 200), LAYER_FRONT);
+    
+    //PushMesh(game_state->render_group, &ren->mesh, V3(0), V3(50), NewColor(255));
+    PushMesh(game_state->render_group, V3(100, 200, 0), V3(1), NewColor(255), MESH_HOUSE);
     
     
     if (global_is_edit_mode)
@@ -540,10 +545,12 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
             }
             if (UiSubmenu(debug, "Material"))
             {
-                UiFloat32Editbox(debug, &ren->mesh.material.ambient, "ambient");
-                UiFloat32Editbox(debug, &ren->mesh.material.diffuse, "diffuse");
-                UiFloat32Editbox(debug, &ren->mesh.material.specular, "specular");
-                UiFloat32Editbox(debug, &ren->mesh.material.shininess, "shininess");
+                Mesh* mesh = GetMesh(&game_state->assets, MESH_HOUSE);
+                
+                UiFloat32Editbox(debug, &mesh->material.ambient, "ambient");
+                UiFloat32Editbox(debug, &mesh->material.diffuse, "diffuse");
+                UiFloat32Editbox(debug, &mesh->material.specular, "specular");
+                UiFloat32Editbox(debug, &mesh->material.shininess, "shininess");
             }
             
         }
@@ -561,7 +568,3 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
     g_Platform.RendererEndFrame(ren);
     
 }
-
-
-
-

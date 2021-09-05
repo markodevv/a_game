@@ -11,3 +11,16 @@ TemporaryArena :: struct
     arena: *MemoryArena,
     used: sizet,
 }
+
+MemoryTask :: struct
+{
+    arena: MemoryArena,
+    temp_memory: TemporaryArena,
+    is_used: b8,
+}
+
+TaskQueue :: struct
+{
+    tasks: *MemoryTask,
+    count: u32,
+}

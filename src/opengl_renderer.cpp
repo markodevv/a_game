@@ -113,7 +113,7 @@ GetUniformTypeInfo(GLenum type)
         }break;
         default:
         {
-            LogM("Unknown type uniform type %d\n", type);
+            LogM("Unknown uniform type %d\n", type);
         } break;
     }
     
@@ -328,6 +328,7 @@ OpenGLInit(Renderer2D* ren)
     shaders[SHADER_ID_SB_QUAD] = OpenGLCreateShader(arena, basic_vertex_shader, sat_brigh_quad_shader);
     shaders[SHADER_ID_BASIC_3D] = OpenGLCreateShader(arena, vertex_shader_3D, fragment_shader_3D);
     
+    // TODO(Marko): Loading shaders needs to be cleaner
     ren->shader_program_3D = shaders[SHADER_ID_BASIC_3D].bind_id;
     
     
@@ -372,9 +373,6 @@ OpenGLInit(Renderer2D* ren)
     glBindVertexArray(0);
     
     
-    ren->mesh.material = CreateMaterial(V3(0.2f), V3(0.1f), V3(0.5f), 1.0f);
-    
-    OpenGLLoadMesh(&ren->mesh);
     
     ren->light = CreateLight(V3(0, 0, -200), V3(0.3f), V3(0.5f), V3(0.1f));
     
@@ -560,10 +558,13 @@ OpenGLSetMaterialUniform(u32 shader, Material* material)
 }
 
 internal void
-OpenGLDrawMesh(Renderer2D* ren, Mesh* mesh)
+OpenGLDrawMesh(Renderer2D* ren, MeshEntry* mesh_entry)
 {
+    Mesh* mesh = mesh_entry->mesh;
+    
     glUseProgram(ren->shader_program_3D);
-    mat4 transform = Mat4Translate(V3(1.0f)) * Mat4Scale(V3(100.0f));
+    mat4 transform = Mat4Translate(mesh_entry->position) * Mat4Scale(mesh_entry->scale);
+    
     mat4 projection = Mat4Perspective(ren->screen_width,
                                       ren->screen_height,
                                       90.0f,
@@ -573,7 +574,7 @@ OpenGLDrawMesh(Renderer2D* ren, Mesh* mesh)
     
     mat4 view = CameraTransform(ren->camera);
     mat4 vp = projection * view;
-    //mat4 normal_transform = Mat4Transpose(Mat4Inverse(transform));
+    mat4 normal_mat = Mat4Transpose(Mat4Inverse(transform));
     b8 do_transpose = true;
     
     i32 vp_loc = OpenGLGetUniformLocation(ren->shader_program_3D, "u_viewproj");
@@ -583,12 +584,13 @@ OpenGLDrawMesh(Renderer2D* ren, Mesh* mesh)
     i32 transform_loc = OpenGLGetUniformLocation(ren->shader_program_3D, "u_transform");
     glUniformMatrix4fv(transform_loc, 1, do_transpose, (f32*)&transform.rows[0].x);
     
-    i32 normal_loc =  OpenGLGetUniformLocation(ren->shader_program_3D, "u_normal_trans");
-    glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)&transform.rows[0].x);
+    i32 normal_loc =  OpenGLGetUniformLocation(ren->shader_program_3D, "u_normal_mat");
+    glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)&normal_mat.rows[0].x);
     
     
     OpenGLSetMaterialUniform(ren->shader_program_3D, &mesh->material);
     OpenGLSetLightUniform(ren->shader_program_3D, &ren->light);
+    
     // TODO(Marko): textures
     glBindVertexArray(mesh->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
@@ -624,7 +626,8 @@ OpenGLEndFrame(Renderer2D* ren)
     {
         for (u32 i = 0; i < ren->assets->num_queued_sprites; ++i)
         {
-            Sprite* sprite = ren->assets->loaded_sprite_queue[i];
+            SpriteID sprite_id = ren->assets->loaded_sprite_queue[i];
+            Sprite* sprite = GetSprite(ren->assets, sprite_id);
             OpenGLLoadTexture(sprite, ren->slot);
             sprite->slot = ren->slot;
             ++ren->slot;
@@ -634,6 +637,18 @@ OpenGLEndFrame(Renderer2D* ren)
         }
         ren->assets->num_queued_sprites = 0;
     }
+    
+    if (ren->assets->num_queued_meshes)
+    {
+        for (u32 i = 0; i < ren->assets->num_queued_meshes; ++i)
+        {
+            MeshEnum mesh_id = ren->assets->loaded_mesh_queue[i];
+            Mesh* mesh = GetMesh(ren->assets, mesh_id);
+            OpenGLLoadMesh(mesh);
+        }
+        ren->assets->num_queued_meshes = 0;
+    }
+    
     
     u32 header_size = sizeof(RenderEntryHeader);
     
@@ -674,19 +689,19 @@ OpenGLEndFrame(Renderer2D* ren)
                         V2(0.0f, 1.0f),
                     };
                     
-                    if (quad->sprite)
+                    Sprite* sprite = GetSprite(ren->assets, quad->sprite_id);
+                    if (sprite)
                     {
-                        if (quad->sprite->type == TYPE_SPRITE)
+                        if (sprite->type == TYPE_SPRITE)
                         {
-                            sprite_slot = quad->sprite->slot;
+                            sprite_slot = sprite->slot;
                         }
-                        else if (quad->sprite->type == TYPE_SUBSPRITE)
+                        else if (sprite->type == TYPE_SUBSPRITE)
                         {
-                            sprite_slot = GetSprite(ren->assets, quad->sprite->main_sprite)->slot;
-                            uvs[0] = quad->sprite->uvs[0];
-                            uvs[1] = quad->sprite->uvs[1];
-                            uvs[2] = quad->sprite->uvs[2];
-                            uvs[3] = quad->sprite->uvs[3];
+                            uvs[0] = sprite->uvs[0];
+                            uvs[1] = sprite->uvs[1];
+                            uvs[2] = sprite->uvs[2];
+                            uvs[3] = sprite->uvs[3];
                         }
                     }
                     
@@ -779,6 +794,11 @@ OpenGLEndFrame(Renderer2D* ren)
                     ren->indices_count += 3;
                     
                 } break;
+                case RENDER_ENTRY_MeshEntry:
+                {
+                    MeshEntry* mesh = (MeshEntry*)(base + header_size);
+                    OpenGLDrawMesh(ren, mesh);
+                } break;
                 default:
                 {
                     Assert(false);
@@ -791,6 +811,5 @@ OpenGLEndFrame(Renderer2D* ren)
         
         render_group = ren->render_groups + (group_id + 1);
     }
-    OpenGLDrawMesh(ren, &ren->mesh);
 }
 

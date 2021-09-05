@@ -166,13 +166,14 @@ out float tex_id;
 
 uniform mat4 u_viewproj;
 uniform mat4 u_transform;
-uniform mat4 u_normal_trans;
+uniform mat4 u_normal_mat;
 
 void main()
 {
     vec4 frag = u_viewproj * u_transform * vec4(att_pos, 1.0f);
     uv = att_uv;
-    normal = mat3(transpose(inverse(u_normal_trans))) * att_normal;
+    normal = mat3(u_normal_mat) * att_normal;
+
     tex_id = att_texid;
 
     gl_Position = frag;

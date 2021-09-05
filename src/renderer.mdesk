@@ -106,12 +106,11 @@ Font :: struct
 }
 
 
-
 RenderEntryType :: enum
 {
     RENDER_ENTRY_QuadEntry,
     RENDER_ENTRY_TriangleEntry,
-    RENDER_ENTRY_Model,
+    RENDER_ENTRY_MeshEntry,
 }
 
 RenderEntryHeader :: struct
@@ -133,7 +132,7 @@ QuadEntry :: struct
     position: vec3,
     size: vec2,
     color: Color,
-    sprite: *Sprite,
+    sprite_id: SpriteID,
     
     shader_id: ShaderId,
 }
@@ -146,6 +145,52 @@ TriangleEntry :: struct
     
     shader_id: ShaderId,
 }
+
+Material :: struct
+{
+    ambient: vec3,
+    diffuse: vec3,
+    specular: vec3,
+    
+    shininess: f32,
+}
+
+MeshEnum :: enum
+{
+    MESH_HOUSE,
+    MESH_CUBE,
+    NUM_MESHES,
+}
+
+Mesh :: struct
+{
+    vertices: *Vertex3D,
+    num_vertices: u32,
+    
+    indices: *u32,
+    num_indices: u32,
+    
+    material: Material,
+    
+    VAO: u32,
+    EBO: u32,
+    VBO: u32,
+}
+
+MeshEntry :: struct
+{
+    position: vec3,
+    rotation: vec3,
+    scale: vec3,
+
+    color: Color,
+    sprite: *Sprite,
+
+    mesh: *Mesh,
+
+    shader_id: ShaderId,
+}
+
 
 SortElement :: struct
 {
@@ -195,24 +240,25 @@ Shader :: struct
     num_uniforms: i32,
 }
 
-AssetType :: enum
-{
-    SPRITE_ASSET,
-    MODEL_ASSET,
-    SOUND_ASSET,
-}
-
 Assets :: struct
 {
     arena: MemoryArena,
     
-    loaded_sprite_queue: **Sprite,
+    loaded_sprite_queue: *SpriteID,
     num_queued_sprites: u32,
     
     sprites: *Sprite,
     num_sprites: u32,
+
+    meshes: *Mesh,
+    num_meshes: u32,
+
+    loaded_mesh_queue: *MeshEnum,
+    num_queued_meshes: u32,
     
     shaders: [NUM_SHADERS]Shader,
+
+    task_queue: TaskQueue,
 }
 
 
@@ -235,30 +281,6 @@ Light :: struct
     specular: vec3,
     
     position: vec3,
-}
-
-Material :: struct
-{
-    ambient: vec3,
-    diffuse: vec3,
-    specular: vec3,
-    
-    shininess: f32,
-}
-
-Mesh :: struct
-{
-    vertices: *Vertex3D,
-    num_vertices: u32,
-    
-    indices: *u32,
-    num_indices: u32,
-    
-    material: Material,
-    
-    VAO: u32,
-    EBO: u32,
-    VBO: u32,
 }
 
 MAX_VERTICES :: 100000
@@ -287,7 +309,6 @@ Renderer2D :: struct
     
     white_sprite: u32,
     
-    mesh: Mesh,
     camera: *Camera,
     light: Light,
     shader_program_3D: u32,
