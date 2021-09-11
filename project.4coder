@@ -5,6 +5,7 @@ project_name = "Cool Game";
 patterns = {
 "*.cpp",
 "*.h",
+"*.glsl",
 };
 
 load_paths = {
@@ -16,12 +17,10 @@ load_paths = {
 command_list = {
    {
    .name = "run",
-   .out = "*run*", 
-   .footer_panel = true, 
+   .out = "*scratch*", 
+   .footer_panel = false, 
    .save_dirty_files = false, 
    .cursor_at_end = true,
-   .cmd = {{"./build/windows_platform", .os = "win"},},
+   .cmd = {{"build\\cool_game", .os = "win"},},
    },
 };
-
-fkey_command[5] = "run";

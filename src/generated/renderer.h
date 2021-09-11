@@ -33,9 +33,103 @@ struct Camera
     vec3 direction;
     vec3 up;
 };
+typedef enum AssetState
+{
+    ASSET_LOCKED,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    ASSET_UNLOCKED,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    TEST,
+}
+AssetState;
 typedef enum SpriteType
 {
     TYPE_SPRITE,
+
+
+
+
+
+
+
+
 
 
 
@@ -124,7 +218,23 @@ typedef enum SpriteEnum
 
 
 
+
+
+
+
+
+
+
+
     RED_SPRITE,
+
+
+
+
+
+
+
+
 
 
 
@@ -217,7 +327,23 @@ typedef enum SpriteEnum
 
 
 
+
+
+
+
+
+
+
+
     BLUE_SPRITE,
+
+
+
+
+
+
+
+
 
 
 
@@ -314,6 +440,14 @@ typedef enum SpriteEnum
 
 
 
+
+
+
+
+
+
+
+
     NUM_SPRITES,
 }
 SpriteEnum;
@@ -321,6 +455,8 @@ SpriteEnum;
 typedef struct Sprite Sprite;
 struct Sprite
 {
+    AssetState asset_state;
+
     char *name;
     void *data;
     i32 width;
@@ -454,6 +590,16 @@ typedef enum TextAlign
 
 
 
+
+
+
+
+
+
+
+
+
+
     TEXT_ALIGN_LEFT,
 }
 TextAlign;
@@ -470,6 +616,16 @@ struct Font
 typedef enum RenderEntryType
 {
     RENDER_ENTRY_QuadEntry,
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -694,6 +850,16 @@ typedef enum RenderEntryType
 
 
 
+
+
+
+
+
+
+
+
+
+
     RENDER_ENTRY_MeshEntry,
 }
 RenderEntryType;
@@ -705,6 +871,16 @@ struct RenderEntryHeader
 typedef enum ShaderId
 {
     SHADER_ID_NORMAL,
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -953,7 +1129,27 @@ typedef enum ShaderId
 
 
 
+
+
+
+
+
+
+
+
+
+
     SHADER_ID_SB_QUAD,
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1206,6 +1402,16 @@ typedef enum ShaderId
 
 
 
+
+
+
+
+
+
+
+
+
+
     NUM_SHADERS,
 }
 ShaderId;
@@ -1239,6 +1445,177 @@ struct Material
 };
 typedef enum MeshEnum
 {
+    MESH_CUBE,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     MESH_HOUSE,
 
 
@@ -1250,157 +1627,6 @@ typedef enum MeshEnum
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    MESH_CUBE,
 
 
 
@@ -1568,6 +1794,8 @@ MeshEnum;
 typedef struct Mesh Mesh;
 struct Mesh
 {
+    AssetState asset_state;
+
     Vertex3D *vertices;
     u32 num_vertices;
 
@@ -1609,6 +1837,18 @@ struct RenderSetup
 typedef enum UniformType
 {
     UNIFORM_F32,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2029,7 +2269,31 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_I32,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2454,7 +2718,31 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_VEC2,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2883,7 +3171,31 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_VEC4,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3316,6 +3628,18 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     UNIFORM_TEXTURE2D,
 }
 UniformType;
@@ -3414,3 +3738,10 @@ struct Renderer2D
     u32 shader_program_3D;
 };
 #define NUM_ASCII (96)
+#define VERTICES_PER_QUAD (4)
+#define INDICES_PER_QUAD (6)
+#define LAYER_BACK (0)
+#define LAYER_BACKMID (1)
+#define LAYER_MID (2)
+#define LAYER_MIDFRONT (3)
+#define LAYER_FRONT (4)

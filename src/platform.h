@@ -73,6 +73,7 @@ typedef void (*SystemFunc)(GameState* gs, Array* ent);
 
 struct FileResult
 {
+    b8 is_valid;
     void* data;
     i32 size;
 };

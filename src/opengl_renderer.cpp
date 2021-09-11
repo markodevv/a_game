@@ -1,5 +1,3 @@
-#include "generated/renderer.h"
-#include "renderer.cpp"
 
 
 OpenGLFunction(void,     glAttachShader,            GLuint program, GLuint shader);
@@ -698,6 +696,9 @@ OpenGLEndFrame(Renderer2D* ren)
                         }
                         else if (sprite->type == TYPE_SUBSPRITE)
                         {
+                            Sprite* main_sprite = GetSprite(ren->assets, sprite->main_sprite);
+                            sprite_slot = main_sprite->slot;
+                            
                             uvs[0] = sprite->uvs[0];
                             uvs[1] = sprite->uvs[1];
                             uvs[2] = sprite->uvs[2];

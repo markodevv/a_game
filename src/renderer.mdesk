@@ -33,6 +33,14 @@ Camera :: struct
     up: vec3,
 }
 
+
+AssetState :: enum
+{
+    ASSET_LOCKED,
+    ASSET_UNLOCKED,
+    TEST,
+}
+
 SpriteType :: enum
 {
     TYPE_SPRITE,
@@ -53,6 +61,8 @@ SpriteEnum :: enum
 @Print
 Sprite :: struct
 {
+    asset_state: AssetState,
+
     name: *char,
     data: *void,
     width: i32,
@@ -157,13 +167,15 @@ Material :: struct
 
 MeshEnum :: enum
 {
-    MESH_HOUSE,
     MESH_CUBE,
+    MESH_HOUSE,
     NUM_MESHES,
 }
 
 Mesh :: struct
 {
+    asset_state: AssetState,
+
     vertices: *Vertex3D,
     num_vertices: u32,
     
@@ -315,3 +327,11 @@ Renderer2D :: struct
 }
 
 NUM_ASCII :: 96
+VERTICES_PER_QUAD :: 4
+INDICES_PER_QUAD :: 6
+
+LAYER_BACK :: 0
+LAYER_BACKMID :: 1
+LAYER_MID :: 2
+LAYER_MIDFRONT :: 3
+LAYER_FRONT :: 4

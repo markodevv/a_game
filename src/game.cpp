@@ -28,14 +28,14 @@ struct DebugState* global_debug_state;
 #include "generated/renderer.h"
 #include "renderer.cpp"
 #include "generated/debug.h"
-#include "debug_profiler.cpp"
+#include "debug.cpp"
 #include "generated/entity.h"
 #include "generated/game.h"
 #include "entity.cpp"
 #include "generated_print.c"
 #include "asset.cpp"
 #include "render_group.cpp"
-#include "debug_ui.cpp"
+#include "dev_ui.cpp"
 
 
 
@@ -256,10 +256,14 @@ InitGrid(WorldState* world)
     }
 }
 
-internal void 
-InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
+extern "C" PLATFORM_API void
+GameInit(GameMemory* memory)
 {
+    GameState* game_state = (GameState*)memory->permanent_storage;
     Renderer2D* ren = &game_state->renderer;
+    
+    global_debug_state = memory->debug;
+    g_Platform = memory->platform;
     
     InitArena(&game_state->arena, 
               (memory->permanent_storage_size - sizeof(GameState)),
@@ -271,12 +275,10 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
     
     AssetsInit(&game_state->assets, &game_state->flush_arena);
     
+    game_state->font = LoadFontTest(&game_state->assets, "../assets/fonts/consola.ttf", 32);
     
     
     ren->assets = &game_state->assets;
-    
-    //ren->mesh = LoadOBJModel(&g_Platform, &game_state->assets, "../assets/models/cube.obj");
-    //ren->mesh = LoadOBJModel(&g_Platform, &game_state->assets, "../assets/models/cottage.obj");
     
     g_Platform.InitRenderer(&game_state->renderer);
     game_state->render_group = CreateRenderGroup(&game_state->flush_arena, Mat4Orthographic((f32)ren->screen_width, (f32)ren->screen_height),
@@ -287,7 +289,7 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
     // TODO: temporary
     ren->camera = &game_state->render_group->setup.camera;
     
-    UiInit(memory->debug, ren, &memory->platform, &game_state->assets);
+    DevUiInit(memory->debug, ren, &memory->platform, &game_state->assets);
     
     
     WorldState* world = &game_state->world;
@@ -357,20 +359,9 @@ InitGame(GameMemory* memory, GameState* game_state, GameInput* input)
 extern "C" PLATFORM_API void
 GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
 {
+    PROFILE_FUNCTION();
     
     GameState* game_state = (GameState*)memory->permanent_storage;
-    
-    if (!memory->is_initialized)
-    {
-        global_debug_state = memory->debug;
-        g_Platform = memory->platform;
-        InitGame(memory, game_state, input);
-        memory->is_initialized = true;
-        game_state->font = LoadFontTest(&game_state->assets, "../assets/fonts/consola.ttf", 32);
-        
-    }
-    
-    PROFILE_FUNCTION();
     
     game_state->delta_time = delta_time;
     Renderer2D* ren = &game_state->renderer;
@@ -388,8 +379,6 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
                                                                       ren->screen_height);
         }
     }
-    
-    
     
     
     UpdateSystems(game_state);
@@ -468,13 +457,13 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
     PushText(game_state->render_group, &game_state->font, "testing hello", V2(200, 200), LAYER_FRONT);
     
     //PushMesh(game_state->render_group, &ren->mesh, V3(0), V3(50), NewColor(255));
-    PushMesh(game_state->render_group, V3(100, 200, 0), V3(1), NewColor(255), MESH_HOUSE);
+    PushMesh(game_state->render_group, V3(0, 0, 0), V3(1), NewColor(255), MESH_HOUSE);
     
     
     if (global_is_edit_mode)
     {
         DebugState* debug = memory->debug;
-        UiStart(debug, input, &game_state->assets, ren);
+        DevUiStart(debug, input, &game_state->assets, ren);
         
         UiFps(debug);
         
@@ -561,7 +550,6 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         
         UiWindowEnd(memory->debug);
         
-        UiEnd(debug);
     }
     
     

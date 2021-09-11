@@ -43,6 +43,7 @@ SubArena(MemoryArena* main, MemoryArena* sub, sizet size)
 internal TemporaryArena
 BeginTemporaryMemory(MemoryArena* arena)
 {
+    Assert(arena);
     TemporaryArena out = {};
     out.arena = arena;
     out.used = arena->used;

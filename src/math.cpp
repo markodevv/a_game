@@ -67,13 +67,14 @@ internal u8
 RandomRangeU8(u8 min, u8 max)
 {
     f32 random = ((f32)rand()) / (f32)RAND_MAX;
-    return (255 * random);
+    u8 result = (u8)(255 * random); 
+    return result;
 }
 
 internal u64
 LogBase2(u64 n)
 {
-    return log2(n);
+    return (u64)log2((f64)n);
 }
 
 

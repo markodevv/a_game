@@ -3,7 +3,14 @@
 internal Sprite*
 GetSprite(Assets* assets, SpriteID id)
 {
-    return assets->sprites + id;
+    Sprite* sprite = assets->sprites + id;
+    
+    if (sprite->asset_state == ASSET_LOCKED)
+    {
+        sprite = assets->sprites + 0;
+    }
+    
+    return sprite;
 }
 
 struct LoadSpriteWorkData
@@ -20,10 +27,11 @@ LoadSpriteWork(void* data)
 {
     LoadSpriteWorkData* sprite_data = (LoadSpriteWorkData*)(data);
     FileResult file = g_Platform.ReadEntireFile(sprite_data->sprite_path);
+    Sprite* sprite = 0;
     
-    if (file.data)
+    if (file.is_valid)
     {
-        Sprite* sprite = GetSprite(sprite_data->assets, (SpriteID)sprite_data->sprite_id);
+        sprite = sprite_data->assets->sprites + (SpriteID)sprite_data->sprite_id;
         
         stbi_set_flip_vertically_on_load(1);
         sprite->data = stbi_load_from_memory((u8*)file.data,
@@ -33,8 +41,11 @@ LoadSpriteWork(void* data)
                                              &sprite->channels,
                                              0);
         
-        g_Platform.FreeFileMemory(file.data);
         sprite_data->assets->loaded_sprite_queue[sprite_data->assets->num_queued_sprites++] = sprite_data->sprite_id;
+        sprite->asset_state = ASSET_UNLOCKED;
+        sprite->name = sprite_data->sprite_path;
+        
+        g_Platform.FreeFileMemory(file.data);
     }
     else
     {
@@ -42,6 +53,7 @@ LoadSpriteWork(void* data)
     }
     
     EndMemoryTask(sprite_data->task);
+    
 }
 
 internal void
@@ -97,6 +109,7 @@ AddSubsprite(Assets* assets, SpriteID main_sprite)
     SpriteID id = (SpriteID)assets->num_sprites++;
     assets->sprites[id].type = TYPE_SUBSPRITE;
     assets->sprites[id].main_sprite = main_sprite;
+    assets->sprites[id].asset_state = ASSET_UNLOCKED;
     
     return id;
 }
@@ -139,6 +152,7 @@ SubspriteFromSpriteC(Assets* assets,
     subsprite->uvs[1] = V2(((x+1)*sprite_width) / sheet_width, (y*sprite_height)     / sheet_height);
     subsprite->uvs[2] = V2((x*sprite_width)     / sheet_width, (y*sprite_height)     / sheet_height);
     subsprite->uvs[3] = V2((x*sprite_width)     / sheet_width, ((y+1)*sprite_height) / sheet_height);
+    sprite->asset_state = ASSET_UNLOCKED;
     
     subsprite->type = TYPE_SUBSPRITE;
     subsprite->main_sprite = id;
@@ -151,8 +165,9 @@ internal SpriteID
 DEBUGCreateFontSprite(Assets* assets, u32 w, u32 h, u32 channels)
 {
     Assert(assets->num_sprites >= NUM_SPRITES);
+    
     SpriteID id = assets->num_sprites++;
-    Sprite* sprite = GetSprite(assets, id);
+    Sprite* sprite = assets->sprites + id;
     
     sprite->data = PushMemory(&assets->arena, u8, (w*h));
     sprite->width = w;
@@ -160,6 +175,8 @@ DEBUGCreateFontSprite(Assets* assets, u32 w, u32 h, u32 channels)
     sprite->channels = channels;
     
     sprite->type = TYPE_SPRITE;
+    sprite->asset_state = ASSET_UNLOCKED;
+    
     
     assets->loaded_sprite_queue[assets->num_queued_sprites++] = id;
     
@@ -570,102 +587,97 @@ LoadOBJMeshWork(void* param)
     Mesh* mesh = assets->meshes + work_data->mesh_id;
     
     FileResult file = g_Platform.ReadEntireFile(work_data->mesh_path);
-    OBJFileInfo obj_info = GetOBJFileInfo(&assets->arena, file);
     
-    mesh->vertices = PushMemory(&assets->arena, Vertex3D, obj_info.face_count * 3);
-    mesh->indices = PushMemory(&assets->arena, u32, obj_info.face_count * 3);
-    
-    TemporaryArena temp_memory = BeginTemporaryMemory(&assets->arena);
-    
-    u32 pos_count = 0, normal_count = 0, uv_count = 0;
-    
-    vec3* obj_positions = PushMemory(&assets->arena, vec3, obj_info.vertex_count);
-    vec3* obj_normals = PushMemory(&assets->arena, vec3, obj_info.normal_count);
-    vec2* obj_uvs = PushMemory(&assets->arena, vec2, obj_info.uv_count);
-    
-    char prefix[3];
-    char* data = (char*)file.data;
-    
-    while(!IsEOFChar(OBJCurrentChar(&obj_info)))
+    if (file.is_valid)
     {
-        prefix[0] = OBJCurrentChar(&obj_info);
-        prefix[1] = OBJNextChar(&obj_info);
-        prefix[2] = '\0';
         
-        if (StringMatch(prefix, "v "))
+        OBJFileInfo obj_info = GetOBJFileInfo(&work_data->task->arena, file);
+        
+        mesh->vertices = Allocate(Vertex3D, obj_info.face_count * 3);
+        mesh->indices = Allocate(u32, obj_info.face_count * 3);
+        
+        u32 pos_count = 0, normal_count = 0, uv_count = 0;
+        
+        vec3* obj_positions = PushMemory(&work_data->task->arena, vec3, obj_info.vertex_count);
+        vec3* obj_normals = PushMemory(&work_data->task->arena, vec3, obj_info.normal_count);
+        vec2* obj_uvs = PushMemory(&work_data->task->arena, vec2, obj_info.uv_count);
+        
+        char prefix[3];
+        char* data = (char*)file.data;
+        
+        while(!IsEOFChar(OBJCurrentChar(&obj_info)))
         {
-            obj_positions[pos_count++] = OBJNextVec3(&obj_info);
-        }
-        else if (StringMatch(prefix, "vn"))
-        {
-            obj_normals[normal_count++] = OBJNextVec3(&obj_info);
-        }
-        else if (StringMatch(prefix, "vt"))
-        {
-            obj_uvs[uv_count++] = OBJNextVec2(&obj_info);
-        }
-        else if (StringMatch(prefix, "f "))
-        {
-            OBJFace face = OBJGetFace(&obj_info);
+            prefix[0] = OBJCurrentChar(&obj_info);
+            prefix[1] = OBJNextChar(&obj_info);
+            prefix[2] = '\0';
             
-            for (u32 i = 0; i < 3; ++i)
+            if (StringMatch(prefix, "v "))
             {
-                vec3 key = V3(face.position_indices[i],
-                              face.normal_indices[i],
-                              face.uv_indices[i]);
+                obj_positions[pos_count++] = OBJNextVec3(&obj_info);
+            }
+            else if (StringMatch(prefix, "vn"))
+            {
+                obj_normals[normal_count++] = OBJNextVec3(&obj_info);
+            }
+            else if (StringMatch(prefix, "vt"))
+            {
+                obj_uvs[uv_count++] = OBJNextVec2(&obj_info);
+            }
+            else if (StringMatch(prefix, "f "))
+            {
+                OBJFace face = OBJGetFace(&obj_info);
                 
-                OBJIndexBucket* index_bucket = OBJGetIndex(&obj_info, key);
-                
-                if (!index_bucket)
+                for (u32 i = 0; i < 3; ++i)
                 {
-                    u32 vertex_array_index = mesh->num_vertices;
+                    vec3 key = V3(face.position_indices[i],
+                                  face.normal_indices[i],
+                                  face.uv_indices[i]);
                     
-                    OBJPutIndex(&assets->arena, &obj_info, 
-                                key,
-                                vertex_array_index);
-                    mesh->indices[mesh->num_indices++] = vertex_array_index;
+                    OBJIndexBucket* index_bucket = OBJGetIndex(&obj_info, key);
                     
-                    Vertex3D* vertex = mesh->vertices + mesh->num_vertices++;
-                    
-                    vertex->position = obj_positions[face.position_indices[i]];
-                    vertex->normal = obj_normals[face.normal_indices[i]];
-                    vertex->uv = obj_uvs[face.uv_indices[i]];
-                    
-                    LogM("Position ");
-                    Log(&vertex->position);
-                    LogM("Normal ");
-                    Log(&vertex->normal);
-                }
-                else
-                {
-                    Vertex3D* vertex = mesh->vertices + index_bucket->index;
-                    LogM("Position ");
-                    Log(&vertex->position);
-                    LogM("Normal ");
-                    Log(&vertex->normal);
-                    
-                    mesh->indices[mesh->num_indices++] = index_bucket->index;
+                    if (!index_bucket)
+                    {
+                        u32 vertex_array_index = mesh->num_vertices;
+                        
+                        OBJPutIndex(&work_data->task->arena, &obj_info, 
+                                    key,
+                                    vertex_array_index);
+                        mesh->indices[mesh->num_indices++] = vertex_array_index;
+                        
+                        Vertex3D* vertex = mesh->vertices + mesh->num_vertices++;
+                        
+                        vertex->position = obj_positions[face.position_indices[i]];
+                        vertex->normal = obj_normals[face.normal_indices[i]];
+                        vertex->uv = obj_uvs[face.uv_indices[i]];
+                        
+                    }
+                    else
+                    {
+                        Vertex3D* vertex = mesh->vertices + index_bucket->index;
+                        
+                        mesh->indices[mesh->num_indices++] = index_bucket->index;
+                    }
                 }
             }
             
-            
+            OBJSkipLine(&obj_info);
         }
+        mesh->material = CreateDefaultMaterial();
         
-        OBJSkipLine(&obj_info);
+        g_Platform.FreeFileMemory(file.data);
+        
+        assets->loaded_mesh_queue[assets->num_queued_meshes++] = work_data->mesh_id;
+        
+        mesh->asset_state = ASSET_UNLOCKED;
+    }
+    else
+    {
+        LogM("Failed to load OBJ file %s.\n", work_data->mesh_path);
     }
     
-    /*
-        if (result.num_indices == obj_info.face_count * 3)
-        {
-            result.num_indices = 0;
-        }
-    */
-    
-    EndTemporaryMemory(&temp_memory);
-    g_Platform.FreeFileMemory(file.data);
-    
-    assets->loaded_mesh_queue[assets->num_queued_meshes++] = work_data->mesh_id;
+    EndMemoryTask(work_data->task);
 }
+
 
 internal void 
 LoadOBJMesh(Assets* assets, MeshEnum mesh_id)
@@ -698,7 +710,14 @@ LoadOBJMesh(Assets* assets, MeshEnum mesh_id)
 internal Mesh*
 GetMesh(Assets* assets, MeshEnum mesh_id)
 {
-    return assets->meshes + mesh_id;
+    Mesh* mesh = assets->meshes + mesh_id;
+    
+    if (mesh->asset_state = ASSET_LOCKED)
+    {
+        mesh = assets->meshes + 0;
+    }
+    
+    return mesh;
 }
 
 /////// ASSET INIT //////////
@@ -714,22 +733,31 @@ AssetsInit(Assets* assets, MemoryArena* arena)
     assets->sprites = PushMemory(&assets->arena, Sprite, 512);
     assets->meshes = PushMemory(&assets->arena, Mesh, NUM_MESHES);
     
+    
     assets->loaded_sprite_queue = PushMemory(&assets->arena, SpriteID, 50);
     assets->loaded_mesh_queue = PushMemory(&assets->arena, MeshEnum, NUM_MESHES);
     
+    LoadSprite(assets, WHITE_SPRITE);
+    LoadOBJMesh(assets, MESH_CUBE);
     
-    for (u32 i = 0; i < NUM_SPRITES; ++i)
+    // These assets above are default assets used if assets that are
+    // requested are yet not loaded or missing, so we need to wait
+    // for them to ensure they are loaded.
+    g_Platform.WaitForWorkers(g_Platform.work_queue);
+    
+    
+    for (u32 i = 1; i < NUM_SPRITES; ++i)
     {
         LoadSprite(assets, (SpriteEnum)i);
     }
     assets->num_sprites = NUM_SPRITES;
     
-    for (u32 i = 0; i < NUM_MESHES; ++i)
+    for (u32 i = 1; i < NUM_MESHES; ++i)
     {
         LoadOBJMesh(assets, (MeshEnum)i);
     }
     
     assets->num_meshes = NUM_MESHES;
+    assets->num_sprites = NUM_SPRITES;
     
-    g_Platform.WaitForWorkers(g_Platform.work_queue);
 }

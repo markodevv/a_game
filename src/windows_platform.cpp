@@ -39,8 +39,9 @@ struct DebugState* global_debug_state;
 #include "math.cpp"
 #include "generated/input.h"
 #include "generated/renderer.h"
+#include "renderer.cpp"
 #include "generated/debug.h"
-#include "debug_profiler.cpp"
+#include "debug.cpp"
 #include "generated/entity.h"
 #include "generated_print.c"
 #include "generated/game.h"
@@ -50,6 +51,7 @@ struct DebugState* global_debug_state;
 
 OpenGLFunction(HGLRC, wglCreateContextAttribsARB, HDC hdc, HGLRC hShareContext, const int* attribs);
 typedef void (*GameMainLoopProc)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
+typedef void (*GameInitProc)(GameMemory* memory);
 
 #define Win32LoadOpenGLFunction(name) \
 name = (name##proc *)wglGetProcAddress(#name); \
@@ -94,6 +96,7 @@ internal FileResult
 ReadEntireFile(char* file_name)
 {
     FileResult result = {};
+    result.is_valid = false;
     
     HANDLE file_handle = CreateFile(file_name, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
     if(file_handle != INVALID_HANDLE_VALUE)
@@ -110,6 +113,7 @@ ReadEntireFile(char* file_name)
                    (file_size_32 == bytes_read))
                 {
                     // File read successfully
+                    result.is_valid = true;
                     result.size = file_size_32;
                 }
                 else
@@ -337,6 +341,7 @@ struct Win32GameCode
 {
     HINSTANCE game_code_dll;
     GameMainLoopProc MainLoop;
+    GameInitProc Init;
 };
 
 // Model load_3D_model(MemoryArena* arena, char* path);
@@ -351,7 +356,8 @@ Win32LoadGameCode()
     if (game_code.game_code_dll != NULL)
     {
         game_code.MainLoop = (GameMainLoopProc)GetProcAddress(game_code.game_code_dll, "GameMainLoop");
-        Assert(game_code.MainLoop);
+        game_code.Init = (GameInitProc)GetProcAddress(game_code.game_code_dll, "GameInit");
+        Assert(game_code.MainLoop && game_code.Init);
     }
     else
     {
@@ -857,7 +863,6 @@ WinMain(HINSTANCE hinstance,
     game_memory.temporary_storage_size = Megabytes(512);
     game_memory.debug_storage_size = Megabytes(48);
     
-    game_memory.is_initialized = false;
     game_memory.permanent_storage = calloc(game_memory.permanent_storage_size, sizeof(u8));
     game_memory.temporary_storage = calloc(game_memory.temporary_storage_size, sizeof(u8));
     game_memory.debug_storage = calloc(game_memory.debug_storage_size, sizeof(u8));
@@ -920,6 +925,7 @@ WinMain(HINSTANCE hinstance,
     
     b8 paused = false;
     
+    game.Init(&game_memory);
     
     while(global_running)
     {
@@ -1025,8 +1031,6 @@ WinMain(HINSTANCE hinstance,
         
         HDC window_dc = GetDC(window_handle);
         SwapBuffers(window_dc);
-        
-        DEBUG_FRAME_END();
     }
     
     

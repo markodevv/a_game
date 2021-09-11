@@ -1,7 +1,5 @@
 GameMemory :: struct
 {
-    is_initialized: b8,
-    
     permanent_storage: *void,
     permanent_storage_size: sizet,
     

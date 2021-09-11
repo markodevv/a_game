@@ -691,7 +691,7 @@ WriteUiConfig(DebugState* debug)
 }
 
 internal void
-UiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer2D* ren)
+DevUiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer2D* ren)
 {
     Assert(debug->temp_memory.arena);
     debug->prev_mouse_pos = debug->input.mouse.position;
@@ -773,11 +773,6 @@ UiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer2D* ren)
     }
 }
 
-internal void
-UiEnd(DebugState* debug)
-{
-    
-}
 
 internal void
 PushWindow(DebugState* debug, UiWindow* window)
@@ -1452,7 +1447,7 @@ UiColorpicker(DebugState* debug, Color* var, char* var_name)
 }
 
 internal void
-UiInit(DebugState* debug, Renderer2D* renderer, Platform* platform, Assets* assets)
+DevUiInit(DebugState* debug, Renderer2D* renderer, Platform* platform, Assets* assets)
 {
     debug->font = UiLoadFont(&debug->arena,
                              platform,

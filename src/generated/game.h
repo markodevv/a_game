@@ -3,8 +3,6 @@
 typedef struct GameMemory GameMemory;
 struct GameMemory
 {
-    b8 is_initialized;
-
     void *permanent_storage;
     sizet permanent_storage_size;
 

@@ -1,11 +1,3 @@
-#define VERTICES_PER_QUAD 4
-#define INDICES_PER_QUAD 6
-
-const Layer LAYER_BACK = 0;
-const Layer LAYER_BACKMID = 1;
-const Layer LAYER_MID = 2;
-const Layer LAYER_MIDFRONT = 3;
-const Layer LAYER_FRONT = 4;
 const Color COLOR_WHITE = {255, 255, 255, 255};
 
 internal Color
@@ -96,6 +88,12 @@ inline internal Material
 CreateMaterial(vec3 ambient, vec3 diffuse, vec3 specular, f32 shininess)
 {
     return {ambient, diffuse, specular, shininess};
+}
+
+inline internal Material
+CreateDefaultMaterial()
+{
+    return {V3(1), V3(1), V3(1), 1.0f};
 }
 
 inline internal Light

@@ -3,9 +3,6 @@
 #define DEBUG_FRAME_START() \
 DebugFrameStart()
 
-#define DEBUG_FRAME_END() \
-DebugFrameEnd()
-
 #ifdef GAME_PROFILE
 
 #define PROFILE_FUNCTION() \
@@ -23,7 +20,6 @@ Timer timer(name)
 #else
 
 #define DEBUG_FRAME_START()
-#define DEBUG_FRAME_END()
 
 #endif
 
@@ -76,17 +72,15 @@ PrintProfileData()
 internal void
 DebugFrameStart()
 {
+    if (global_debug_state->temp_memory.arena)
+    {
+        EndTemporaryMemory(&global_debug_state->temp_memory);
+    }
+    global_debug_state->temp_memory = BeginTemporaryMemory(&global_debug_state->temp_arena);
+    
 #if GAME_PROFILE
     global_debug_state->profile_entries = 0;
     global_debug_state->frame_start_cycles = g_Platform.GetPrefCounter();
-#endif
-    global_debug_state->temp_memory = BeginTemporaryMemory(&global_debug_state->temp_arena);
-}
-
-internal void
-DebugFrameEnd()
-{
-#if GAME_PROFILE
     f64 elapsed_time = g_Platform.GetElapsedSeconds(global_debug_state->frame_start_cycles);
     global_debug_state->game_fps = 1.0f/elapsed_time;
     LogM("FRAME DATA\n");
@@ -94,6 +88,6 @@ DebugFrameEnd()
     LogM("Frame Time: %.2fms\n", elapsed_time * 1000.0f);
     PrintProfileData();
 #endif
-    EndTemporaryMemory(&global_debug_state->temp_memory);
+    
 }
 
