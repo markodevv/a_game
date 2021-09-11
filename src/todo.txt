@@ -1,2 +1,26 @@
-[ ] Multithreading
-[ ] OBJ loading
+[x] Job System
+
+[x] OBJ loading
+
+[ ] OBJ Model Rendering
+  [x] Indexed rendering
+  [ ] Get material from OBJ?
+  [ ] Texture sampling
+
+[ ] Basic 3D collision detection
+  [ ] Rectangular Cuboids
+
+[ ] 3D physics 
+  [ ] ??
+
+[ ] Render full 3D scene
+  [ ] Lighting
+  [ ] Enviroment
+
+[ ] Make 3D fps player controller
+  [ ] Player movement
+  [ ] Camera movement
+
+[ ] Game text rendering
+
+[ ] Animation pipeline

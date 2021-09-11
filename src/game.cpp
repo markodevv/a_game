@@ -554,5 +554,4 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
     
     
     g_Platform.RendererEndFrame(ren);
-    
 }
