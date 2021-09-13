@@ -1,3 +1,11 @@
+const Color ColorYellow = {0, 255, 255, 255};
+const Color ColorOrange = {120, 255, 255, 255};
+const Color ColorGreen  = {0, 255, 0, 255};
+const Color ColorRed    = {255, 0, 0, 255};
+const Color ColorBlue   = {0, 0, 255, 255};
+const Color ColorWhite   = {255, 255, 255, 255};
+
+
 #define PushRenderEntry(group, type, sort_key) \
 (type *)PushRenderEntry_(group, sizeof(type), RENDER_ENTRY_##type, sort_key) \
 

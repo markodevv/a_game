@@ -1616,7 +1616,180 @@ typedef enum MeshEnum
 
 
 
+    MESH_SPHERE,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     MESH_HOUSE,
+
 
 
 
@@ -2058,7 +2231,9 @@ typedef enum UniformType
 
 
 
+
     UNIFORM_F64,
+
 
 
 
@@ -2505,7 +2680,9 @@ typedef enum UniformType
 
 
 
+
     UNIFORM_U32,
+
 
 
 
@@ -2956,7 +3133,9 @@ typedef enum UniformType
 
 
 
+
     UNIFORM_VEC3,
+
 
 
 
@@ -3411,7 +3590,9 @@ typedef enum UniformType
 
 
 
+
     UNIFORM_MAT4,
+
 
 
 

@@ -1,10 +1,11 @@
 [x] Job System
 
 [x] OBJ loading
+  [ ] Load .mtl
+
 
 [ ] OBJ Model Rendering
   [x] Indexed rendering
-  [ ] Get material from OBJ?
   [ ] Texture sampling
 
 [ ] Basic 3D collision detection
@@ -24,3 +25,5 @@
 [ ] Game text rendering
 
 [ ] Animation pipeline
+
+[ ] Push arena zero out memory

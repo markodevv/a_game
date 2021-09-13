@@ -29,7 +29,7 @@ LoadSpriteWork(void* data)
     FileResult file = g_Platform.ReadEntireFile(sprite_data->sprite_path);
     Sprite* sprite = 0;
     
-    if (file.is_valid)
+    if (ValidFile(&file))
     {
         sprite = sprite_data->assets->sprites + (SpriteID)sprite_data->sprite_id;
         
@@ -45,7 +45,7 @@ LoadSpriteWork(void* data)
         sprite->asset_state = ASSET_UNLOCKED;
         sprite->name = sprite_data->sprite_path;
         
-        g_Platform.FreeFileMemory(file.data);
+        g_Platform.FreeFile(&file);
     }
     else
     {
@@ -242,7 +242,7 @@ LoadFontTest(Assets* assets, char* font_path, i8 font_size)
     }
     
     stbi_write_png("STB.png", bitmap_width, bitmap_height, 1, font_sprite->data, bitmap_width);
-    g_Platform.FreeFileMemory(font_file.data);
+    g_Platform.FreeFile(&font_file);
     
     return font;
 }
@@ -257,6 +257,7 @@ struct OBJIndexBucket
     OBJIndexBucket* next;
 };
 
+
 struct OBJFileInfo
 {
     u32 vertex_count;
@@ -264,40 +265,21 @@ struct OBJFileInfo
     u32 normal_count;
     u32 uv_count;
     
-    u8* data;
-    u32 cursor;
-    
     OBJIndexBucket** index_map;
 };
-
-internal bool 
-IsNewLineChar(char c)
-{
-    return c == '\n' || c == '\n\r';
-}
-
-internal bool 
-IsWhiteSpace(char c)
-{
-    return c == ' ';
-}
 
 internal OBJFileInfo
 GetOBJFileInfo(MemoryArena* arena, FileResult file)
 {
     OBJFileInfo result = {};
     char prefix[3];
-    result.data = (u8*)file.data;
-    u8* data = (u8*)file.data;
     result.index_map = PushMemory(arena, OBJIndexBucket*, 4096);
     
-    while(*data)
+    while (!IsEOF(&file))
     {
-        prefix[0] = *data++;
-        prefix[1] = *data;
-        prefix[2] = '\0';
+        NextWord(&file, prefix);
         
-        if (StringMatch(prefix, "v "))
+        if (StringMatch(prefix, "v"))
         {
             result.vertex_count++;
         }
@@ -309,166 +291,57 @@ GetOBJFileInfo(MemoryArena* arena, FileResult file)
         {
             result.uv_count++;
         }
-        else if (StringMatch(prefix, "f "))
+        else if (StringMatch(prefix, "f"))
         {
             result.face_count++;
         }
-        
-        while (*data && !IsNewLineChar(*data))
-        {
-            data++;
-        }
-        
-        if (*data)
-        {
-            data++;
-        }
+        NextLine(&file);
     }
+    
     
     return result;
 }
 
-internal bool
-IsDigit(char c)
+internal Material
+OBJLoadMaterial(char* mat_path)
 {
-    return c >= 48 && c <= 57 || c == '.' || c == '-';
-}
-
-internal char
-OBJNextChar(OBJFileInfo* obj_info)
-{
-    return obj_info->data[++obj_info->cursor];
-}
-
-internal char
-OBJCurrentChar(OBJFileInfo* obj_info)
-{
-    return obj_info->data[obj_info->cursor];
-}
-
-internal b8
-IsEOFChar(char c)
-{
-    return (c == '\0');
-}
-
-internal void
-OBJSkipWhiteSpace(OBJFileInfo* obj_info)
-{
-    while (IsWhiteSpace(OBJCurrentChar(obj_info)))
+    Material result = {};
+    char prefix[6];
+    FileResult file = g_Platform.ReadEntireFile(mat_path);
+    
+    if (ValidFile(&file))
     {
-        OBJNextChar(obj_info);
-    }
-}
-
-internal u32
-OBJNextInt(OBJFileInfo* obj_info)
-{
-    u32 result = 0;
-    char string[32];
-    u8 index = 0;
-    
-    char c = OBJCurrentChar(obj_info);
-    Assert(IsDigit(c));
-    
-    while(IsDigit(c))
-    {
-        string[index++] = c;
-        c = OBJNextChar(obj_info);
-    }
-    
-    string[index] = '\0';
-    result = ToInt(string);
-    
-    if (c == '/')
-    {
-        OBJNextChar(obj_info);
+        while (!IsEOF(&file))
+        {
+            NextWord(&file, prefix);
+            
+            if (StringMatch(prefix, "Ka"))
+            {
+                NextChar(&file);
+                result.ambient = NextVec3(&file);
+            }
+            else if (StringMatch(prefix, "Kd"))
+            {
+                NextChar(&file);
+                result.diffuse = NextVec3(&file);
+            }
+            else if (StringMatch(prefix, "Ks"))
+            {
+                NextChar(&file);
+                result.specular = NextVec3(&file);
+            }
+            else if (StringMatch(prefix, "Ns"))
+            {
+                NextChar(&file);
+                result.shininess = NextInt(&file) / 10.0f;
+            }
+            
+            NextLine(&file);
+        }
+        g_Platform.FreeFile(&file);
     }
     
     return result;
-    
-}
-
-internal f32
-OBJNextFloat(OBJFileInfo* obj_info)
-{
-    f32 result = 0;
-    char string[32];
-    u8 index = 0;
-    
-    char c = OBJCurrentChar(obj_info);
-    Assert(IsDigit(c));
-    
-    while(IsDigit(c))
-    {
-        string[index++] = c;
-        c = OBJNextChar(obj_info);
-    }
-    
-    string[index] = '\0';
-    result = ToFloat(string);
-    
-    if (c == '/')
-    {
-        OBJNextChar(obj_info);
-    }
-    
-    return result;
-    
-}
-
-
-
-internal vec3
-OBJNextVec3(OBJFileInfo* obj_info)
-{
-    vec3 out = {};
-    u8 vertex_axis = 0;
-    
-    while(1)
-    {
-        char c = OBJNextChar(obj_info);
-        
-        if (IsDigit(c))
-        {
-            Vec3At(out, vertex_axis++) = OBJNextFloat(obj_info);
-        }
-        
-        c = OBJCurrentChar(obj_info);
-        
-        if (IsNewLineChar(c))
-        {
-            break;
-        }
-    }
-    
-    return out;
-}
-
-internal vec2
-OBJNextVec2(OBJFileInfo* obj_info)
-{
-    vec2 out = {};
-    u8 vertex_axis = 0;
-    
-    while(1)
-    {
-        char c = OBJNextChar(obj_info);
-        
-        if (IsDigit(c))
-        {
-            Vec2At(out, vertex_axis++) = OBJNextFloat(obj_info);
-        }
-        
-        c = OBJCurrentChar(obj_info);
-        
-        if (IsNewLineChar(c))
-        {
-            break;
-        }
-    }
-    
-    return out;
 }
 
 struct OBJFace
@@ -479,49 +352,34 @@ struct OBJFace
 };
 
 internal OBJFace 
-OBJGetFace(OBJFileInfo* obj_info)
+OBJGetFace(OBJFileInfo* obj_info, FileResult file)
 {
     OBJFace face = {};
     u8 index = 0;
+    char c = CurrentChar(&file);
     
-    char c = OBJCurrentChar(obj_info);
     while(1)
     {
         if (IsDigit(c))
         {
             //NOTE(Marko): -1 because .obj file is indexed starting from 1
             // Face = vposition/vtexture/vnormal * 3
-            face.position_indices[index] = OBJNextInt(obj_info) - 1;
-            face.uv_indices[index] = OBJNextInt(obj_info) - 1;
-            face.normal_indices[index] = OBJNextInt(obj_info) - 1;
+            face.position_indices[index] = NextInt(&file) - 1;
+            face.uv_indices[index] = NextInt(&file) - 1;
+            face.normal_indices[index] = NextInt(&file) - 1;
             
             index++;
         }
         
-        if (IsNewLineChar(OBJCurrentChar(obj_info))
-            || IsEOFChar(OBJCurrentChar(obj_info)))
+        if (IsNewLineChar(CurrentChar(&file))
+            || IsEOF(&file))
         {
             break;
         }
-        c = OBJNextChar(obj_info);
+        c = NextChar(&file);
     }
     
     return face;
-}
-
-internal void
-OBJSkipLine(OBJFileInfo* obj_info)
-{
-    char c = OBJCurrentChar(obj_info);
-    while(1)
-    {
-        if (IsEOFChar(c) || IsNewLineChar(c))
-        {
-            OBJNextChar(obj_info);
-            break;
-        }
-        c = OBJNextChar(obj_info);
-    }
 }
 
 internal void
@@ -588,7 +446,7 @@ LoadOBJMeshWork(void* param)
     
     FileResult file = g_Platform.ReadEntireFile(work_data->mesh_path);
     
-    if (file.is_valid)
+    if (ValidFile(&file))
     {
         
         OBJFileInfo obj_info = GetOBJFileInfo(&work_data->task->arena, file);
@@ -602,30 +460,28 @@ LoadOBJMeshWork(void* param)
         vec3* obj_normals = PushMemory(&work_data->task->arena, vec3, obj_info.normal_count);
         vec2* obj_uvs = PushMemory(&work_data->task->arena, vec2, obj_info.uv_count);
         
-        char prefix[3];
+        char prefix[6];
         char* data = (char*)file.data;
         
-        while(!IsEOFChar(OBJCurrentChar(&obj_info)))
+        while(!IsEOF(&file))
         {
-            prefix[0] = OBJCurrentChar(&obj_info);
-            prefix[1] = OBJNextChar(&obj_info);
-            prefix[2] = '\0';
+            NextWord(&file, prefix);
             
-            if (StringMatch(prefix, "v "))
+            if (StringMatch(prefix, "v"))
             {
-                obj_positions[pos_count++] = OBJNextVec3(&obj_info);
+                obj_positions[pos_count++] = NextVec3(&file);
             }
             else if (StringMatch(prefix, "vn"))
             {
-                obj_normals[normal_count++] = OBJNextVec3(&obj_info);
+                obj_normals[normal_count++] = NextVec3(&file);
             }
             else if (StringMatch(prefix, "vt"))
             {
-                obj_uvs[uv_count++] = OBJNextVec2(&obj_info);
+                obj_uvs[uv_count++] = NextVec2(&file);
             }
-            else if (StringMatch(prefix, "f "))
+            else if (StringMatch(prefix, "f"))
             {
-                OBJFace face = OBJGetFace(&obj_info);
+                OBJFace face = OBJGetFace(&obj_info, file);
                 
                 for (u32 i = 0; i < 3; ++i)
                 {
@@ -659,12 +515,41 @@ LoadOBJMeshWork(void* param)
                     }
                 }
             }
+            else if (StringMatch(prefix, "mtllib"))
+            {
+                u32 max_path_size = 128;
+                char* material_path = PushMemory(&work_data->task->arena, char, max_path_size);
+                u32 path_len = GetPathFromFilePath(material_path, max_path_size, work_data->mesh_path);
+                
+                char c = CurrentChar(&file);
+                
+                if (c == ' ')
+                {
+                    c = NextChar(&file);
+                }
+                
+                for(u32 i = path_len; i < max_path_size; ++i)
+                {
+                    if (IsNewLineChar(c))
+                    {
+                        material_path[i] = '\0';
+                        mesh->material = OBJLoadMaterial(material_path);
+                        break;
+                    }
+                    else if (i == max_path_size - 1)
+                    {
+                        LogM("Material path is longer than max path of %i\n", max_path_size);
+                    }
+                    material_path[i] = c;
+                    c = NextChar(&file);
+                }
+            }
             
-            OBJSkipLine(&obj_info);
+            NextLine(&file);
         }
-        mesh->material = CreateDefaultMaterial();
+        //mesh->material = CreateDefaultMaterial();
         
-        g_Platform.FreeFileMemory(file.data);
+        g_Platform.FreeFile(&file);
         
         assets->loaded_mesh_queue[assets->num_queued_meshes++] = work_data->mesh_id;
         
@@ -700,6 +585,10 @@ LoadOBJMesh(Assets* assets, MeshEnum mesh_id)
             case MESH_CUBE:
             {
                 data->mesh_path = "../assets/models/cube.obj";
+            } break;
+            case MESH_SPHERE:
+            {
+                data->mesh_path = "../assets/models/sphere.obj";
             } break;
         }
         

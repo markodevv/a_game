@@ -73,15 +73,15 @@ typedef void (*SystemFunc)(GameState* gs, Array* ent);
 
 struct FileResult
 {
-    b8 is_valid;
     void* data;
-    i32 size;
+    u64 size;
+    u64 cursor;
 };
 
 struct Renderer2D;
 
 typedef FileResult ReadEntireFileProc(char* path);
-typedef void FreeEntireFileProc(void* memory);
+typedef void FreeFileProc(FileResult* file);
 typedef b8 WriteEntireFileProc(char* file_name, u32 size, void* memory);
 
 typedef void RenderProc(Renderer2D* ren);
@@ -104,7 +104,7 @@ typedef void (WaitForWorkersProc)(WorkQueue* queue);
 struct Platform
 {
     ReadEntireFileProc* ReadEntireFile;
-    FreeEntireFileProc* FreeFileMemory;
+    FreeFileProc* FreeFile;
     WriteEntireFileProc* WriteEntireFile;
     
     RenderProc* InitRenderer;
@@ -124,6 +124,12 @@ struct Platform
     PushWorkEntryProc* PushWorkEntry;
     WaitForWorkersProc* WaitForWorkers;
 };
+
+internal b8
+ValidFile(FileResult* file)
+{
+    return file->data != 0;
+}
 
 internal void*
 DefaultAllocate(sizet size)

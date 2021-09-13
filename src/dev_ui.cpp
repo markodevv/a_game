@@ -563,7 +563,7 @@ UiLoadFont(MemoryArena* arena, Platform* platform, Assets* assets, char* font_pa
             // TODO:
             subsprite->main_sprite = font.font_sprite_id;
         }
-        platform->FreeFileMemory(font_file.data);
+        platform->FreeFile(&font_file);
     }
     else
     {
@@ -641,7 +641,7 @@ ReadUiConfig(DebugState* debug)
                 window->position = data->position;
             }
         }
-        g_Platform.FreeFileMemory(file.data);
+        g_Platform.FreeFile(&file);
     }
 }
 

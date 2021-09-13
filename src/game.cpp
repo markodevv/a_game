@@ -33,6 +33,7 @@ struct DebugState* global_debug_state;
 #include "generated/game.h"
 #include "entity.cpp"
 #include "generated_print.c"
+#include "file_parse.cpp"
 #include "asset.cpp"
 #include "render_group.cpp"
 #include "dev_ui.cpp"
@@ -456,9 +457,11 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
     
     PushText(game_state->render_group, &game_state->font, "testing hello", V2(200, 200), LAYER_FRONT);
     
-    //PushMesh(game_state->render_group, &ren->mesh, V3(0), V3(50), NewColor(255));
-    PushMesh(game_state->render_group, V3(0, 0, 0), V3(1), NewColor(255), MESH_HOUSE);
+    PushMesh(game_state->render_group, V3(-100, -100, 0), V3(50), NewColor(255), MESH_CUBE);
+    PushMesh(game_state->render_group, V3(100, 100, 0), V3(50), NewColor(255), MESH_SPHERE);
+    PushMesh(game_state->render_group, V3(0, 0, 0), V3(5), NewColor(255), MESH_HOUSE);
     
+    PushMesh(game_state->render_group, ren->light.position, V3(10), ColorYellow, MESH_CUBE);
     
     if (global_is_edit_mode)
     {
@@ -534,7 +537,7 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
             }
             if (UiSubmenu(debug, "Material"))
             {
-                Mesh* mesh = GetMesh(&game_state->assets, MESH_HOUSE);
+                Mesh* mesh = GetMesh(&game_state->assets, MESH_CUBE);
                 
                 UiFloat32Editbox(debug, &mesh->material.ambient, "ambient");
                 UiFloat32Editbox(debug, &mesh->material.diffuse, "diffuse");

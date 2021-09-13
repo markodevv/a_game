@@ -582,10 +582,13 @@ OpenGLDrawMesh(Renderer2D* ren, MeshEntry* mesh_entry)
     i32 transform_loc = OpenGLGetUniformLocation(ren->shader_program_3D, "u_transform");
     glUniformMatrix4fv(transform_loc, 1, do_transpose, (f32*)&transform.rows[0].x);
     
-    i32 normal_loc =  OpenGLGetUniformLocation(ren->shader_program_3D, "u_normal_mat");
+    i32 normal_loc = OpenGLGetUniformLocation(ren->shader_program_3D, "u_normal_mat");
     glUniformMatrix4fv(normal_loc, 1, do_transpose, (f32*)&normal_mat.rows[0].x);
     
+    i32 cam_pos_loc = OpenGLGetUniformLocation(ren->shader_program_3D, "u_cam_pos");
     
+    
+    glUniform3fv(cam_pos_loc, 1, &ren->camera->position.x);
     OpenGLSetMaterialUniform(ren->shader_program_3D, &mesh->material);
     OpenGLSetLightUniform(ren->shader_program_3D, &ren->light);
     

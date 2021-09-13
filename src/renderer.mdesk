@@ -168,6 +168,7 @@ Material :: struct
 MeshEnum :: enum
 {
     MESH_CUBE,
+    MESH_SPHERE,
     MESH_HOUSE,
     NUM_MESHES,
 }

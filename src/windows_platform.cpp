@@ -1,3 +1,4 @@
+//Ella kai
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
@@ -45,6 +46,7 @@ struct DebugState* global_debug_state;
 #include "generated/entity.h"
 #include "generated_print.c"
 #include "generated/game.h"
+#include "file_parse.cpp"
 #include "asset.cpp"
 #include "opengl_renderer.h"
 #include "opengl_renderer.cpp"
@@ -84,11 +86,16 @@ SafeTruncateU64(u64 value)
 
 
 internal void
-FreeFileMemory(void* memory)
+FreeFile(FileResult* file)
 {
-    if (memory)
+    if (file->data)
     {
-        free(memory);
+        free(file->data);
+        *file = {};
+    }
+    else
+    {
+        LogM("Invalid file to free!!\n");
     }
 }
 
@@ -96,7 +103,6 @@ internal FileResult
 ReadEntireFile(char* file_name)
 {
     FileResult result = {};
-    result.is_valid = false;
     
     HANDLE file_handle = CreateFile(file_name, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
     if(file_handle != INVALID_HANDLE_VALUE)
@@ -113,12 +119,11 @@ ReadEntireFile(char* file_name)
                    (file_size_32 == bytes_read))
                 {
                     // File read successfully
-                    result.is_valid = true;
                     result.size = file_size_32;
                 }
                 else
                 {                    
-                    FreeFileMemory(result.data);
+                    free(result.data);
                     result.data = 0;
                 }
             }
@@ -883,7 +888,7 @@ WinMain(HINSTANCE hinstance,
     
     game_memory.platform.ReadEntireFile = ReadEntireFile;
     game_memory.platform.WriteEntireFile = WriteEntireFile;
-    game_memory.platform.FreeFileMemory = FreeFileMemory;
+    game_memory.platform.FreeFile = FreeFile;
     
     game_memory.platform.Allocate = DefaultAllocate;
     game_memory.platform.Reallocate = DefaultReallocate;
