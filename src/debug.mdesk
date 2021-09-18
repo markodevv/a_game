@@ -18,6 +18,8 @@ UiWindow :: struct
 
 WindowSerializeData :: struct
 {
+    name_size: u32,
+    name: [64]char,
     position: vec2,
     size: vec2,
 }
@@ -98,7 +100,6 @@ DebugState :: struct
     top_layer: u32,
     is_newline: b8,
     
-    // TODO: this storage is trash
     sub_menus: [64]SubMenu,
     sub_menu_index: u32,
     

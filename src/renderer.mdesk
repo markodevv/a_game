@@ -121,6 +121,7 @@ RenderEntryType :: enum
     RENDER_ENTRY_QuadEntry,
     RENDER_ENTRY_TriangleEntry,
     RENDER_ENTRY_MeshEntry,
+    RENDER_ENTRY_ClearScreenEntry,
 }
 
 RenderEntryHeader :: struct
@@ -135,6 +136,11 @@ ShaderId :: enum
     SHADER_ID_SB_QUAD,
     SHADER_ID_BASIC_3D,
     NUM_SHADERS,
+}
+
+ClearScreenEntry :: struct
+{
+    color: Color,
 }
 
 QuadEntry :: struct

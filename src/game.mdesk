@@ -25,24 +25,99 @@ GameSoundBuffer :: struct
     samples: *i16,
 }
 
+@Print
+Render :: struct
+{
+@NoPrint
+    sprite: SpriteID,
+    color: Color,
+    layer: f32,
+}
+
+@Print
+Transform :: struct
+{
+    position: vec2,
+    scale: vec2,
+    rotation: vec2,
+}
+
+@Print
+Rigidbody :: struct
+{
+    velocity: vec2,
+    acceleration: vec2,
+    
+    mass: f32,
+}
+
+
+@Print
+Particle :: struct
+{
+    position: vec2,
+    velocity: vec2,
+    acceleration: vec2,
+    size: vec2,
+}
+
+
+ParticleEmitter :: struct
+{
+    min_vel: vec2,
+    max_vel: vec2,
+    
+    drag: f32,
+    
+    color: Color,
+    size: vec2,
+    
+    particle_spawn_rate: u32,
+    
+    position: vec2,
+    
+    particles: *Particle,
+    particle_index: u32,
+    max_particles :u32,
+}
+
+Entity :: struct
+{
+    position: vec3,
+    rotation: vec3,
+    scale: vec3,
+
+    spriteID: SpriteID,
+    meshID: MeshEnum,
+    color: Color,
+    layer: Layer,
+
+    velocity: vec2,
+    acceleration: vec2,
+    mass: f32,
+
+    flags: u32,
+}
+
+EntityFlag :: flags
+{
+    RENDER,
+    PHYSICS,
+}
+
+ENTITY_MAX :: 16384
+
 WorldState :: struct
 {
-    components: [NUM_COMPONENTS]Component,
-    component_infos: [NUM_COMPONENTS]ComponentInfo,
-    entity_masks: [ENTITY_MAX]u64,
-    removed_ids: *Array,
-    
-    systems: [32]System,
-    num_systems: u32,
-    
-    entity_count: u32,
-    component_count: u32,
-    
     grid_width: u16,
     grid_height: u16,
     
     render_group: *RenderGroup,
+
+    entities: [ENTITY_MAX]Entity;
+    entity_count: u32,
 }
+
 
 GameState :: struct
 {
@@ -66,5 +141,5 @@ GameState :: struct
     
     renderer: Renderer2D,
     render_group: *RenderGroup,
-}
 
+}

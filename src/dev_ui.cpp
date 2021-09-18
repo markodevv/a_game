@@ -617,72 +617,68 @@ ReadUiConfig(DebugState* debug)
 {
     FileResult file = g_Platform.ReadEntireFile("./config.ui");
     
-    if (file.data)
+    if (ValidFile(&file))
     {
         UiFileHeader* header = (UiFileHeader*)file.data;
         u8* iterator = (u8*)(header + 1);
         
-        char id_buffer[128];
+        char window_name[128];
         for (u32 i = 0; i < header->window_count; ++i)
         {
-            u32 id_size = *((u32*)iterator);
-            iterator += sizeof(u32);
-            
-            StringCopy(id_buffer, (char*)iterator, id_size);
-            iterator += id_size;
-            
-            WindowSerializeData* data = (WindowSerializeData*)iterator;
+            WindowSerializeData* window_data = (WindowSerializeData*)iterator;
             iterator += sizeof(WindowSerializeData);
+            StringCopy(window_name, window_data->name, window_data->name_size);
             
-            UiWindow* window = GetWindow(debug, id_buffer);
+            UiWindow* window = GetWindow(debug, window_name);
             if (window)
             {
-                window->size = data->size;
-                window->position = data->position;
+                window->size = window_data->size;
+                window->position = window_data->position;
             }
         }
         g_Platform.FreeFile(&file);
+    }
+    else
+    {
+        LogM("Failed to read ui config file\n");
     }
 }
 
 internal void
 WriteUiConfig(DebugState* debug)
 {
-    u8* mem = PushMemory(&debug->temp_arena, u8, Megabytes(10));
-    UiFileHeader* file_header = (UiFileHeader*)mem;
-    u8* iterator = mem + sizeof(UiFileHeader);
+    u8* file_memory = PushMemory(&debug->temp_arena, u8, Megabytes(10));
+    UiFileHeader* file_header = (UiFileHeader*)file_memory;
+    u8* iterator = file_memory + sizeof(UiFileHeader);
     
-    u32 used_size = 0;
+    u32 file_size = sizeof(UiFileHeader);
     u32 window_count = 0;
     
     for (u32 i = 0; i < ArrayCount(debug->window_table); ++i)
     {
         for (UiWindow* window = debug->window_table[i]; 
              window; 
-             window= window->next)
+             window = window->next)
         {
-            u32 id_size = StringLength(window->id) * sizeof(char);
-            
-            MemCopy(iterator, &id_size, sizeof(u32));
-            iterator += sizeof(u32);
-            
-            MemCopy(iterator, window->id, id_size);
-            iterator += id_size;
+            u32 name_size = StringLength(window->id) * sizeof(char);
             
             WindowSerializeData* window_data = (WindowSerializeData*)iterator;
-            iterator += sizeof(WindowSerializeData);
             
+            window_data->name_size = name_size;
+            StringCopy(window_data->name, window->id);
             window_data->position = window->position;
             window_data->size = window->size;
             
-            used_size += sizeof(u32) + id_size + sizeof(WindowSerializeData);
+            iterator += sizeof(WindowSerializeData);
+            file_size += sizeof(WindowSerializeData);
+            
             window_count++;
         }
     }
     
     file_header->window_count = window_count;
     
-    b8 success = g_Platform.WriteEntireFile("./config.ui", used_size, mem);
+    b8 success = g_Platform.WriteEntireFile("./config.ui", file_size, file_memory);
     
     if (!success)
     {
@@ -703,12 +699,6 @@ DevUiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer2D* ren)
     
     debug->next_hot_item = debug->hot_item;
     debug->hot_item = 0;
-    
-    if (!debug->have_read_config)
-    {
-        ReadUiConfig(debug);
-        debug->have_read_config = true;
-    }
     
     Assert(debug->temp_memory.arena);
     
@@ -914,7 +904,9 @@ UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(4
         vec2 titlebar_pos = debug->draw_cursor;
         
         
-        // TODO window focus
+        // NOTE: there must be a focused window so i check here because on start there is
+        // no focused window and set it to first UiWindowBegin window
+        
         if (!debug->focused_window)
         {
             SetWindowFocus(debug, window);
@@ -1333,7 +1325,6 @@ GetColorpicker(DebugState* debug, void* key)
     
     Colorpicker* cp = debug->colorpickers + hash_index;
     
-    // TODO: currenty not handling collisions..
     do
     {
         if (cp->key == key)
@@ -1444,6 +1435,30 @@ UiColorpicker(DebugState* debug, Color* var, char* var_name)
         
     }
     
+}
+
+internal void
+UiProfilerWindow(DebugState* debug)
+{
+    UiWindowBegin(debug, "Profiler");
+    char buffer[64];
+    
+    UiWindow* window = GetOrCreateWindow(debug, "Profiler");
+    debug->draw_cursor.y -= debug->font.font_size;
+    debug->draw_cursor.x += PADDING;
+    
+    for (ProfileEntry* entry = global_debug_state->profile_entries;
+         entry;
+         entry = entry->next)
+    {
+        f64 ms_time = (entry->elapsed_sec * 1000.0f);
+        snprintf(buffer, ArrayCount(buffer), "%s - %.2f ms", entry->name, ms_time);
+        DEBUGDrawText(debug->render_group, &debug->font, buffer, debug->draw_cursor, window->layer + LAYER_FRONT, TEXT_ALIGN_LEFT);
+        
+        debug->draw_cursor.y -= debug->font.font_size;
+    }
+    
+    UiWindowEnd(debug);
 }
 
 internal void

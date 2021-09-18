@@ -78,15 +78,20 @@ DebugFrameStart()
     }
     global_debug_state->temp_memory = BeginTemporaryMemory(&global_debug_state->temp_arena);
     
+    
 #if GAME_PROFILE
+    /*
+        LogM("-----FRAME DATA-----\n");
+        LogM("FPS %f\n", global_debug_state->game_fps);
+        LogM("Frame Time: %.2fms\n", elapsed_time * 1000.0f);
+        PrintProfileData();
+        LogM("---------------------\n");
+    */
+    f64 elapsed_time = g_Platform.GetElapsedSeconds(global_debug_state->frame_start_cycles);
+    
     global_debug_state->profile_entries = 0;
     global_debug_state->frame_start_cycles = g_Platform.GetPrefCounter();
-    f64 elapsed_time = g_Platform.GetElapsedSeconds(global_debug_state->frame_start_cycles);
     global_debug_state->game_fps = 1.0f/elapsed_time;
-    LogM("FRAME DATA\n");
-    LogM("FPS %f\n", global_debug_state->game_fps);
-    LogM("Frame Time: %.2fms\n", elapsed_time * 1000.0f);
-    PrintProfileData();
 #endif
     
 }

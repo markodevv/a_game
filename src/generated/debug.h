@@ -22,6 +22,8 @@ struct UiWindow
 typedef struct WindowSerializeData WindowSerializeData;
 struct WindowSerializeData
 {
+    u32 name_size;
+    char name[64];
     vec2 position;
     vec2 size;
 };
@@ -101,7 +103,6 @@ struct DebugState
     vec2 draw_cursor;
     u32 top_layer;
     b8 is_newline;
-
 
     SubMenu sub_menus[64];
     u32 sub_menu_index;

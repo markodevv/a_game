@@ -1,0 +1,25 @@
+ENTITY_MAX :: 10000
+NUM_COMPONENTS :: 4
+
+
+ComponentInfo :: struct
+{
+    size: u32,
+    name: *char,
+}
+
+Component :: struct
+{
+    data: *void,
+}
+
+
+System :: struct
+{
+    id: u32,
+    entities: *Array,
+    signature: u64,
+    Update: SystemFunc,
+    entity_id_to_array_id: HashMap,
+    name: *char,
+}

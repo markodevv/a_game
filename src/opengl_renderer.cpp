@@ -478,7 +478,7 @@ UploadShaderUniform(u32 shader_program, Uniform* uniform)
 }
 
 internal void
-OpenGLDraw(Renderer2D* ren, RenderSetup* setup, ShaderId shader_id)
+OpenGLDrawSprite(Renderer2D* ren, RenderSetup* setup, ShaderId shader_id)
 {
     Shader* shader = GetShader(ren->assets, shader_id);
     u32 shader_program = shader->bind_id;
@@ -608,12 +608,9 @@ OpenGLDrawMesh(Renderer2D* ren, MeshEntry* mesh_entry)
 }
 
 internal void
-OpenGLEndFrame(Renderer2D* ren)
+OpenGLDraw(Renderer2D* ren)
 {
     PROFILE_FUNCTION();
-    
-    glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     local_persist i32 w, h;
     if (w != ren->screen_width || h != ren->screen_height)
@@ -671,6 +668,15 @@ OpenGLEndFrame(Renderer2D* ren)
             
             switch (((RenderEntryHeader *)base)->entry_type)
             {
+                case RENDER_ENTRY_ClearScreenEntry:
+                {
+                    
+                    ClearScreenEntry* clear_screen = (ClearScreenEntry*)(base + header_size);
+                    vec4 color = NormalizeColor(clear_screen->color);
+                    glClearColor(color.x, color.y, color.z, color.w);
+                    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                    
+                } break;
                 case RENDER_ENTRY_QuadEntry:
                 {
                     QuadEntry* quad = (QuadEntry*)(base + header_size);
@@ -678,7 +684,7 @@ OpenGLEndFrame(Renderer2D* ren)
                     // NOTE: we flush draw everything on shader change
                     if (quad->shader_id != current_shader)
                     {
-                        OpenGLDraw(ren, &render_group->setup, current_shader);
+                        OpenGLDrawSprite(ren, &render_group->setup, current_shader);
                         current_shader = quad->shader_id;
                     }
                     u32 sprite_slot = 0;
@@ -763,7 +769,7 @@ OpenGLEndFrame(Renderer2D* ren)
                     
                     if (triangle->shader_id != current_shader)
                     {
-                        OpenGLDraw(ren, &render_group->setup, current_shader);
+                        OpenGLDrawSprite(ren, &render_group->setup, current_shader);
                         current_shader = triangle->shader_id;
                     }
                     
@@ -809,7 +815,7 @@ OpenGLEndFrame(Renderer2D* ren)
                 } break;
             }
         }
-        OpenGLDraw(ren, &render_group->setup, current_shader);
+        OpenGLDrawSprite(ren, &render_group->setup, current_shader);
         render_group->push_buffer_size = 0;
         render_group->sort_element_count = 0;
         

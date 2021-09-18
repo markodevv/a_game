@@ -861,6 +861,130 @@ typedef enum RenderEntryType
 
 
     RENDER_ENTRY_MeshEntry,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    RENDER_ENTRY_ClearScreenEntry,
 }
 RenderEntryType;
 typedef struct RenderEntryHeader RenderEntryHeader;
@@ -871,6 +995,7 @@ struct RenderEntryHeader
 typedef enum ShaderId
 {
     SHADER_ID_NORMAL,
+
 
 
 
@@ -1139,7 +1264,9 @@ typedef enum ShaderId
 
 
 
+
     SHADER_ID_SB_QUAD,
+
 
 
 
@@ -1412,9 +1539,15 @@ typedef enum ShaderId
 
 
 
+
     NUM_SHADERS,
 }
 ShaderId;
+typedef struct ClearScreenEntry ClearScreenEntry;
+struct ClearScreenEntry
+{
+    Color color;
+};
 typedef struct QuadEntry QuadEntry;
 struct QuadEntry
 {
@@ -1446,6 +1579,12 @@ struct Material
 typedef enum MeshEnum
 {
     MESH_CUBE,
+
+
+
+
+
+
 
 
 
@@ -1788,7 +1927,19 @@ typedef enum MeshEnum
 
 
 
+
+
+
+
+
+
     MESH_HOUSE,
+
+
+
+
+
+
 
 
 
@@ -2232,7 +2383,19 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
     UNIFORM_F64,
+
+
+
+
+
+
 
 
 
@@ -2681,7 +2844,19 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
     UNIFORM_U32,
+
+
+
+
+
+
 
 
 
@@ -3134,7 +3309,19 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
     UNIFORM_VEC3,
+
+
+
+
+
+
 
 
 
@@ -3591,7 +3778,19 @@ typedef enum UniformType
 
 
 
+
+
+
+
+
+
     UNIFORM_MAT4,
+
+
+
+
+
+
 
 
 

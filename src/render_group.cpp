@@ -5,6 +5,17 @@ const Color ColorRed    = {255, 0, 0, 255};
 const Color ColorBlue   = {0, 0, 255, 255};
 const Color ColorWhite   = {255, 255, 255, 255};
 
+internal inline vec4
+NormalizeColor(Color color)
+{
+    return {
+        color.r/255.0f,
+        color.g/255.0f,
+        color.b/255.0f,
+        color.a/255.0f,
+    };
+}
+
 
 #define PushRenderEntry(group, type, sort_key) \
 (type *)PushRenderEntry_(group, sizeof(type), RENDER_ENTRY_##type, sort_key) \
@@ -69,6 +80,13 @@ PushRenderEntry_(RenderGroup* group, u32 size, RenderEntryType type, u32 sort_ke
 }
 
 
+internal void
+PushClearScreen(RenderGroup* group, Color color)
+{
+    u32 key = 0;
+    ClearScreenEntry* clear_screen = PushRenderEntry(group, ClearScreenEntry, key);
+    clear_screen->color = color;
+}
 
 internal void
 PushQuad(RenderGroup* group, 
@@ -188,6 +206,7 @@ PushText(RenderGroup* render_group,
         text++;
     }
 }
+
 
 internal void
 DEBUGDrawText(RenderGroup* render_group,

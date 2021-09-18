@@ -41,10 +41,11 @@ typedef double f64;
 typedef i8 b8;
 typedef size_t sizet;
 
-typedef u16 EntityId;
+typedef u32 EntityID;
 typedef u32 Layer;
 
 typedef u32 SpriteID;
+typedef u32 Layer;
 
 struct GameState;
 struct Array;
@@ -108,7 +109,7 @@ struct Platform
     WriteEntireFileProc* WriteEntireFile;
     
     RenderProc* InitRenderer;
-    RenderProc* RendererEndFrame;
+    RenderProc* RendererDraw;
     
     GetElapsedSeconds* GetElapsedSeconds;
     GetPrefCounter* GetPrefCounter;

@@ -1,7 +1,7 @@
 [x] Job System
 
 [x] OBJ loading
-  [ ] Load .mtl
+  [x] Load .mtl
 
 
 [ ] OBJ Model Rendering

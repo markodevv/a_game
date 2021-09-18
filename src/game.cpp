@@ -29,7 +29,6 @@ struct DebugState* global_debug_state;
 #include "renderer.cpp"
 #include "generated/debug.h"
 #include "debug.cpp"
-#include "generated/entity.h"
 #include "generated/game.h"
 #include "entity.cpp"
 #include "generated_print.c"
@@ -120,143 +119,6 @@ RandomBetweenVectors(vec2 min, vec2 max)
               RandomRange(min.y, max.y));
 }
 
-internal void
-ParticleUpdate(GameState* game_state, Array* entities)
-{
-    WorldState* world = &game_state->world;
-    float dt = game_state->delta_time;
-    
-    for (u32 i = 0; i < entities->count; ++i)
-    {
-        EntityId entity = *ArrayGet(entities, i, EntityId);
-        ParticleEmitter* emitter = GetComponent(world, entity, ParticleEmitter);
-        Transform* transform = GetComponent(world, entity, Transform);
-        emitter->position = transform->position;
-        
-        for (u32 particle_index = 0; 
-             particle_index < emitter->max_particles;
-             ++particle_index)
-        {
-            Particle* particle = emitter->particles + particle_index;
-            // Simulate
-            particle->position += particle->velocity * dt;
-            
-            //Render
-            PushQuad(game_state->render_group, 
-                     particle->position,
-                     emitter->size,
-                     RandomColor(),
-                     LAYER_MID);
-        }
-        
-        // Spawn new particles
-        for (u32 i = 0; i < emitter->particle_spawn_rate; ++i)
-        {
-            if (emitter->particle_index >= emitter->max_particles)
-            {
-                emitter->particle_index = 0;
-            }
-            
-            Particle* particle = emitter->particles + emitter->particle_index;
-            particle->position = emitter->position;
-            particle->velocity = RandomBetweenVectors(emitter->min_vel,
-                                                      emitter->max_vel);
-            
-            ++emitter->particle_index;
-        }
-    }
-}
-
-internal void 
-RenderUpdate(GameState* game_state, Array* entities)
-{
-#if 0
-    WorldState* world = &game_state->world;
-    for (u32 i = 0; i < entities->count; ++i)
-    {
-        EntityId entity = *ArrayGet(entities, i, EntityId);
-        Transform* transform = GetComponent(world, entity, Transform);
-        Render* render = GetComponent(world, entity, Render);
-        
-        PushQuad(game_state->render_group,
-                 transform->position,
-                 transform->scale,
-                 render->color,
-                 render->layer,
-                 render->sprite);
-        
-    }
-#endif
-}
-
-internal void 
-PhysicsUpdate(GameState* game_state, Array* entities)
-{
-    PROFILE_FUNCTION();
-    
-    WorldState* world = &game_state->world;
-    f32 dt = game_state->delta_time;
-    
-    for (u32 i = 0; i < entities->count; ++i)
-    {
-        EntityId entity = *ArrayGet(entities, i, EntityId);
-        Transform* transform = GetComponent(world, entity, Transform);
-        Rigidbody* rigidbody = GetComponent(world, entity, Rigidbody);
-        
-        if (rigidbody->mass <= 0.0f)
-            return;
-        
-        transform->position += rigidbody->velocity * dt;
-        
-        rigidbody->acceleration /= rigidbody->mass;
-        
-        rigidbody->velocity += rigidbody->acceleration * dt;
-        
-        f32 drag = powf(0.5f, dt);
-        rigidbody->velocity *= drag;
-        
-        rigidbody->acceleration = V2(0.0f);
-        
-    }
-}
-
-internal void
-InitGrid(WorldState* world)
-{
-    world->grid_width = 50;
-    world->grid_height = 50;
-    float offset = 4;
-    
-    for (u16 x = 0; x < world->grid_width; ++x)
-    {
-        for (u16 y = 0; y < world->grid_height; ++y)
-        {
-            EntityId chunk = NewEntity(world);
-            
-            AddComponent(world, chunk, Transform);
-            AddComponent(world, chunk, Render);
-            
-            Render* render = GetComponent(world, chunk, Render);
-            Transform* transform = GetComponent(world, chunk, Transform);
-            
-            vec2 size = V2(40, 40);
-            
-            *render = 
-            {
-                WHITE_SPRITE,
-                NewColor(120, 20, 40, 255),
-                LAYER_BACKMID,
-            };
-            *transform = 
-            {
-                V2((size.x + offset) * x, (size.y + offset) * y),
-                size,
-                V2(0),
-            };
-        }
-    }
-}
-
 extern "C" PLATFORM_API void
 GameInit(GameMemory* memory)
 {
@@ -294,65 +156,11 @@ GameInit(GameMemory* memory)
     
     
     WorldState* world = &game_state->world;
-    
-    InitWorld(&game_state->arena, world);
-    ComponentType components[] = 
-    {
-        ComponentTransform,
-        ComponentRender,
-    };
-    RegisterSystem(world, components, ArrayCount(components), RenderUpdate);
-    
-    components[0] = ComponentTransform;
-    components[1] = ComponentRigidbody;
-    
-    RegisterSystem(world, components, ArrayCount(components), PhysicsUpdate);
-    
-    ComponentType comps[] = {ComponentParticleEmitter};
-    RegisterSystem(world, comps, ArrayCount(comps), ParticleUpdate);
-    
-    EntityId player = NewEntity(world);
-    AddComponent(world, player, Transform);
-    AddComponent(world, player, Render);
-    AddComponent(world, player, Rigidbody);
-    AddComponent(world, player, ParticleEmitter);
-    
 #if 0
     ParticleEmitter* player_particles = GetComponent(world, player, ParticleEmitter);
     *player_particles = CreateParticleEmitter(&game_state->flush_arena, world, V2(-100), V2(100), 4,
                                               NewColor(255), V2(30), 10000);
 #endif
-    
-    Transform* player_transform = GetComponent(world, player, Transform);
-    *player_transform = {
-        V2(200, 200),
-        V2(60, 60),
-        V2(0),
-    };
-    Render* player_render = GetComponent(world, player, Render);
-    *player_render = {
-        WHITE_SPRITE,
-        NewColor(255),
-        LAYER_FRONT
-    };
-    
-    Rigidbody* player_rigidbody = GetComponent(world, player, Rigidbody);
-    
-    *player_rigidbody = {
-        V2(0),
-        V2(0),
-        1.0f,
-    };
-    
-    EntityId goblin = NewEntity(world);
-    AddComponent(world, goblin, Render);
-    AddComponent(world, goblin, Transform);
-    
-    Render* goblin_render = GetComponent(world, goblin, Render);
-    *goblin_render = {WHITE_SPRITE, NewColor(255), LAYER_FRONT};
-    
-    
-    InitGrid(world);
     
 }
 
@@ -382,8 +190,7 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
     }
     
     
-    UpdateSystems(game_state);
-    
+#if 0
     if (!game_state->is_free_camera)
     {
         EntityId player = 0;
@@ -408,6 +215,7 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         }
         
     }
+#endif
     
     // TOggle edit mode
     if (ButtonPressed(input, BUTTON_F1))
@@ -455,13 +263,30 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         }
     }
     
+    for (u32 entityID = 0; entityID < ENTITY_MAX; ++entityID)
+    {
+        Entity* entity = GetEntity(&game_state->world, entityID);
+        
+        if ((entity->flags & RENDER) == RENDER)
+        {
+            PushMesh(game_state->render_group, 
+                     entity->position, 
+                     entity->scale, 
+                     entity->color, 
+                     entity->meshID);
+        }
+    }
+    
     PushText(game_state->render_group, &game_state->font, "testing hello", V2(200, 200), LAYER_FRONT);
     
     PushMesh(game_state->render_group, V3(-100, -100, 0), V3(50), NewColor(255), MESH_CUBE);
     PushMesh(game_state->render_group, V3(100, 100, 0), V3(50), NewColor(255), MESH_SPHERE);
-    PushMesh(game_state->render_group, V3(0, 0, 0), V3(5), NewColor(255), MESH_HOUSE);
     
     PushMesh(game_state->render_group, ren->light.position, V3(10), ColorYellow, MESH_CUBE);
+    
+    PushClearScreen(game_state->render_group, NewColor(120, 75, 25, 255));
+    
+    g_Platform.RendererDraw(ren);
     
     if (global_is_edit_mode)
     {
@@ -469,6 +294,8 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         DevUiStart(debug, input, &game_state->assets, ren);
         
         UiFps(debug);
+        
+        UiProfilerWindow(debug);
         
         UiWindowBegin(debug, "Window 1");
         
@@ -482,26 +309,29 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         
         if (UiSubmenu(debug, "Player"))
         {
-            EntityId player = 0;
-            Rigidbody* rigid = GetComponent(&game_state->world, player, Rigidbody);
-            Transform* trans = GetComponent(&game_state->world, player, Transform);
-            Render* render = GetComponent(&game_state->world, player, Render);
+            /*
+                        EntityId player = 0;
+                        Rigidbody* rigid = GetComponent(&game_state->world, player, Rigidbody);
+                        Transform* trans = GetComponent(&game_state->world, player, Transform);
+                        Render* render = GetComponent(&game_state->world, player, Render);
+                        
+                        UiCheckbox(debug, &game_state->is_free_camera, "free camera");
+                        UiFloat32Editbox(debug, &rigid->velocity, "velocity");
+                        UiFloat32Editbox(debug, &rigid->mass, "mass");
+                        
+                        UiFloat32Editbox(debug, &trans->position, "position");
+                        UiFloat32Editbox(debug, &trans->rotation, "rotation");
+                        UiFloat32Editbox(debug, &trans->scale, "scale");
+                        
+                        UiColorpicker(debug, &render->color, "color");
+                        
+            */
             
-            UiCheckbox(debug, &game_state->is_free_camera, "free camera");
-            UiFloat32Editbox(debug, &rigid->velocity, "velocity");
-            UiFloat32Editbox(debug, &rigid->mass, "mass");
-            
-            UiFloat32Editbox(debug, &trans->position, "position");
-            UiFloat32Editbox(debug, &trans->rotation, "rotation");
-            UiFloat32Editbox(debug, &trans->scale, "scale");
-            
-            UiColorpicker(debug, &render->color, "color");
-            
-            if (UiButton(debug, "Save Ui Config", V2(200, 200), V2(150, 20)))
-            {
-                WriteUiConfig(debug);
-            }
-            
+        }
+        
+        if (UiButton(debug, "Save Ui Config", V2(200, 200), V2(150, 20)))
+        {
+            WriteUiConfig(debug);
         }
         
         
@@ -518,13 +348,15 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
         
         if (UiSubmenu(debug, "Particle Settings"))
         {
-            ParticleEmitter* pe = GetComponent(&game_state->world, 0, ParticleEmitter);
-            UiFloat32Editbox(debug, &pe->position, "position");
-            UiFloat32Editbox(debug, &pe->min_vel, "min velocity");
-            UiFloat32Editbox(debug, &pe->max_vel, "max velocity");
-            UiFloat32Editbox(debug, &pe->size, "size");
-            UiInt32Editbox(debug, &pe->particle_spawn_rate, "spawn rate");
-            UiColorpicker(debug, &pe->color, "color");
+            /*
+                        ParticleEmitter* pe = GetComponent(&game_state->world, 0, ParticleEmitter);
+                        UiFloat32Editbox(debug, &pe->position, "position");
+                        UiFloat32Editbox(debug, &pe->min_vel, "min velocity");
+                        UiFloat32Editbox(debug, &pe->max_vel, "max velocity");
+                        UiFloat32Editbox(debug, &pe->size, "size");
+                        UiInt32Editbox(debug, &pe->particle_spawn_rate, "spawn rate");
+                        UiColorpicker(debug, &pe->color, "color");
+            */
         }
         if (UiSubmenu(debug, "3D rendering"))
         {
@@ -547,14 +379,16 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
             
         }
         
-        UiWindowEnd(memory->debug);
+        UiWindowEnd(debug);
         
-        UiWindowBegin(debug, "Window 3");
         
-        UiWindowEnd(memory->debug);
+        if (!debug->have_read_config)
+        {
+            ReadUiConfig(debug);
+            debug->have_read_config = true;
+        }
         
     }
     
-    
-    g_Platform.RendererEndFrame(ren);
+    g_Platform.RendererDraw(ren);
 }

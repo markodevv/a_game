@@ -43,12 +43,12 @@ struct DebugState* global_debug_state;
 #include "renderer.cpp"
 #include "generated/debug.h"
 #include "debug.cpp"
-#include "generated/entity.h"
-#include "generated_print.c"
 #include "generated/game.h"
+#include "generated_print.c"
 #include "file_parse.cpp"
 #include "asset.cpp"
 #include "opengl_renderer.h"
+#include "render_group.cpp"
 #include "opengl_renderer.cpp"
 
 OpenGLFunction(HGLRC, wglCreateContextAttribsARB, HDC hdc, HGLRC hShareContext, const int* attribs);
@@ -896,7 +896,7 @@ WinMain(HINSTANCE hinstance,
     
     // TODO: should be able to change graphics API on runtime
     game_memory.platform.InitRenderer = OpenGLInit;
-    game_memory.platform.RendererEndFrame = OpenGLEndFrame;
+    game_memory.platform.RendererDraw = OpenGLDraw;
     
     game_memory.platform.GetPrefCounter = Win32GetPerformanceCounter;
     game_memory.platform.GetElapsedSeconds = Win32GetElapsedSeconds;
