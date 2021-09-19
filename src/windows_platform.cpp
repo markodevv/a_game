@@ -1,10 +1,8 @@
-//Ella kai
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
 #include <windows.h>
 #include <windowsx.h>
-#include <wingdi.h>
 #include <dsound.h>
 #include <math.h>
 #include <stdio.h>
@@ -13,59 +11,21 @@
 #include <iostream>
 #include <intrin.h>
 
-#define WGL_CONTEXT_MAJOR_VERSION_ARB             0x2091
-#define WGL_CONTEXT_MINOR_VERSION_ARB             0x2092
-#define WGL_CONTEXT_PROFILE_MASK_ARB              0x9126
-#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB          0x00000001
-
 #ifdef GAME_DEBUG
 struct DebugState* global_debug_state;
 #endif
-
-#define STB_TRUETYPE_IMPLEMENTATION
-#include <stb_truetype.h>
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <stb_image_write.h>
-
 
 #include <stb_image.h>
 #include "log.h"
 #include "platform.h"
 #include "generated/memory.h"
 #include "memory.cpp"
-#include "array.cpp"
-#include "hashmap.cpp"
 #include "string.cpp"
 #include "generated/math.h"
-#include "math.cpp"
 #include "generated/input.h"
 #include "generated/renderer.h"
-#include "renderer.cpp"
-#include "generated/debug.h"
-#include "debug.cpp"
-#include "generated/game.h"
-#include "generated_print.c"
-#include "file_parse.cpp"
-#include "asset.cpp"
-#include "opengl_renderer.h"
-#include "render_group.cpp"
-#include "opengl_renderer.cpp"
-
-OpenGLFunction(HGLRC, wglCreateContextAttribsARB, HDC hdc, HGLRC hShareContext, const int* attribs);
-typedef void (*GameMainLoopProc)(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input);
-typedef void (*GameInitProc)(GameMemory* memory);
-
-#define Win32LoadOpenGLFunction(name) \
-name = (name##proc *)wglGetProcAddress(#name); \
-if (!name) \
-{ \
-HMODULE module = LoadLibraryA("opengl32.dll"); \
-name = (name##proc *)GetProcAddress(module, #name); \
-if (!name) \
-{ \
-LogM("OpenGL function " #name " couldn't be loaded.\n"); \
-} \
-} 
+#include "windows_renderer.h"
+#include "input.cpp"
 
 
 
@@ -73,7 +33,7 @@ LogM("OpenGL function " #name " couldn't be loaded.\n"); \
 typedef DIRECT_SOUND_CREATE(DSC);
 
 global_variable LPDIRECTSOUNDBUFFER global_sound_buffer;
-global_variable b8 global_running = true;
+global_variable b32 global_running = true;
 
 
 inline internal u32
@@ -148,10 +108,10 @@ ReadEntireFile(char* file_name)
 }
 
 
-internal b8
+internal b32
 WriteEntireFile(char* file_name, u32 size, void* memory)
 {
-    b8 result = false;
+    b32 result = false;
     
     HANDLE file_handle = CreateFileA(file_name, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
     if(file_handle != INVALID_HANDLE_VALUE)
@@ -229,7 +189,7 @@ struct Win32SoundState
     i32 bytes_per_sample;
 };
 
-internal b8
+internal b32
 Win32ClearSoundBuffer(Win32SoundState* sound_output)
 {
     VOID* region_1;
@@ -341,51 +301,27 @@ Win32GetElapsedSeconds(u64 start)
 
 #define AUDIO_SAMPLE_RATE 48000
 
-
-struct Win32GameCode
+struct Win32LoadedDLL
 {
-    HINSTANCE game_code_dll;
-    GameMainLoopProc MainLoop;
-    GameInitProc Init;
+    HINSTANCE DLL;
+    char* dll_name;
+    char* temp_dll_name;
+    
+    u32 function_count;
+    void** functions;
+    char** function_names;
+    
+    i32 last_write_time;
 };
 
-// Model load_3D_model(MemoryArena* arena, char* path);
-
-internal Win32GameCode
-Win32LoadGameCode()
-{
-    
-    Win32GameCode game_code;
-    CopyFile("game.dll", "game_temp.dll", FALSE);
-    game_code.game_code_dll = LoadLibrary("game_temp.dll");
-    if (game_code.game_code_dll != NULL)
-    {
-        game_code.MainLoop = (GameMainLoopProc)GetProcAddress(game_code.game_code_dll, "GameMainLoop");
-        game_code.Init = (GameInitProc)GetProcAddress(game_code.game_code_dll, "GameInit");
-        Assert(game_code.MainLoop && game_code.Init);
-    }
-    else
-    {
-        Assert(false);
-    }
-    return game_code;
-}
-
-internal void
-Win32UnloadGameCode(Win32GameCode* game_code)
-{
-    Assert(FreeLibrary(game_code->game_code_dll));
-    game_code->MainLoop = 0;
-    game_code->game_code_dll = 0;
-}
 
 internal i32
-Win32GetLastWriteTime(char* file_name) 
+Win32GetLastWriteTime(Win32LoadedDLL* loaded_dll)
 {
     FILETIME last_write_time = {};
     WIN32_FIND_DATA find_data = {};
     
-    HANDLE find_handle = FindFirstFileA("game.dll", &find_data);
+    HANDLE find_handle = FindFirstFileA(loaded_dll->dll_name, &find_data);
     if (find_handle != INVALID_HANDLE_VALUE)
     {
         last_write_time = find_data.ftLastWriteTime;
@@ -393,6 +329,86 @@ Win32GetLastWriteTime(char* file_name)
     }
     
     return (i32)last_write_time.dwLowDateTime;
+}
+
+
+internal b32
+Win32LoadDLL(Win32LoadedDLL* info)
+{
+    CopyFile(info->dll_name, info->temp_dll_name, FALSE);
+    info->DLL = LoadLibrary(info->temp_dll_name);
+    b32 success = true;
+    
+    if (info->DLL != null)
+    {
+        for (u32 i = 0; i < info->function_count; ++i)
+        {
+            
+            void* function = GetProcAddress(info->DLL, info->function_names[i]);
+            if (function)
+            {
+                info->functions[i] = function;
+            }
+            else
+            {
+                LogM("Failed to load function : %s from dll : %s!\n", 
+                     info->function_names[i],
+                     info->dll_name);
+                success = false;
+                break;
+            }
+        }
+        info->last_write_time = Win32GetLastWriteTime(info);
+    }
+    else
+    {
+        LogM("Failed to load DLL : %s!\n", info->dll_name);
+        success = false;
+    }
+    
+    return success;
+}
+
+
+internal void
+Win32UnloadDLL(Win32LoadedDLL* loaded_dll)
+{
+    Assert(FreeLibrary(loaded_dll->DLL));
+    for (u32 function_id = 0; 
+         function_id < loaded_dll->function_count; 
+         ++function_id)
+    {
+        loaded_dll->functions[function_id] = null;
+    }
+    loaded_dll->DLL = 0;
+}
+
+internal void
+Win32ReloadDLLIfChanged(Win32LoadedDLL* loaded_dll)
+{
+    i32 dll_write_time = Win32GetLastWriteTime(loaded_dll);
+    if (dll_write_time != loaded_dll->last_write_time)
+    {
+        Win32UnloadDLL(loaded_dll);
+        
+        for (u32 try_reload_index = 0;
+             try_reload_index < 100;
+             ++try_reload_index)
+        {
+            b32 success = Win32LoadDLL(loaded_dll);
+            if (success)
+            {
+                break;
+            }
+            else
+            {
+                Sleep(50);
+            }
+        }
+        
+    }
+    
+    loaded_dll->last_write_time = dll_write_time;
 }
 
 LRESULT CALLBACK 
@@ -435,139 +451,7 @@ Win32GetTimeInMs()
 
 
 internal void
-Win32InitOpenGL(HWND window_handle)
-{
-    
-    HDC window_dc = GetDC(window_handle);
-    
-    PIXELFORMATDESCRIPTOR pixel_format = {};
-    pixel_format.nSize = sizeof(PIXELFORMATDESCRIPTOR);
-    pixel_format.nVersion = 1;
-    pixel_format.iPixelType = PFD_TYPE_RGBA;
-    pixel_format.dwFlags = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
-    pixel_format.cColorBits = 32;
-    pixel_format.cAlphaBits = 8;
-    pixel_format.iLayerType = PFD_MAIN_PLANE;
-    
-    i32 suggest_pf_index = ChoosePixelFormat(window_dc, &pixel_format);
-    
-    PIXELFORMATDESCRIPTOR suggested_pixel_format = {};
-    DescribePixelFormat(window_dc, suggest_pf_index, sizeof(suggested_pixel_format), &pixel_format);
-    SetPixelFormat(window_dc, suggest_pf_index, &suggested_pixel_format);
-    
-    i32 attrib_list[] =
-    {
-        WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
-        WGL_CONTEXT_MINOR_VERSION_ARB, 3,
-        WGL_CONTEXT_PROFILE_MASK_ARB,  WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-        0,
-    };
-    HGLRC opengl_rc = wglCreateContext(window_dc);
-    if (opengl_rc)
-    {
-        if (!wglMakeCurrent(window_dc, opengl_rc))
-        {
-            Assert(false);
-        }
-    }
-    else
-    {
-        Assert(false);
-    }
-    
-    Win32LoadOpenGLFunction(wglCreateContextAttribsARB);
-    
-    opengl_rc = wglCreateContextAttribsARB(window_dc, 0, attrib_list);
-    
-    if (opengl_rc)
-    {
-        if (wglMakeCurrent(window_dc, opengl_rc))
-        {
-        }
-        else
-        {
-            LogM("Failed to set current 3.0+ OpenGL context!\n");
-            Assert(false);
-        }
-    }
-    else
-    {
-        LogM("Failed to create 3.0+ OpenGL context!\n");
-        Assert(false);
-    }
-    
-    
-    // NOTE: Vsync
-    ((BOOL(WINAPI*)(int))wglGetProcAddress("wglSwapIntervalEXT"))(1);
-    
-    Win32LoadOpenGLFunction(glAttachShader);
-    Win32LoadOpenGLFunction(glBindBuffer);
-    Win32LoadOpenGLFunction(glBindFramebuffer);
-    Win32LoadOpenGLFunction(glBufferData);
-    Win32LoadOpenGLFunction(glBufferSubData);
-    Win32LoadOpenGLFunction(glCheckFramebufferStatus);
-    Win32LoadOpenGLFunction(glClearBufferfv);
-    Win32LoadOpenGLFunction(glCompileShader);
-    Win32LoadOpenGLFunction(glCreateProgram);
-    Win32LoadOpenGLFunction(glCreateShader);
-    Win32LoadOpenGLFunction(glDeleteBuffers);
-    Win32LoadOpenGLFunction(glDeleteFramebuffers);
-    Win32LoadOpenGLFunction(glEnableVertexAttribArray);
-    Win32LoadOpenGLFunction(glDrawBuffers);
-    Win32LoadOpenGLFunction(glFramebufferTexture2D);
-    Win32LoadOpenGLFunction(glGenBuffers);
-    Win32LoadOpenGLFunction(glGenFramebuffers);
-    Win32LoadOpenGLFunction(glGetAttribLocation);
-    Win32LoadOpenGLFunction(glGetShaderInfoLog);
-    Win32LoadOpenGLFunction(glGetShaderiv);
-    Win32LoadOpenGLFunction(glGetUniformLocation);
-    Win32LoadOpenGLFunction(glLinkProgram);
-    Win32LoadOpenGLFunction(glShaderSource);
-    Win32LoadOpenGLFunction(glUniform1i);
-    Win32LoadOpenGLFunction(glUniform1f);
-    Win32LoadOpenGLFunction(glUniform2f);
-    Win32LoadOpenGLFunction(glUniform4f);
-    Win32LoadOpenGLFunction(glUniform1iv);
-    Win32LoadOpenGLFunction(glUniform2iv);
-    Win32LoadOpenGLFunction(glUniform3iv);
-    Win32LoadOpenGLFunction(glUniform4iv);
-    Win32LoadOpenGLFunction(glUniform1fv);
-    Win32LoadOpenGLFunction(glUniform2fv);
-    Win32LoadOpenGLFunction(glUniform3fv);
-    Win32LoadOpenGLFunction(glUniform4fv);
-    Win32LoadOpenGLFunction(glUniformMatrix4fv);
-    Win32LoadOpenGLFunction(glUseProgram);
-    Win32LoadOpenGLFunction(glVertexAttribPointer);
-    Win32LoadOpenGLFunction(glGenVertexArrays);
-    Win32LoadOpenGLFunction(glBindVertexArray);
-    Win32LoadOpenGLFunction(glDeleteShader);
-    Win32LoadOpenGLFunction(glGetProgramInfoLog);
-    Win32LoadOpenGLFunction(glGetProgramiv);
-    Win32LoadOpenGLFunction(glActiveTexture);
-    Win32LoadOpenGLFunction(glGetActiveUniform);
-    Win32LoadOpenGLFunction(glGetActiveUniformBlockiv);
-    Win32LoadOpenGLFunction(glGetActiveUniformName);
-    Win32LoadOpenGLFunction(glGenTextures);
-    Win32LoadOpenGLFunction(glBindTexture);
-    Win32LoadOpenGLFunction(glPixelStorei);
-    Win32LoadOpenGLFunction(glTexParameteri);
-    Win32LoadOpenGLFunction(glTexImage2D);
-    Win32LoadOpenGLFunction(glEnable);
-    Win32LoadOpenGLFunction(glDisable);
-    Win32LoadOpenGLFunction(glBlendFunc);
-    Win32LoadOpenGLFunction(glDepthFunc);
-    Win32LoadOpenGLFunction(glClearColor);
-    Win32LoadOpenGLFunction(glClear);
-    Win32LoadOpenGLFunction(glViewport);
-    Win32LoadOpenGLFunction(glDrawArrays);
-    Win32LoadOpenGLFunction(glDrawElements);
-    
-    
-    ReleaseDC(window_handle, window_dc);
-}
-
-internal void
-SetButtonState(GameInput* input, ButtonCode button, b8 is_down, b8 was_down)
+SetButtonState(GameInput* input, ButtonCode button, b32 is_down, b32 was_down)
 {
     input->buttons[button].is_down = is_down;
     input->buttons[button].pressed =  (!was_down) && (is_down);
@@ -592,8 +476,8 @@ Win32ProcessInputMessages(GameInput* game_input)
             case WM_KEYUP:
             case WM_KEYDOWN:
             {
-                b8 is_down = ((message.lParam & (1 << 31)) == 0);
-                b8 was_down = ((message.lParam & (1 << 30)) != 0);
+                b32 is_down = ((message.lParam & (1 << 31)) == 0);
+                b32 was_down = ((message.lParam & (1 << 30)) != 0);
                 u32 vk_code = (u32)message.wParam;
                 
                 if (is_down == was_down)
@@ -744,10 +628,10 @@ void Win32PushWorkEntry(WorkQueue* queue, WorkCallback* work_callback, void* dat
     ReleaseSemaphore(queue->semaphore, 1, 0);
 }
 
-internal b8
+internal b32
 Win32WorkerDoWork(WorkQueue* queue)
 {
-    b8 result = false;
+    b32 result = false;
     u32 original_next_entry_to_read = queue->next_entry_to_read;
     u32 new_next_entry_to_read = (original_next_entry_to_read + 1) % ArrayCount(queue->entries);
     
@@ -839,24 +723,9 @@ WinMain(HINSTANCE hinstance,
                                         0,
                                         hinstance, 
                                         0); 
-    if (window_handle)
-    {
-        Win32InitOpenGL(window_handle);
-    }
-    else
-    {
-        Assert(false);
-    }
-    BOOL result = SetWindowPos(window_handle,
-                               HWND_TOP,
-                               0,
-                               0,
-                               1920,
-                               1080,
-                               0);
-    Assert(result);
     
-    Win32GameCode game = Win32LoadGameCode();
+    
+    
     
     QueryPerformanceFrequency(&global_pref_count_freq);
     f32 target_fps = 60.0f;
@@ -866,20 +735,13 @@ WinMain(HINSTANCE hinstance,
     GameMemory game_memory = {};
     game_memory.permanent_storage_size = Megabytes(64);
     game_memory.temporary_storage_size = Megabytes(512);
-    game_memory.debug_storage_size = Megabytes(48);
+    game_memory.debug_storage_size = Megabytes(256);
     
     game_memory.permanent_storage = calloc(game_memory.permanent_storage_size, sizeof(u8));
     game_memory.temporary_storage = calloc(game_memory.temporary_storage_size, sizeof(u8));
     game_memory.debug_storage = calloc(game_memory.debug_storage_size, sizeof(u8));
     
-    game_memory.debug = (DebugState*)game_memory.debug_storage;
-    global_debug_state = game_memory.debug;
-    
-    InitArena(&game_memory.debug->arena, 
-              (game_memory.debug_storage_size - sizeof(DebugState)),
-              (u8*)game_memory.debug_storage + sizeof(DebugState));
-    SubArena(&game_memory.debug->arena, &game_memory.debug->temp_arena, Megabytes(16));
-    
+    global_debug_state = (DebugState*)game_memory.debug_storage;
     
     Assert(game_memory.debug_storage);
     Assert(game_memory.permanent_storage);
@@ -894,10 +756,6 @@ WinMain(HINSTANCE hinstance,
     game_memory.platform.Reallocate = DefaultReallocate;
     game_memory.platform.Free = DefaultFree;
     
-    // TODO: should be able to change graphics API on runtime
-    game_memory.platform.InitRenderer = OpenGLInit;
-    game_memory.platform.RendererDraw = OpenGLDraw;
-    
     game_memory.platform.GetPrefCounter = Win32GetPerformanceCounter;
     game_memory.platform.GetElapsedSeconds = Win32GetElapsedSeconds;
     
@@ -907,7 +765,51 @@ WinMain(HINSTANCE hinstance,
     Win32InitThreads(&game_memory.platform);
     
     game_memory.platform.LogFunction = printf;
-    g_Platform = game_memory.platform;
+    
+    
+    Win32LoadedDLL loaded_DLLs[NUM_DLL] = {};
+    GameFunctions game_functions = {};
+    Win32RendererFunctions renderer_functions = {};
+    
+    loaded_DLLs[DLL_GAME].function_names = GameFunctionNameTable;
+    loaded_DLLs[DLL_GAME].function_count = ArrayCount(GameFunctionNameTable);
+    loaded_DLLs[DLL_GAME].functions = (void**)&game_functions;
+    loaded_DLLs[DLL_GAME].dll_name = "game.dll";
+    loaded_DLLs[DLL_GAME].temp_dll_name = "temp_game.dll";
+    
+    
+    loaded_DLLs[DLL_RENDERER].function_names = RendererFunctionNameTable;
+    loaded_DLLs[DLL_RENDERER].function_count = ArrayCount(RendererFunctionNameTable);
+    loaded_DLLs[DLL_RENDERER].functions = (void**)&renderer_functions;
+    loaded_DLLs[DLL_RENDERER].dll_name = "windows_opengl.dll";
+    loaded_DLLs[DLL_RENDERER].temp_dll_name = "temp_windows_opengl.dll";
+    
+    Win32LoadDLL(&loaded_DLLs[DLL_RENDERER]);
+    
+    if (window_handle)
+    {
+        Renderer2D* renderer = renderer_functions.Win32InitOpenGL(window_handle);
+        game_memory.platform.RendererInit = renderer_functions.RendererInit;
+        game_memory.platform.RendererDraw = renderer_functions.RendererDraw;
+        
+        Win32LoadDLL(&loaded_DLLs[DLL_GAME]);
+        game_functions.GameInit(&game_memory, renderer);
+        
+    }
+    else
+    {
+        Assert(false);
+    }
+    
+    BOOL result = SetWindowPos(window_handle,
+                               HWND_TOP,
+                               0,
+                               0,
+                               1920,
+                               1080,
+                               0);
+    Assert(result);
+    
     
     Win32SoundState sound_output = {};
     sound_output.bytes_per_sample = sizeof(i16) * 2;
@@ -923,19 +825,15 @@ WinMain(HINSTANCE hinstance,
     u64 last_counter = Win32GetPerformanceCounter();
     
     i16* samples = (i16*)calloc(sound_output.buffer_size, sizeof(i16));
-    b8 sound_is_valid = false;
-    b8 sound_is_playing = false;
+    b32 sound_is_valid = false;
+    b32 sound_is_playing = false;
     
-    i32 last_game_dll_write_time = Win32GetLastWriteTime("game.dll");
     
-    b8 paused = false;
+    b32 paused = false;
     
-    game.Init(&game_memory);
     
     while(global_running)
     {
-        DEBUG_FRAME_START();
-        
         for (sizet i = 0; i < NUM_BUTTONS; ++i)
         {
             game_input.buttons[i].released = 0;
@@ -956,12 +854,9 @@ WinMain(HINSTANCE hinstance,
         f64 delta_time = Win32GetElapsedSeconds(last_counter);
         last_counter = Win32GetPerformanceCounter();
         
-        i32 game_dll_write_time = Win32GetLastWriteTime("game.dll");
-        if (last_game_dll_write_time != game_dll_write_time)
+        for (u32 i = 0; i < NUM_DLL; ++i)
         {
-            Win32UnloadGameCode(&game);
-            game = Win32LoadGameCode();
-            last_game_dll_write_time = game_dll_write_time;
+            Win32ReloadDLLIfChanged(&loaded_DLLs[i]);
         }
         
 #if 0
@@ -1031,17 +926,16 @@ WinMain(HINSTANCE hinstance,
         
         if (!paused)
         {
-            game.MainLoop(delta_time, &game_memory, NULL, &game_input);
+            game_functions.GameUpdate(delta_time, &game_memory, NULL, &game_input);
         }
         
         HDC window_dc = GetDC(window_handle);
         SwapBuffers(window_dc);
+        
     }
     
     
-#if 0
-    system("pause");
-#endif
+    //system("pause");
     
     return 0;
 }

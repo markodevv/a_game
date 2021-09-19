@@ -309,14 +309,14 @@ Vec2At(vec2 &v, sizet i)
 }
 
 internal 
-b8 Vec2Equal(vec2 a, vec2 b)
+b32 Vec2Equal(vec2 a, vec2 b)
 {
     return (a.x == b.x && a.y == b.y);
 }
 
 
 internal 
-b8 Vec3Equal(vec3 a, vec3 b)
+b32 Vec3Equal(vec3 a, vec3 b)
 {
     return (a.x == b.x && a.y == b.y && a.z == b.z);
 }
@@ -654,7 +654,7 @@ Mat4Perspective(f32 w, f32 h, f32 fov, f32 n, f32 f)
     return out;
 }
 
-internal b8
+internal b32
 PointInsideRect(vec2 p, vec2 pos, vec2 scale)
 {
     return (p.x >= pos.x && 

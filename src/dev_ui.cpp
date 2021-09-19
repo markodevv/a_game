@@ -1,3 +1,5 @@
+
+
 global_variable Color bg_main_color = {43, 46, 74, 150};
 global_variable Color faint_bg_color = {25, 25, 45, 150};
 global_variable Color faint_red_color = {144, 55, 33, 150};
@@ -11,91 +13,91 @@ global_variable Color red_color = {232, 69, 69, 150};
 #define WINDOW_NO_RESIZE (1 << 2)
 // WARNING: Macro madness bellow, don't look at it for too long!!
 
-#define UiFloat32Editbox(debug, var, name) \
-AnyTypeEditBox(debug, var, (sizeof(*var)/sizeof(f32)), name, f32, false)
+#define UiFloat32Editbox(ui, var, name) \
+AnyTypeEditBox(ui, var, (sizeof(*var)/sizeof(f32)), name, f32, false)
 
-#define UiFloat64Editbox(debug, var, name) \
-AnyTypeEditBox(debug, var, (sizeof(*var)/sizeof(f64)), name, f64, false)
+#define UiFloat64Editbox(ui, var, name) \
+AnyTypeEditBox(ui, var, (sizeof(*var)/sizeof(f64)), name, f64, false)
 
-#define UiInt32Editbox(debug, var, name) \
-AnyTypeEditBox(debug, var, (sizeof(*var)/sizeof(i32)), name, i32, true)
+#define UiInt32Editbox(ui, var, name) \
+AnyTypeEditBox(ui, var, (sizeof(*var)/sizeof(i32)), name, i32, true)
 
-#define UiInt8Editbox(debug, var, name) \
-AnyTypeEditBox(debug, var, (sizeof(*var)/sizeof(i8)), name, i8, true)
+#define UiInt8Editbox(ui, var, name) \
+AnyTypeEditBox(ui, var, (sizeof(*var)/sizeof(i8)), name, i8, true)
 
-#define UiUInt8Editbox(debug, var, name) \
-AnyTypeEditBox(debug, var, (sizeof(*var)/sizeof(u8)), name, u8, true)
+#define UiUInt8Editbox(ui, var, name) \
+AnyTypeEditBox(ui, var, (sizeof(*var)/sizeof(u8)), name, u8, true)
 
 
-#define AnyTypeEditBox(debug, v, num_components, var_name, type, is_int) \
+#define AnyTypeEditBox(ui, v, num_components, var_name, type, is_int) \
 { \
-f32 total_width = (debug->current_window->size.x - MAX_NAME_WIDTH - 2*PADDING) - ((num_components-1) * PADDING); \
+f32 total_width = (ui->current_window->size.x - MAX_NAME_WIDTH - 2*PADDING) - ((num_components-1) * PADDING); \
 type* iterator = (type*)v; \
-DrawEditbox(debug, iterator, (*iterator), var_name, V2(total_width/num_components, 20), type, is_int) \
+DrawEditbox(ui, iterator, (*iterator), var_name, V2(total_width/num_components, 20), type, is_int) \
 \
 for (u32 i = 1; i < num_components; ++i) \
 { \
-UiCursorSameline(debug); \
+UiCursorSameline(ui); \
 iterator++; \
-DrawEditbox(debug, iterator, (*iterator), 0, V2(total_width/num_components, 20), type, is_int) \
+DrawEditbox(ui, iterator, (*iterator), 0, V2(total_width/num_components, 20), type, is_int) \
 } \
 } \
 
-#define DrawEditbox(debug, pointer, value, var_name, size, type, is_int) \
+#define DrawEditbox(ui, pointer, value, var_name, size, type, is_int) \
 { \
-RenderGroup* group = debug->render_group; \
-Layer layer = debug->current_window ? debug->current_window->layer : 0; \
+RenderGroup* group = ui->render_group; \
+Layer layer = ui->current_window ? ui->current_window->layer : 0; \
 if (var_name) \
 { \
-UiCursorNewline(debug, size.x + MAX_NAME_WIDTH, size.y); \
+UiCursorNewline(ui, size.x + MAX_NAME_WIDTH, size.y); \
 } \
 else \
 { \
-UiCursorNewline(debug, size.x, size.y); \
+UiCursorNewline(ui, size.x, size.y); \
 } \
-vec2 pos = debug->draw_cursor; \
+vec2 pos = ui->draw_cursor; \
 Color color = bg_main_color; \
-b8 is_editing_box = false; \
+b32 is_editing_box = false; \
 if (var_name) \
 { \
-if (NameIsTooLong(&debug->font, var_name)) \
+if (NameIsTooLong(&ui->font, var_name)) \
 { \
-char* temp_name = StringCopy(&debug->temp_arena, var_name); \
+char* temp_name = StringCopy(&ui->temp_arena, var_name); \
 TruncateName(temp_name); \
 DEBUGDrawText(group,  \
-&debug->font, temp_name,  \
-V2(pos.x, pos.y + (size.y - debug->font.font_size)),  \
+&ui->font, temp_name,  \
+V2(pos.x, pos.y + (size.y - ui->font.font_size)),  \
 layer + LAYER_FRONT); \
 } \
 else \
 { \
 DEBUGDrawText(group,  \
-&debug->font, var_name,  \
-V2(pos.x, pos.y + (size.y - debug->font.font_size)),  \
+&ui->font, var_name,  \
+V2(pos.x, pos.y + (size.y - ui->font.font_size)),  \
 layer + LAYER_FRONT); \
 } \
 } \
 pos.x += MAX_NAME_WIDTH; \
 \
 \
-char* text = GetTextToDraw(&debug->temp_arena, value); \
+char* text = GetTextToDraw(&ui->temp_arena, value); \
 \
-if (IsActive(debug, pointer)) \
+if (IsActive(ui, pointer)) \
 { \
-if (ButtonPressed(&debug->input, BUTTON_ESCAPE)) \
+if (ButtonPressed(&ui->input, BUTTON_ESCAPE)) \
 { \
-debug->active_item = 0; \
+ui->active_item = 0; \
 } \
-UiProcessTextInput(debug); \
+UiProcessTextInput(ui); \
 \
-if (ButtonPressed(&debug->input, BUTTON_ENTER)) \
+if (ButtonPressed(&ui->input, BUTTON_ENTER)) \
 { \
 i8 sign = 1; \
-if (debug->text_input_buffer[0] == '-') \
+if (ui->text_input_buffer[0] == '-') \
 { \
-for (u32 i = 0; i < debug->text_insert_index; ++i) \
+for (u32 i = 0; i < ui->text_insert_index; ++i) \
 { \
-debug->text_input_buffer[i] = debug->text_input_buffer[i+1]; \
+ui->text_input_buffer[i] = ui->text_input_buffer[i+1]; \
 } \
 sign = -1; \
 } \
@@ -103,64 +105,64 @@ sign = -1; \
 type number = 0; \
 if (is_int) \
 { \
-number = (type)atoi(debug->text_input_buffer); \
+number = (type)atoi(ui->text_input_buffer); \
 } \
 else \
 { \
-number = (type)atof(debug->text_input_buffer); \
+number = (type)atof(ui->text_input_buffer); \
 } \
 *pointer = number * sign; \
-debug->active_item = 0;\
+ui->active_item = 0;\
 } \
 \
 is_editing_box = true; \
-DEBUGDrawText(group, &debug->font, debug->text_input_buffer, V2(pos.x, pos.y + (size.y - debug->font.font_size)), layer + LAYER_FRONT); \
-debug->text_input_buffer[debug->text_insert_index] = '\0'; \
+DEBUGDrawText(group, &ui->font, ui->text_input_buffer, V2(pos.x, pos.y + (size.y - ui->font.font_size)), layer + LAYER_FRONT); \
+ui->text_input_buffer[ui->text_insert_index] = '\0'; \
 \
-f32 cursor_x = pos.x + GetTextPixelWidth(&debug->font, debug->text_input_buffer); \
+f32 cursor_x = pos.x + GetTextPixelWidth(&ui->font, ui->text_input_buffer); \
 PushQuad(group, V2(cursor_x, pos.y), V2(3, size.y), faint_red_color, layer + LAYER_FRONT); \
 } \
 else \
 { \
-if (IsHot(debug, pointer)) \
+if (IsHot(ui, pointer)) \
 { \
 color.r *= 2; \
 color.g *= 2; \
 color.b *= 2; \
-if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT)) \
+if (ButtonPressed(&ui->input, BUTTON_MOUSE_LEFT)) \
 { \
-SetActive(debug, pointer); \
-FillTextBuffer(debug, value); \
-debug->editbox_value_to_set = iterator; \
-debug->editbox_value_to_set_size = sizeof(type); \
-debug->editbox_value_is_int = is_int; \
+SetActive(ui, pointer); \
+FillTextBuffer(ui, value); \
+ui->editbox_value_to_set = iterator; \
+ui->editbox_value_to_set_size = sizeof(type); \
+ui->editbox_value_is_int = is_int; \
 } \
 } \
 DEBUGDrawText(group,  \
-&debug->font, \
+&ui->font, \
 text,  \
 V2(pos.x + (size.x / 2),  \
-pos.y + (size.y - debug->font.font_size)), \
+pos.y + (size.y - ui->font.font_size)), \
 layer + LAYER_FRONT, \
 TEXT_ALIGN_MIDDLE); \
 } \
 \
 PushQuad(group, pos, size, color, layer + LAYER_MID); \
 \
-if (WindowIsFocused(debug, debug->current_window)) \
+if (WindowIsFocused(ui, ui->current_window)) \
 { \
-if (PointInsideRect(debug->input.mouse.position, pos, size)) \
+if (PointInsideRect(ui->input.mouse.position, pos, size)) \
 { \
-SetHot(debug, pointer); \
+SetHot(ui, pointer); \
 } \
 } \
 } \
 
 
 internal void
-UiProcessTextInput(DebugState* debug)
+UiProcessTextInput(DevUI* ui)
 {
-    GameInput* input = &debug->input;
+    GameInput* input = &ui->input;
     
     if (input->character != '\0')
     {
@@ -170,41 +172,41 @@ UiProcessTextInput(DebugState* debug)
             c == 43 ||
             c == 45)
         {
-            debug->text_input_buffer[debug->text_insert_index] = input->character;
-            debug->text_input_buffer[debug->text_insert_index + 1] = '\0';
-            ++debug->text_insert_index;
+            ui->text_input_buffer[ui->text_insert_index] = input->character;
+            ui->text_input_buffer[ui->text_insert_index + 1] = '\0';
+            ++ui->text_insert_index;
         }
     }
     if (ButtonPressed(input, BUTTON_BACKSPACE) && 
         ModifierPressed(input, SHIFT_MODIF))
     {
-        debug->text_insert_index = 0;
-        debug->text_input_buffer[0] = '\0';
+        ui->text_insert_index = 0;
+        ui->text_input_buffer[0] = '\0';
     }
     else if (ButtonPressed(input, BUTTON_BACKSPACE) &&
-             debug->text_insert_index)
+             ui->text_insert_index)
     {
-        --debug->text_insert_index;
-        debug->text_input_buffer[debug->text_insert_index] = '\0';
+        --ui->text_insert_index;
+        ui->text_input_buffer[ui->text_insert_index] = '\0';
     }
 }
 
-internal b8 
-WindowIsFocused(DebugState* debug, UiWindow* window)
+internal b32 
+WindowIsFocused(DevUI* ui, UiWindow* window)
 {
-    return debug->focused_window == window;
+    return ui->focused_window == window;
 }
 
 internal void
-SetWindowFocus(DebugState* debug, UiWindow* window)
+SetWindowFocus(DevUI* ui, UiWindow* window)
 {
-    debug->top_layer += 20;
-    window->layer = debug->top_layer;
-    debug->focused_window = window;
+    ui->top_layer += 20;
+    window->layer = ui->top_layer;
+    ui->focused_window = window;
 }
 
 internal UiWindow*
-GetWindow(DebugState* debug, char* id)
+GetWindow(DevUI* ui, char* id)
 {
     u64 hash = 5381;
     i32 c;
@@ -215,9 +217,9 @@ GetWindow(DebugState* debug, char* id)
         hash = ((hash << 5) + hash) + c;
     }
     
-    u16 hash_index = hash % ArrayCount(debug->window_table);
+    u16 hash_index = hash % ArrayCount(ui->window_table);
     
-    UiWindow** ui_window = debug->window_table + hash_index;
+    UiWindow** ui_window = ui->window_table + hash_index;
     
     UiWindow* result = 0;
     for (UiWindow* window = (*ui_window);
@@ -236,7 +238,7 @@ GetWindow(DebugState* debug, char* id)
 }
 
 internal UiWindow*
-GetOrCreateWindow(DebugState* debug, char* id)
+GetOrCreateWindow(DevUI* ui, char* id)
 {
     u64 hash = 5381;
     i32 c;
@@ -247,9 +249,9 @@ GetOrCreateWindow(DebugState* debug, char* id)
         hash = ((hash << 5) + hash) + c;
     }
     
-    u16 hash_index = hash % ArrayCount(debug->window_table);
+    u16 hash_index = hash % ArrayCount(ui->window_table);
     
-    UiWindow** ui_window = debug->window_table + hash_index;
+    UiWindow** ui_window = ui->window_table + hash_index;
     
     UiWindow* result = 0;
     for (UiWindow* window = (*ui_window);
@@ -265,9 +267,9 @@ GetOrCreateWindow(DebugState* debug, char* id)
     
     if (!result)
     {
-        result = PushMemory(&debug->arena, UiWindow);
+        result = PushMemory(&ui->arena, UiWindow);
         result->next = *ui_window;
-        result->id = StringCopy(&debug->arena, id);
+        result->id = StringCopy(&ui->arena, id);
         *ui_window = result;
     }
     
@@ -275,69 +277,69 @@ GetOrCreateWindow(DebugState* debug, char* id)
 }
 
 internal void
-SetWindowPosition(DebugState* debug, vec2 position, char* window_name)
+SetWindowPosition(DevUI* ui, vec2 position, char* window_name)
 {
-    GetOrCreateWindow(debug, window_name)->position = position;
+    GetOrCreateWindow(ui, window_name)->position = position;
 }
 
 internal void
-SetWindowSize(DebugState* debug, vec2 size, char* window_name)
+SetWindowSize(DevUI* ui, vec2 size, char* window_name)
 {
-    GetOrCreateWindow(debug, window_name)->size = size;
+    GetOrCreateWindow(ui, window_name)->size = size;
 }
 
-internal b8
-IsHot(DebugState* debug, void* id)
+internal b32
+IsHot(DevUI* ui, void* id)
 {
-    return debug->next_hot_item == id;
+    return ui->next_hot_item == id;
 }
 
 
-internal b8
-IsActive(DebugState* debug, void* id)
+internal b32
+IsActive(DevUI* ui, void* id)
 {
-    return debug->active_item == id;
-}
-
-internal void
-SetActive(DebugState* debug, void* id)
-{
-    debug->hot_item = 0;
-    debug->active_item = id;
+    return ui->active_item == id;
 }
 
 internal void
-SetHot(DebugState* debug, void* id)
+SetActive(DevUI* ui, void* id)
+{
+    ui->hot_item = 0;
+    ui->active_item = id;
+}
+
+internal void
+SetHot(DevUI* ui, void* id)
 {
     
-    debug->hot_item = id;
+    ui->hot_item = id;
 }
 
 
 internal inline void
-UiCursorSameline(DebugState* debug)
+UiCursorSameline(DevUI* ui)
 {
-    debug->is_newline = false;
+    ui->is_newline = false;
 }
 
 internal inline vec2
-UiCursorNewline(DebugState* debug, f32 w, f32 h)
+UiCursorNewline(DevUI* ui, f32 w, f32 h)
 {
-    if (debug->is_newline)
+    if (ui->is_newline)
     {
-        debug->draw_cursor.x = debug->current_window->position.x + PADDING;
-        debug->draw_cursor.y -= h + PADDING;
+        ui->draw_cursor.x = ui->current_window->position.x + PADDING;
+        ui->draw_cursor.y -= h + PADDING;
     }
     else
     {
-        debug->draw_cursor.x += w + PADDING;
+        ui->draw_cursor.x += w + PADDING;
     }
-    debug->is_newline = true;
+    ui->is_newline = true;
     
-    return debug->draw_cursor;
+    return ui->draw_cursor;
 }
 
-internal b8
+internal b32
 NameIsTooLong(Font* font, char* name)
 {
     f32 xadvance = 0.0f;
@@ -415,15 +417,15 @@ GetTextToDraw(MemoryArena* arena, f32 value)
 }
 
 internal void
-DeleteTrailingZeros(DebugState* debug)
+DeleteTrailingZeros(DevUI* ui)
 {
-    debug->text_insert_index = StringLength(debug->text_input_buffer);
+    ui->text_insert_index = StringLength(ui->text_input_buffer);
     
-    for (u32 i = debug->text_insert_index-1;;--i)
+    for (u32 i = ui->text_insert_index-1;;--i)
     {
-        if (debug->text_input_buffer[i] == '0')
+        if (ui->text_input_buffer[i] == '0')
         {
-            --debug->text_insert_index;
+            --ui->text_insert_index;
         }
         else
         {
@@ -431,70 +433,70 @@ DeleteTrailingZeros(DebugState* debug)
         }
     }
     
-    debug->text_input_buffer[debug->text_insert_index] = '\0';
+    ui->text_input_buffer[ui->text_insert_index] = '\0';
 }
 internal void
-FillTextBuffer(DebugState* debug, f64 value)
+FillTextBuffer(DevUI* ui, f64 value)
 {
-    snprintf(debug->text_input_buffer, 
-             ArrayCount(debug->text_input_buffer), 
+    snprintf(ui->text_input_buffer, 
+             ArrayCount(ui->text_input_buffer), 
              "%f",
              value);
-    DeleteTrailingZeros(debug);
+    DeleteTrailingZeros(ui);
 }
 
 internal void
-FillTextBuffer(DebugState* debug, f32 value)
+FillTextBuffer(DevUI* ui, f32 value)
 {
-    snprintf(debug->text_input_buffer, 
-             ArrayCount(debug->text_input_buffer), 
+    snprintf(ui->text_input_buffer, 
+             ArrayCount(ui->text_input_buffer), 
              "%f",
              value);
-    DeleteTrailingZeros(debug);
+    DeleteTrailingZeros(ui);
 }
 
 internal void
-FillTextBuffer(DebugState* debug, i64 value)
+FillTextBuffer(DevUI* ui, i64 value)
 {
-    snprintf(debug->text_input_buffer, 
-             ArrayCount(debug->text_input_buffer), 
+    snprintf(ui->text_input_buffer, 
+             ArrayCount(ui->text_input_buffer), 
              "%lli",
              value);
-    debug->text_insert_index = StringLength(debug->text_input_buffer);
-    debug->text_input_buffer[debug->text_insert_index] = '\0';
+    ui->text_insert_index = StringLength(ui->text_input_buffer);
+    ui->text_input_buffer[ui->text_insert_index] = '\0';
 }
 
 internal void
-FillTextBuffer(DebugState* debug, u64 value)
+FillTextBuffer(DevUI* ui, u64 value)
 {
-    snprintf(debug->text_input_buffer, 
-             ArrayCount(debug->text_input_buffer), 
+    snprintf(ui->text_input_buffer, 
+             ArrayCount(ui->text_input_buffer), 
              "%llu",
              value);
-    debug->text_insert_index = StringLength(debug->text_input_buffer);
-    debug->text_input_buffer[debug->text_insert_index] = '\0';
+    ui->text_insert_index = StringLength(ui->text_input_buffer);
+    ui->text_input_buffer[ui->text_insert_index] = '\0';
 }
 
 internal void
-FillTextBuffer(DebugState* debug, u32 value)
+FillTextBuffer(DevUI* ui, u32 value)
 {
-    snprintf(debug->text_input_buffer, 
-             ArrayCount(debug->text_input_buffer), 
+    snprintf(ui->text_input_buffer, 
+             ArrayCount(ui->text_input_buffer), 
              "%u",
              value);
-    debug->text_insert_index = StringLength(debug->text_input_buffer);
-    debug->text_input_buffer[debug->text_insert_index] = '\0';
+    ui->text_insert_index = StringLength(ui->text_input_buffer);
+    ui->text_input_buffer[ui->text_insert_index] = '\0';
 }
 
 internal void
-FillTextBuffer(DebugState* debug, i32 value)
+FillTextBuffer(DevUI* ui, i32 value)
 {
-    snprintf(debug->text_input_buffer, 
-             ArrayCount(debug->text_input_buffer), 
+    snprintf(ui->text_input_buffer, 
+             ArrayCount(ui->text_input_buffer), 
              "%i",
              value);
-    debug->text_insert_index = StringLength(debug->text_input_buffer);
-    debug->text_input_buffer[debug->text_insert_index] = '\0';
+    ui->text_insert_index = StringLength(ui->text_input_buffer);
+    ui->text_input_buffer[ui->text_insert_index] = '\0';
 }
 
 internal Font
@@ -576,35 +578,35 @@ UiLoadFont(MemoryArena* arena, Platform* platform, Assets* assets, char* font_pa
 
 // TODO: title is not a good pointer for id
 internal void
-UiSubmenuTitlebar(DebugState* debug, vec2 position, vec2 size, char* title)
+UiSubmenuTitlebar(DevUI* ui, vec2 position, vec2 size, char* title)
 {
     Color color = bg_main_color;
-    Layer layer = debug->current_window ? debug->current_window->layer : 0;
+    Layer layer = ui->current_window ? ui->current_window->layer : 0;
     
-    if (IsHot(debug, title))
+    if (IsHot(ui, title))
     {
         color = faint_red_color;
-        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonPressed(&ui->input, BUTTON_MOUSE_LEFT))
         {
             color = faint_redblue_color;
-            b8* active = &debug->sub_menus[debug->sub_menu_index].is_active;
+            b32* active = &ui->sub_menus[ui->sub_menu_index].is_active;
             *active = !(*active);
         }
     }
     
-    if (WindowIsFocused(debug, debug->current_window))
+    if (WindowIsFocused(ui, ui->current_window))
     {
-        if (PointInsideRect(debug->input.mouse.position,
+        if (PointInsideRect(ui->input.mouse.position,
                             position,
                             size))
         {
-            SetHot(debug, title);
+            SetHot(ui, title);
         }
     }
     
-    PushQuad(debug->render_group, position, size, color, layer + LAYER_MID);
-    DEBUGDrawText(debug->render_group, 
-                  &debug->font, 
+    PushQuad(ui->render_group, position, size, color, layer + LAYER_MID);
+    DEBUGDrawText(ui->render_group, 
+                  &ui->font, 
                   title, 
                   V2(position.x + (size.x / 2),
                      position.y + 2),
@@ -613,9 +615,9 @@ UiSubmenuTitlebar(DebugState* debug, vec2 position, vec2 size, char* title)
 }
 
 internal void
-ReadUiConfig(DebugState* debug)
+ReadUiConfig(Platform* platform, DevUI* ui)
 {
-    FileResult file = g_Platform.ReadEntireFile("./config.ui");
+    FileResult file = platform->ReadEntireFile("./config.ui");
     
     if (ValidFile(&file))
     {
@@ -629,14 +631,14 @@ ReadUiConfig(DebugState* debug)
             iterator += sizeof(WindowSerializeData);
             StringCopy(window_name, window_data->name, window_data->name_size);
             
-            UiWindow* window = GetWindow(debug, window_name);
+            UiWindow* window = GetWindow(ui, window_name);
             if (window)
             {
                 window->size = window_data->size;
                 window->position = window_data->position;
             }
         }
-        g_Platform.FreeFile(&file);
+        platform->FreeFile(&file);
     }
     else
     {
@@ -645,18 +647,18 @@ ReadUiConfig(DebugState* debug)
 }
 
 internal void
-WriteUiConfig(DebugState* debug)
+WriteUiConfig(Platform* platform, DevUI* ui)
 {
-    u8* file_memory = PushMemory(&debug->temp_arena, u8, Megabytes(10));
+    u8* file_memory = PushMemory(&ui->temp_arena, u8, Megabytes(10));
     UiFileHeader* file_header = (UiFileHeader*)file_memory;
     u8* iterator = file_memory + sizeof(UiFileHeader);
     
     u32 file_size = sizeof(UiFileHeader);
     u32 window_count = 0;
     
-    for (u32 i = 0; i < ArrayCount(debug->window_table); ++i)
+    for (u32 i = 0; i < ArrayCount(ui->window_table); ++i)
     {
-        for (UiWindow* window = debug->window_table[i]; 
+        for (UiWindow* window = ui->window_table[i]; 
              window; 
              window = window->next)
         {
@@ -678,7 +680,7 @@ WriteUiConfig(DebugState* debug)
     
     file_header->window_count = window_count;
     
-    b8 success = g_Platform.WriteEntireFile("./config.ui", file_size, file_memory);
+    b32 success = platform->WriteEntireFile("./config.ui", file_size, file_memory);
     
     if (!success)
     {
@@ -687,36 +689,41 @@ WriteUiConfig(DebugState* debug)
 }
 
 internal void
-DevUiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer2D* ren)
+DevUiStart(DevUI* ui, GameInput* input, Assets* assets, Renderer2D* ren)
 {
-    Assert(debug->temp_memory.arena);
-    debug->prev_mouse_pos = debug->input.mouse.position;
-    debug->input = *input;
-    debug->screen_width = ren->screen_width;
-    debug->screen_height = ren->screen_height;
-    debug->current_window = 0;
-    debug->sub_menu_index = 0;
+    if (ui->temp_memory.arena)
+    {
+        EndTemporaryMemory(&ui->temp_memory);
+    }
+    ui->temp_memory = BeginTemporaryMemory(&ui->temp_arena);
     
-    debug->next_hot_item = debug->hot_item;
-    debug->hot_item = 0;
+    Assert(ui->temp_memory.arena);
     
-    Assert(debug->temp_memory.arena);
+    ui->prev_mouse_pos = ui->input.mouse.position;
+    ui->input = *input;
+    ui->screen_width = ren->screen_width;
+    ui->screen_height = ren->screen_height;
+    ui->current_window = 0;
+    ui->sub_menu_index = 0;
+    
+    ui->next_hot_item = ui->hot_item;
+    ui->hot_item = 0;
+    
     
     
     if (ButtonPressed(input, BUTTON_MOUSE_LEFT))
     {
-        UiWindow** windows =  PushMemory(&debug->temp_arena, 
+        UiWindow** windows =  PushMemory(&ui->temp_arena, 
                                          UiWindow*, 
-                                         ArrayCount(debug->window_table));
+                                         ArrayCount(ui->window_table));
         u32 len = 0;
         
-        for (u32 i = 0; i < ArrayCount(debug->window_table); ++i)
+        for (u32 i = 0; i < ArrayCount(ui->window_table); ++i)
         {
-            for (UiWindow* window = debug->window_table[i]; 
+            for (UiWindow* window = ui->window_table[i]; 
                  window; 
                  window= window->next)
             {
-                Log(window);
                 windows[len] = window;
                 len++;
             }
@@ -756,7 +763,7 @@ DevUiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer2D* ren)
                                 window->position,
                                 window->size))
             {
-                SetWindowFocus(debug, window);
+                SetWindowFocus(ui, window);
                 break;
             }
         }
@@ -765,25 +772,25 @@ DevUiStart(DebugState* debug, GameInput* input, Assets* assets, Renderer2D* ren)
 
 
 internal void
-PushWindow(DebugState* debug, UiWindow* window)
+PushWindow(DevUI* ui, UiWindow* window)
 {
-    StackedWindow* sw = debug->window_stack + debug->num_stacked_windows;
+    StackedWindow* sw = ui->window_stack + ui->num_stacked_windows;
     sw->window = window;
-    sw->previous_draw_cursor = debug->draw_cursor;
+    sw->previous_draw_cursor = ui->draw_cursor;
     
-    ++debug->num_stacked_windows;
-    Assert(debug->num_stacked_windows < ArrayCount(debug->window_stack));
+    ++ui->num_stacked_windows;
+    Assert(ui->num_stacked_windows < ArrayCount(ui->window_stack));
 }
 
 internal StackedWindow*
-PopWindow(DebugState* debug)
+PopWindow(DevUI* ui)
 {
-    --debug->num_stacked_windows;
-    return debug->window_stack + debug->num_stacked_windows;
+    --ui->num_stacked_windows;
+    return ui->window_stack + ui->num_stacked_windows;
 }
 
 internal void
-UiWindowResizeThingy(DebugState* debug, UiWindow* window)
+UiWindowResizeThingy(DevUI* ui, UiWindow* window)
 {
     vec2 resize_thingy_size = V2(10, 10);
     vec2 resize_thingy_pos = V2(window->position.x + window->size.x - resize_thingy_size.x,
@@ -791,11 +798,11 @@ UiWindowResizeThingy(DebugState* debug, UiWindow* window)
     
     Color color = bg_main_color;
     
-    if (IsActive(debug, window))
+    if (IsActive(ui, window))
     {
-        if (ButtonDown(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonDown(&ui->input, BUTTON_MOUSE_LEFT))
         {
-            vec2 mouse_delta = (debug->input.mouse.position - debug->prev_mouse_pos);
+            vec2 mouse_delta = (ui->input.mouse.position - ui->prev_mouse_pos);
             window->size.x += mouse_delta.x;
             window->size.y -= mouse_delta.y;
             window->position.y += mouse_delta.y;
@@ -806,45 +813,45 @@ UiWindowResizeThingy(DebugState* debug, UiWindow* window)
         }
         else
         {
-            SetActive(debug, 0);
+            SetActive(ui, 0);
         }
     }
-    else if (IsHot(debug, window))
+    else if (IsHot(ui, window))
     {
-        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonPressed(&ui->input, BUTTON_MOUSE_LEFT))
         {
-            SetActive(debug, window);
+            SetActive(ui, window);
         }
         color = faint_red_color;
     }
     
-    if (WindowIsFocused(debug, window))
+    if (WindowIsFocused(ui, window))
     {
-        if (PointInsideRect(debug->input.mouse.position,
+        if (PointInsideRect(ui->input.mouse.position,
                             resize_thingy_pos,
                             resize_thingy_size))
         {
-            SetHot(debug, window);
+            SetHot(ui, window);
         }
     }
     
-    PushQuad(debug->render_group, resize_thingy_pos, resize_thingy_size, color, window->layer + LAYER_FRONT);
+    PushQuad(ui->render_group, resize_thingy_pos, resize_thingy_size, color, window->layer + LAYER_FRONT);
 }
 
 internal void
-UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(400, 500), u32 flags = 0)
+UiWindowBegin(DevUI* ui, char* title, vec2 pos = V2(0), vec2 size = V2(400, 500), u32 flags = 0)
 {
-    UiWindow* window = GetOrCreateWindow(debug, title);
+    UiWindow* window = GetOrCreateWindow(ui, title);
     
     Assert(window);
     
-    if (debug->current_window)
+    if (ui->current_window)
     {
-        PushWindow(debug, debug->current_window);
+        PushWindow(ui, ui->current_window);
         
     }
     
-    debug->current_window = window;
+    ui->current_window = window;
     Layer layer = window->layer;
     
     
@@ -858,74 +865,74 @@ UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(4
     
     Color color = faint_red_color;
     
-    if (IsActive(debug, title))
+    if (IsActive(ui, title))
     {
-        if (ButtonDown(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonDown(&ui->input, BUTTON_MOUSE_LEFT))
         {
             color = faint_red_color;
-            vec2 mouse_delta = (debug->input.mouse.position - debug->prev_mouse_pos);
+            vec2 mouse_delta = (ui->input.mouse.position - ui->prev_mouse_pos);
             window->position = window->position + mouse_delta;
         }
         else
         {
-            SetActive(debug, 0);
+            SetActive(ui, 0);
         }
     }
-    else if (IsHot(debug, title))
+    else if (IsHot(ui, title))
     {
         color = red_color;
-        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonPressed(&ui->input, BUTTON_MOUSE_LEFT))
         {
-            SetActive(debug, title);
+            SetActive(ui, title);
         }
     }
     
     // we start from top
-    debug->draw_cursor = V2(window->position.x,
-                            window->position.y + window->size.y);
+    ui->draw_cursor = V2(window->position.x,
+                         window->position.y + window->size.y);
     
     if ((flags & WINDOW_NO_RESIZE) != WINDOW_NO_RESIZE)
     {
-        UiWindowResizeThingy(debug, window);
+        UiWindowResizeThingy(ui, window);
     }
     
     
-    PushQuad(debug->render_group, 
-             debug->current_window->position,
-             debug->current_window->size,
+    PushQuad(ui->render_group, 
+             ui->current_window->position,
+             ui->current_window->size,
              faint_bg_color,
-             debug->current_window->layer + LAYER_BACKMID);
+             ui->current_window->layer + LAYER_BACKMID);
     
     
     if ((flags & WINDOW_NO_TITLEBAR) != WINDOW_NO_TITLEBAR)
     {
-        vec2 titlebar_size = V2((f32)window->size.x, (f32)debug->font.font_size);
-        debug->draw_cursor.y -= titlebar_size.y;
-        vec2 titlebar_pos = debug->draw_cursor;
+        vec2 titlebar_size = V2((f32)window->size.x, (f32)ui->font.font_size);
+        ui->draw_cursor.y -= titlebar_size.y;
+        vec2 titlebar_pos = ui->draw_cursor;
         
         
         // NOTE: there must be a focused window so i check here because on start there is
         // no focused window and set it to first UiWindowBegin window
         
-        if (!debug->focused_window)
+        if (!ui->focused_window)
         {
-            SetWindowFocus(debug, window);
+            SetWindowFocus(ui, window);
         }
         
         
-        if (WindowIsFocused(debug, window))
+        if (WindowIsFocused(ui, window))
         {
-            if (PointInsideRect(debug->input.mouse.position,
+            if (PointInsideRect(ui->input.mouse.position,
                                 titlebar_pos,
                                 titlebar_size))
             {
-                SetHot(debug, title);
+                SetHot(ui, title);
             }
         }
         
-        PushQuad(debug->render_group, titlebar_pos, titlebar_size, color, layer + LAYER_MID);
-        DEBUGDrawText(debug->render_group, 
-                      &debug->font,
+        PushQuad(ui->render_group, titlebar_pos, titlebar_size, color, layer + LAYER_MID);
+        DEBUGDrawText(ui->render_group, 
+                      &ui->font,
                       title, 
                       V2(titlebar_pos.x + (titlebar_size.x / 2),
                          titlebar_pos.y + 4.0f),
@@ -936,53 +943,53 @@ UiWindowBegin(DebugState* debug, char* title, vec2 pos = V2(0), vec2 size = V2(4
 }
 
 internal void
-UiWindowEnd(DebugState* debug)
+UiWindowEnd(DevUI* ui)
 {
-    if (debug->num_stacked_windows > 0)
+    if (ui->num_stacked_windows > 0)
     {
-        StackedWindow* sw = PopWindow(debug);
-        debug->current_window = sw->window;
-        debug->draw_cursor = sw->previous_draw_cursor;
+        StackedWindow* sw = PopWindow(ui);
+        ui->current_window = sw->window;
+        ui->draw_cursor = sw->previous_draw_cursor;
     }
     else
     {
-        debug->current_window = 0;
+        ui->current_window = 0;
     }
 }
 
 internal void
-UiFps(DebugState* debug)
+UiFps(DevUI* ui, f32 fps)
 {
-    RenderGroup* group = debug->render_group;
+    RenderGroup* group = ui->render_group;
     char* fps_text = "%.2f fps";
     char out[32];
-    sprintf(out, fps_text, debug->game_fps);
-    vec2 position = V2(0.0f, (f32)debug->screen_height - debug->font.font_size);
+    sprintf(out, fps_text, fps);
+    vec2 position = V2(0.0f, (f32)ui->screen_height - ui->font.font_size);
     
-    DEBUGDrawText(group, &debug->font, out, position, 1 << 10);
+    DEBUGDrawText(group, &ui->font, out, position, 1 << 10);
 }
 
 
 
 internal void
-UiCheckbox(DebugState* debug, b8* toggle_var, char* var_name)
+UiCheckbox(DevUI* ui, b32* toggle_var, char* var_name)
 {
-    RenderGroup* group = debug->render_group;
+    RenderGroup* group = ui->render_group;
     
     vec2 size = V2(20);
-    vec2 pos = UiCursorNewline(debug, size.x, size.y);
-    Layer layer = debug->current_window ? debug->current_window->layer : 0;
+    vec2 pos = UiCursorNewline(ui, size.x, size.y);
+    Layer layer = ui->current_window ? ui->current_window->layer : 0;
     
-    if (NameIsTooLong(&debug->font, var_name))
+    if (NameIsTooLong(&ui->font, var_name))
     {
-        var_name = StringCopy(&debug->temp_arena, var_name);
+        var_name = StringCopy(&ui->temp_arena, var_name);
         TruncateName(var_name);
     }
     
     DEBUGDrawText(group,
-                  &debug->font, 
+                  &ui->font, 
                   var_name, 
-                  V2(pos.x, pos.y + (size.y - debug->font.font_size)),
+                  V2(pos.x, pos.y + (size.y - ui->font.font_size)),
                   layer + LAYER_FRONT);
     pos.x += MAX_NAME_WIDTH;
     
@@ -990,16 +997,16 @@ UiCheckbox(DebugState* debug, b8* toggle_var, char* var_name)
     
     Color check_color = {100, 100, 100, 255};
     
-    if (IsActive(debug, toggle_var))
+    if (IsActive(ui, toggle_var))
     {
-        debug->active_item = 0;
+        ui->active_item = 0;
     }
-    else if (IsHot(debug, toggle_var))
+    else if (IsHot(ui, toggle_var))
     {
         check_color = faint_red_color;
-        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonPressed(&ui->input, BUTTON_MOUSE_LEFT))
         {
-            SetActive(debug, toggle_var);
+            SetActive(ui, toggle_var);
             *toggle_var = !(*toggle_var);
         }
     }
@@ -1016,46 +1023,46 @@ UiCheckbox(DebugState* debug, b8* toggle_var, char* var_name)
     pos += 4;
     PushQuad(group, pos, size, check_color, layer + LAYER_BACKMID);
     
-    if (WindowIsFocused(debug, debug->current_window))
+    if (WindowIsFocused(ui, ui->current_window))
     {
-        if (PointInsideRect(debug->input.mouse.position,
+        if (PointInsideRect(ui->input.mouse.position,
                             pos,
                             size))
         {
-            SetHot(debug, toggle_var);
+            SetHot(ui, toggle_var);
         }
     }
 }
 
-internal b8
-UiButton(DebugState* debug, char* name, vec2 pos = V2(0), vec2 size = V2(80, 40))
+internal b32
+UiButton(DevUI* ui, char* name, vec2 pos = V2(0), vec2 size = V2(80, 40))
 {
-    RenderGroup* group = debug->render_group;
+    RenderGroup* group = ui->render_group;
     
     
-    if (debug->current_window)
-        pos = UiCursorNewline(debug, size.x, size.y);
+    if (ui->current_window)
+        pos = UiCursorNewline(ui, size.x, size.y);
     
     
     Color button_color = bg_main_color;
-    b8 result = false;
-    Layer layer = debug->current_window ? debug->current_window->layer : 0;
+    b32 result = false;
+    Layer layer = ui->current_window ? ui->current_window->layer : 0;
     
     
-    if (IsActive(debug, name))
+    if (IsActive(ui, name))
     {
-        if (ButtonReleased(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonReleased(&ui->input, BUTTON_MOUSE_LEFT))
         {
             result = true;
-            debug->active_item = 0;
+            ui->active_item = 0;
         }
         button_color = faint_red_color;
     }
-    else if (IsHot(debug, name))
+    else if (IsHot(ui, name))
     {
-        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonPressed(&ui->input, BUTTON_MOUSE_LEFT))
         {
-            SetActive(debug, name);
+            SetActive(ui, name);
         }
         
         button_color.r *= 2;
@@ -1066,18 +1073,18 @@ UiButton(DebugState* debug, char* name, vec2 pos = V2(0), vec2 size = V2(80, 40)
     PushQuad(group, pos, size, button_color, layer + LAYER_MID);
     vec2 text_pos = V2(
                        pos.x + (size.x / 2.0f),
-                       pos.y + (size.y / 2.0f) - (debug->font.font_size / 4.0f)
+                       pos.y + (size.y / 2.0f) - (ui->font.font_size / 4.0f)
                        );
-    DEBUGDrawText(group, &debug->font, name, text_pos, layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
+    DEBUGDrawText(group, &ui->font, name, text_pos, layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
     
     
-    if (WindowIsFocused(debug, debug->current_window))
+    if (WindowIsFocused(ui, ui->current_window))
     {
-        if (PointInsideRect(debug->input.mouse.position,
+        if (PointInsideRect(ui->input.mouse.position,
                             pos,
                             size))
         {
-            SetHot(debug, name);
+            SetHot(ui, name);
         }
     }
     
@@ -1087,28 +1094,28 @@ UiButton(DebugState* debug, char* name, vec2 pos = V2(0), vec2 size = V2(80, 40)
 
 
 internal void
-UiSilder(DebugState* debug, 
+UiSilder(DevUI* ui, 
          f32 min,
          f32 max, 
          f32* value, 
          char* var_name)
 {
-    RenderGroup* group = debug->render_group;
+    RenderGroup* group = ui->render_group;
     
-    vec2 bar_size = V2(debug->current_window->size.x - MAX_NAME_WIDTH - 2*PADDING, 20.0f);
-    vec2 pos = UiCursorNewline(debug, bar_size.x + MAX_NAME_WIDTH, bar_size.y);
+    vec2 bar_size = V2(ui->current_window->size.x - MAX_NAME_WIDTH - 2*PADDING, 20.0f);
+    vec2 pos = UiCursorNewline(ui, bar_size.x + MAX_NAME_WIDTH, bar_size.y);
     
-    Layer layer = debug->current_window ? debug->current_window->layer : 0;
+    Layer layer = ui->current_window ? ui->current_window->layer : 0;
     
-    if (NameIsTooLong(&debug->font, var_name))
+    if (NameIsTooLong(&ui->font, var_name))
     {
-        var_name = StringCopy(&debug->temp_arena, var_name);
+        var_name = StringCopy(&ui->temp_arena, var_name);
         TruncateName(var_name);
     }
     DEBUGDrawText(group,
-                  &debug->font, 
+                  &ui->font, 
                   var_name, 
-                  V2(pos.x, pos.y + (bar_size.y - debug->font.font_size)), 
+                  V2(pos.x, pos.y + (bar_size.y - ui->font.font_size)), 
                   layer + LAYER_FRONT);
     
     pos.x += MAX_NAME_WIDTH;
@@ -1122,12 +1129,12 @@ UiSilder(DebugState* debug,
     
     Color button_color = faint_redblue_color;
     
-    if (IsActive(debug, value))
+    if (IsActive(ui, value))
     {
-        if (ButtonDown(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonDown(&ui->input, BUTTON_MOUSE_LEFT))
         {
             button_color = red_color;
-            f32 slide_amount = (debug->input.mouse.position.x - pos.x);
+            f32 slide_amount = (ui->input.mouse.position.x - pos.x);
             slide_amount = Clamp(slide_amount, 0.0f, bar_size.x - button_size.x);
             
             f32 update_value = slide_amount / (bar_size.x - button_size.x);
@@ -1136,95 +1143,95 @@ UiSilder(DebugState* debug,
         }
         else
         {
-            debug->active_item = 0;
+            ui->active_item = 0;
         }
     }
-    else if (IsHot(debug, value))
+    else if (IsHot(ui, value))
     {
         button_color = faint_red_color;
-        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonPressed(&ui->input, BUTTON_MOUSE_LEFT))
         {
-            SetActive(debug, value);
+            SetActive(ui, value);
         }
     }
     
     PushQuad(group, pos, bar_size, bg_main_color, layer + LAYER_MID);
     
     
-    vec2 text_pos = V2(pos.x+(bar_size.x/2), pos.y + (bar_size.y - debug->font.font_size));
+    vec2 text_pos = V2(pos.x+(bar_size.x/2), pos.y + (bar_size.y - ui->font.font_size));
     char text[32];
     snprintf(text, 32, "%.2f", *value);
-    DEBUGDrawText(debug->render_group, &debug->font, text, text_pos, layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
+    DEBUGDrawText(ui->render_group, &ui->font, text, text_pos, layer + LAYER_FRONT, TEXT_ALIGN_MIDDLE);
     
     button_position.x += (((*value)-min)/range) * (bar_size.x - button_size.x);
     PushQuad(group, button_position, button_size, button_color, layer + LAYER_FRONT);
     
-    if (WindowIsFocused(debug, debug->current_window))
+    if (WindowIsFocused(ui, ui->current_window))
     {
-        if (PointInsideRect(debug->input.mouse.position, button_position, button_size))
+        if (PointInsideRect(ui->input.mouse.position, button_position, button_size))
         {
-            SetHot(debug, value);
+            SetHot(ui, value);
         }
     }
     
 }
 
 internal void
-HueSlider(DebugState* debug, Colorpicker* cp)
+HueSlider(DevUI* ui, Colorpicker* cp)
 {
     
     Color cursor_color = NewColor(255);
     vec2 size = V2(20, 200);
-    UiCursorNewline(debug, size.x, size.y);
-    vec2 pos = debug->draw_cursor;
+    UiCursorNewline(ui, size.x, size.y);
+    vec2 pos = ui->draw_cursor;
     
-    if (IsActive(debug, &cp->hue))
+    if (IsActive(ui, &cp->hue))
     {
-        if (ButtonDown(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonDown(&ui->input, BUTTON_MOUSE_LEFT))
         {
             cursor_color.a = 180;
-            cp->hue = (debug->input.mouse.position.y - pos.y) / size.y;
+            cp->hue = (ui->input.mouse.position.y - pos.y) / size.y;
             cp->hue = Clamp(cp->hue, 0.0f, 1.0f);
         }
         else
         {
-            debug->active_item = 0;
+            ui->active_item = 0;
         }
     }
-    else if (IsHot(debug, &cp->hue))
+    else if (IsHot(ui, &cp->hue))
     {
-        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonPressed(&ui->input, BUTTON_MOUSE_LEFT))
         {
-            SetActive(debug, &cp->hue);
+            SetActive(ui, &cp->hue);
         }
     }
-    Shader* hue_shader = GetShader(debug->render_group->assets, SHADER_ID_HUE_QUAD);
+    Shader* hue_shader = GetShader(ui->render_group->assets, SHADER_ID_HUE_QUAD);
     vec2 cursor_pos = V2(pos.x, pos.y + (cp->hue * size.y));
     
     SetShaderUniform(hue_shader, "u_size", V2(20, 200), vec2);
     SetShaderUniform(hue_shader, "u_position", pos, vec2);
     
-    PushQuad(debug->render_group, 
+    PushQuad(ui->render_group, 
              pos,
              size,
              NewColor(100, 0, 40, 255),
-             debug->current_window->layer + LAYER_FRONT,
+             ui->current_window->layer + LAYER_FRONT,
              0,
              SHADER_ID_HUE_QUAD);
     
-    PushQuad(debug->render_group,
+    PushQuad(ui->render_group,
              cursor_pos,
              V2(20, 4),
              cursor_color,
-             debug->current_window->layer + LAYER_FRONT + 10.0f,
+             ui->current_window->layer + LAYER_FRONT + 10.0f,
              0,
              SHADER_ID_NORMAL);
     
-    if (WindowIsFocused(debug, debug->current_window))
+    if (WindowIsFocused(ui, ui->current_window))
     {
-        if (PointInsideRect(debug->input.mouse.position, pos, size))
+        if (PointInsideRect(ui->input.mouse.position, pos, size))
         {
-            SetHot(debug, &cp->hue);
+            SetHot(ui, &cp->hue);
         }
     }
     
@@ -1232,66 +1239,66 @@ HueSlider(DebugState* debug, Colorpicker* cp)
 }
 
 internal void
-HsbPicker(DebugState* debug, Colorpicker* cp)
+HsbPicker(DevUI* ui, Colorpicker* cp)
 {
-    vec2 pos = debug->draw_cursor;
+    vec2 pos = ui->draw_cursor;
     vec2 size = V2(200, 200);
     Color cursor_color = NewColor(255);
     // TODO: this should use ui_same_line() API
     pos.x += 40;
     
-    if (IsActive(debug, &cp->saturation))
+    if (IsActive(ui, &cp->saturation))
     {
-        if (ButtonDown(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonDown(&ui->input, BUTTON_MOUSE_LEFT))
         {
             cursor_color.a = 180;
-            cp->saturation = (debug->input.mouse.position.x - pos.x) / size.x;
-            cp->brightness = (debug->input.mouse.position.y - pos.y) / size.y;
+            cp->saturation = (ui->input.mouse.position.x - pos.x) / size.x;
+            cp->brightness = (ui->input.mouse.position.y - pos.y) / size.y;
             
             cp->saturation = Clamp(cp->saturation, 0.0f, 1.0f);
             cp->brightness = Clamp(cp->brightness, 0.0f, 1.0f);
         }
         else
         {
-            debug->active_item = 0;
+            ui->active_item = 0;
         }
     }
-    else if (IsHot(debug, &cp->saturation))
+    else if (IsHot(ui, &cp->saturation))
     {
-        if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
+        if (ButtonPressed(&ui->input, BUTTON_MOUSE_LEFT))
         {
-            SetActive(debug, &cp->saturation);
+            SetActive(ui, &cp->saturation);
         }
     }
     
     vec2 cursor_pos = pos + (size * V2(cp->saturation, cp->brightness));
     
-    Shader* sb_shader = GetShader(debug->render_group->assets, SHADER_ID_SB_QUAD);
+    Shader* sb_shader = GetShader(ui->render_group->assets, SHADER_ID_SB_QUAD);
     SetShaderUniform(sb_shader, "u_size", V2(200, 200), vec2);
     SetShaderUniform(sb_shader, "u_position", pos, vec2);
     SetShaderUniform(sb_shader, "u_hue", cp->hue, f32);
     
-    PushQuad(debug->render_group, 
+    PushQuad(ui->render_group, 
              pos,
              size,
              NewColor(255),
-             debug->current_window->layer + LAYER_FRONT,
+             ui->current_window->layer + LAYER_FRONT,
              0,
              SHADER_ID_SB_QUAD);
     
-    PushQuad(debug->render_group, 
+    PushQuad(ui->render_group, 
              cursor_pos,
              V2(4.0f),
              cursor_color,
-             debug->current_window->layer + LAYER_FRONT + 10.0f,
+             ui->current_window->layer + LAYER_FRONT + 10.0f,
              0,
              SHADER_ID_NORMAL);
     
-    if (WindowIsFocused(debug, debug->current_window))
+    if (WindowIsFocused(ui, ui->current_window))
     {
-        if (PointInsideRect(debug->input.mouse.position, pos, size))
+        if (PointInsideRect(ui->input.mouse.position, pos, size))
         {
-            SetHot(debug, &cp->saturation);
+            SetHot(ui, &cp->saturation);
         }
     }
     
@@ -1317,13 +1324,13 @@ HsbToRgb(vec3 c)
 }
 
 internal Colorpicker*
-GetColorpicker(DebugState* debug, void* key)
+GetColorpicker(DevUI* ui, void* key)
 {
     u64 hash = ((u64)key) >> 3;
     
-    u16 hash_index = hash % ArrayCount(debug->colorpickers);
+    u16 hash_index = hash % ArrayCount(ui->colorpickers);
     
-    Colorpicker* cp = debug->colorpickers + hash_index;
+    Colorpicker* cp = ui->colorpickers + hash_index;
     
     do
     {
@@ -1344,55 +1351,55 @@ GetColorpicker(DebugState* debug, void* key)
 }
 
 internal void
-UiColorpicker(DebugState* debug, Color* var, char* var_name)
+UiColorpicker(DevUI* ui, Color* var, char* var_name)
 {
-    vec2 size = V2(debug->current_window->size.x - MAX_NAME_WIDTH - 2*PADDING,
-                   debug->font.font_size);
+    vec2 size = V2(ui->current_window->size.x - MAX_NAME_WIDTH - 2*PADDING,
+                   ui->font.font_size);
     Color color = *var;
     
-    Layer layer = debug->current_window ? debug->current_window->layer : 0;
-    vec2 pos = UiCursorNewline(debug, size.x, size.y);
+    Layer layer = ui->current_window ? ui->current_window->layer : 0;
+    vec2 pos = UiCursorNewline(ui, size.x, size.y);
     
     
-    if (NameIsTooLong(&debug->font, var_name))
+    if (NameIsTooLong(&ui->font, var_name))
     {
-        var_name = StringCopy(&debug->temp_arena, var_name);
+        var_name = StringCopy(&ui->temp_arena, var_name);
         TruncateName(var_name);
     }
     
-    DEBUGDrawText(debug->render_group, 
-                  &debug->font, 
+    DEBUGDrawText(ui->render_group, 
+                  &ui->font, 
                   var_name, 
-                  V2(pos.x, pos.y + (size.y - debug->font.font_size)), 
+                  V2(pos.x, pos.y + (size.y - ui->font.font_size)), 
                   layer + LAYER_FRONT);
     pos.x += MAX_NAME_WIDTH;
     
-    PushQuad(debug->render_group, pos, size, color, layer + LAYER_MID);
+    PushQuad(ui->render_group, pos, size, color, layer + LAYER_MID);
     
     
-    UiWindow* colorpicker_window = GetOrCreateWindow(debug, "Color Picker");
-    Colorpicker* colorpicker = GetColorpicker(debug, (void*)var);
+    UiWindow* colorpicker_window = GetOrCreateWindow(ui, "Color Picker");
+    Colorpicker* colorpicker = GetColorpicker(ui, (void*)var);
     
-    if (ButtonPressed(&debug->input, BUTTON_MOUSE_LEFT))
+    if (ButtonPressed(&ui->input, BUTTON_MOUSE_LEFT))
     {
         if (!colorpicker->is_active)
         {
-            if (WindowIsFocused(debug, debug->current_window))
+            if (WindowIsFocused(ui, ui->current_window))
             {
-                if (PointInsideRect(debug->input.mouse.position, pos, size))
+                if (PointInsideRect(ui->input.mouse.position, pos, size))
                 {
                     vec2 window_size = V2(260 + 2*PADDING, 300);
-                    vec2 window_pos = debug->input.mouse.position;
-                    SetWindowFocus(debug, colorpicker_window);
+                    vec2 window_pos = ui->input.mouse.position;
+                    SetWindowFocus(ui, colorpicker_window);
                     
-                    if ((window_pos.y + window_size.y) >= debug->screen_height ||
-                        (window_pos.x + window_size.x) >= debug->screen_width)
+                    if ((window_pos.y + window_size.y) >= ui->screen_height ||
+                        (window_pos.x + window_size.x) >= ui->screen_width)
                     {
-                        window_pos.x = debug->screen_width - window_size.x;
-                        window_pos.y = debug->screen_height - window_size.y;
+                        window_pos.x = ui->screen_width - window_size.x;
+                        window_pos.y = ui->screen_height - window_size.y;
                     }
-                    SetWindowPosition(debug, window_pos, "Color Picker");
-                    SetWindowSize(debug, window_size, "Color Picker");
+                    SetWindowPosition(ui, window_pos, "Color Picker");
+                    SetWindowSize(ui, window_size, "Color Picker");
                     
                     colorpicker->color = *var;
                     colorpicker->is_active = true;
@@ -1401,7 +1408,7 @@ UiColorpicker(DebugState* debug, Color* var, char* var_name)
         }
         else
         {
-            if (!PointInsideRect(debug->input.mouse.position, 
+            if (!PointInsideRect(ui->input.mouse.position, 
                                  colorpicker_window->position, colorpicker_window->size))
             {
                 colorpicker->is_active = false;
@@ -1413,15 +1420,15 @@ UiColorpicker(DebugState* debug, Color* var, char* var_name)
     {
         
         
-        UiWindowBegin(debug, "Color Picker", 
+        UiWindowBegin(ui, "Color Picker", 
                       colorpicker_window->position, 
                       colorpicker_window->size,
                       WINDOW_NO_RESIZE);
         
         
         
-        HueSlider(debug, colorpicker);
-        HsbPicker(debug, colorpicker);
+        HueSlider(ui, colorpicker);
+        HsbPicker(ui, colorpicker);
         
         *var = HsbToRgb(V3(colorpicker->hue,
                            colorpicker->saturation,
@@ -1429,81 +1436,89 @@ UiColorpicker(DebugState* debug, Color* var, char* var_name)
         
         
         
-        UiUInt8Editbox(debug, var, "Color");
+        UiUInt8Editbox(ui, var, "Color");
         
-        UiWindowEnd(debug);
+        UiWindowEnd(ui);
         
     }
     
 }
 
 internal void
-UiProfilerWindow(DebugState* debug)
+UiProfilerWindow(ProfileEntry* entries, DevUI* ui)
 {
-    UiWindowBegin(debug, "Profiler");
+    
+#ifdef GAME_PROFILE
+    UiWindowBegin(ui, "Profiler");
     char buffer[64];
     
-    UiWindow* window = GetOrCreateWindow(debug, "Profiler");
-    debug->draw_cursor.y -= debug->font.font_size;
-    debug->draw_cursor.x += PADDING;
+    UiWindow* window = GetOrCreateWindow(ui, "Profiler");
+    ui->draw_cursor.y -= ui->font.font_size;
+    ui->draw_cursor.x += PADDING;
     
-    for (ProfileEntry* entry = global_debug_state->profile_entries;
+    for (ProfileEntry* entry = entries;
          entry;
          entry = entry->next)
     {
         f64 ms_time = (entry->elapsed_sec * 1000.0f);
         snprintf(buffer, ArrayCount(buffer), "%s - %.2f ms", entry->name, ms_time);
-        DEBUGDrawText(debug->render_group, &debug->font, buffer, debug->draw_cursor, window->layer + LAYER_FRONT, TEXT_ALIGN_LEFT);
+        DEBUGDrawText(ui->render_group, &ui->font, buffer, ui->draw_cursor, window->layer + LAYER_FRONT, TEXT_ALIGN_LEFT);
         
-        debug->draw_cursor.y -= debug->font.font_size;
+        ui->draw_cursor.y -= ui->font.font_size;
     }
+    UiWindowEnd(ui);
+#endif
     
-    UiWindowEnd(debug);
 }
 
 internal void
-DevUiInit(DebugState* debug, Renderer2D* renderer, Platform* platform, Assets* assets)
+DevUiInit(DevUI* dev_ui, MemoryArena* arena, Renderer2D* renderer, Platform* platform, Assets* assets)
 {
-    debug->font = UiLoadFont(&debug->arena,
-                             platform,
-                             assets,
-                             "../assets/fonts/consola.ttf",
-                             14);
-    for (u32 i = 0; i < ArrayCount(debug->sub_menus); ++i)
+    SubArena(arena, &dev_ui->arena, Megabytes(64));
+    SubArena(arena, &dev_ui->temp_arena, Megabytes(32));
+    
+    dev_ui->font = UiLoadFont(&dev_ui->arena,
+                              platform,
+                              assets,
+                              "../assets/fonts/consola.ttf",
+                              14);
+    
+    for (u32 i = 0; i < ArrayCount(dev_ui->sub_menus); ++i)
     {
-        debug->sub_menus[i].is_active = true;
+        dev_ui->sub_menus[i].is_active = true;
     }
     
     mat4 projection = Mat4Orthographic(renderer->screen_width,
                                        renderer->screen_height);
     
-    debug->render_group = CreateRenderGroup(&debug->arena,
-                                            projection,
-                                            CreateCamera(Vec3Up(), Vec3Forward(), V3(0.0f, 0.0f, 9000.0f)),
-                                            renderer, 
-                                            assets);
-    debug->top_layer = 4069;
+    dev_ui->render_group = CreateRenderGroup(&dev_ui->arena,
+                                             projection,
+                                             CreateCamera(Vec3Up(), Vec3Forward(), V3(0.0f, 0.0f, 9000.0f)),
+                                             renderer, 
+                                             assets,
+                                             Megabytes(48));
+    dev_ui->top_layer = 4069;
 }
 
 
 
-internal b8
-UiSubmenu(DebugState* debug, char* title)
+internal b32
+UiSubmenu(DevUI* ui, char* title)
 {
-    debug->draw_cursor.y -=  debug->font.font_size + PADDING;
-    debug->draw_cursor.x = debug->current_window->position.x + PADDING;
+    ui->draw_cursor.y -=  ui->font.font_size + PADDING;
+    ui->draw_cursor.x = ui->current_window->position.x + PADDING;
     
     
-    UiSubmenuTitlebar(debug, 
-                      debug->draw_cursor, 
-                      V2(debug->current_window->size.x - 2*PADDING,
-                         (f32)debug->font.font_size),
+    UiSubmenuTitlebar(ui, 
+                      ui->draw_cursor, 
+                      V2(ui->current_window->size.x - 2*PADDING,
+                         (f32)ui->font.font_size),
                       title);
     
-    b8 active = debug->sub_menus[debug->sub_menu_index].is_active;
+    b32 active = ui->sub_menus[ui->sub_menu_index].is_active;
     
-    Assert(debug->sub_menu_index < ArrayCount(debug->sub_menus));
-    ++debug->sub_menu_index;
+    Assert(ui->sub_menu_index < ArrayCount(ui->sub_menus));
+    ++ui->sub_menu_index;
     
     return active;
 }

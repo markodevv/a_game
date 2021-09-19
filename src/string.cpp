@@ -10,7 +10,7 @@ StringLength(char* string)
     return len;
 }
 
-internal inline b8
+internal inline b32
 StringMatch(char* s1, char* s2)
 {
     Assert(s1 && s2);

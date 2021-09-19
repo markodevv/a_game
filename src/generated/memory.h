@@ -19,7 +19,7 @@ struct MemoryTask
 {
     MemoryArena arena;
     TemporaryArena temp_memory;
-    b8 is_used;
+    b32 is_used;
 };
 typedef struct TaskQueue TaskQueue;
 struct TaskQueue

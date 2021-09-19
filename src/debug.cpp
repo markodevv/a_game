@@ -1,7 +1,9 @@
 #ifdef GAME_DEBUG
 
-#define DEBUG_FRAME_START() \
-DebugFrameStart()
+#define DEBUG_FRAME_START(debug, input, assets, renderer) \
+DebugFrameStart(debug, input, assets, renderer) 
+#define DEBUG_FRAME_END() \
+DebugFrameEnd()
 
 #ifdef GAME_PROFILE
 
@@ -20,6 +22,7 @@ Timer timer(name)
 #else
 
 #define DEBUG_FRAME_START()
+#define DEBUG_FRAME_END()
 
 #endif
 
@@ -27,7 +30,7 @@ Timer timer(name)
 internal void
 AddProfileEntry(char* name, f64 elapsed_sec)
 {
-    ProfileEntry* entry = PushMemory(&global_debug_state->temp_arena, ProfileEntry);
+    ProfileEntry* entry = PushMemory(&global_debug_state->arena, ProfileEntry);
     
     entry->name = name;
     entry->elapsed_sec = elapsed_sec;
@@ -43,13 +46,13 @@ struct Timer
     
     Timer(char* _name)
     {
-        start_counter = g_Platform.GetPrefCounter();
+        start_counter = global_debug_state->GetPrefCounter();
         name = _name;
     }
     
     ~Timer()
     {
-        f64 elapsed_time = g_Platform.GetElapsedSeconds(start_counter);
+        f64 elapsed_time = global_debug_state->GetElapsedSeconds(start_counter);
         AddProfileEntry(name, elapsed_time);
     }
 };
@@ -70,29 +73,38 @@ PrintProfileData()
 
 
 internal void
-DebugFrameStart()
+DebugFrameStart(DebugState* debug, GameInput* input, Assets* assets, Renderer2D* ren)
 {
-    if (global_debug_state->temp_memory.arena)
-    {
-        EndTemporaryMemory(&global_debug_state->temp_memory);
-    }
-    global_debug_state->temp_memory = BeginTemporaryMemory(&global_debug_state->temp_arena);
     
+    if (debug->temp_memory.arena)
+    {
+        DevUiStart(&debug->dev_ui, input, assets, ren);
+        EndTemporaryMemory(&debug->temp_memory);
+        if (global_is_edit_mode)
+        {
+            UiProfilerWindow(debug->profile_entries, &debug->dev_ui);
+        }
+    }
+    
+    debug->temp_memory = BeginTemporaryMemory(&debug->arena);
     
 #if GAME_PROFILE
     /*
         LogM("-----FRAME DATA-----\n");
-        LogM("FPS %f\n", global_debug_state->game_fps);
+        LogM("FPS %f\n", debug->game_fps);
         LogM("Frame Time: %.2fms\n", elapsed_time * 1000.0f);
         PrintProfileData();
         LogM("---------------------\n");
     */
-    f64 elapsed_time = g_Platform.GetElapsedSeconds(global_debug_state->frame_start_cycles);
-    
-    global_debug_state->profile_entries = 0;
-    global_debug_state->frame_start_cycles = g_Platform.GetPrefCounter();
-    global_debug_state->game_fps = 1.0f/elapsed_time;
+    f64 elapsed_time = global_debug_state->GetElapsedSeconds(debug->frame_start_cycles);
+    debug->profile_entries = 0;
+    debug->frame_start_cycles = global_debug_state->GetPrefCounter();
+    debug->game_fps = 1.0f/elapsed_time;
 #endif
     
 }
 
+internal void
+DebugFrameEnd()
+{
+}

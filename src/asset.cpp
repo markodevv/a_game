@@ -15,6 +15,8 @@ GetSprite(Assets* assets, SpriteID id)
 
 struct LoadSpriteWorkData
 {
+    Platform* platform;
+    
     MemoryTask* task;
     Assets* assets;
     SpriteEnum sprite_id;
@@ -26,7 +28,8 @@ internal void
 LoadSpriteWork(void* data)
 {
     LoadSpriteWorkData* sprite_data = (LoadSpriteWorkData*)(data);
-    FileResult file = g_Platform.ReadEntireFile(sprite_data->sprite_path);
+    Platform* platform = sprite_data->platform;
+    FileResult file = platform->ReadEntireFile(sprite_data->sprite_path);
     Sprite* sprite = 0;
     
     if (ValidFile(&file))
@@ -45,7 +48,7 @@ LoadSpriteWork(void* data)
         sprite->asset_state = ASSET_UNLOCKED;
         sprite->name = sprite_data->sprite_path;
         
-        g_Platform.FreeFile(&file);
+        platform->FreeFile(&file);
     }
     else
     {
@@ -57,7 +60,7 @@ LoadSpriteWork(void* data)
 }
 
 internal void
-LoadSprite(Assets* assets, SpriteEnum sprite_enum)
+LoadSprite(Platform* platform, Assets* assets, SpriteEnum sprite_enum)
 {
     MemoryTask* task = BeginMemoryTask(&assets->task_queue);
     if (task)
@@ -66,6 +69,7 @@ LoadSprite(Assets* assets, SpriteEnum sprite_enum)
         work_data->task = task;
         work_data->assets = assets;
         work_data->sprite_id = sprite_enum;
+        work_data->platform = platform;
         
         switch(sprite_enum)
         {
@@ -95,7 +99,7 @@ LoadSprite(Assets* assets, SpriteEnum sprite_enum)
             }
         }
         
-        g_Platform.PushWorkEntry(g_Platform.work_queue, LoadSpriteWork, work_data);
+        platform->PushWorkEntry(platform->work_queue, LoadSpriteWork, work_data);
     }
     
 }
@@ -186,12 +190,12 @@ DEBUGCreateFontSprite(Assets* assets, u32 w, u32 h, u32 channels)
 //////// FONT LOADING ////////////////
 
 internal Font
-LoadFontTest(Assets* assets, char* font_path, i8 font_size)
+LoadFontTest(Platform* platform, Assets* assets, char* font_path, i8 font_size)
 {
     Font font = {};
     i32 ascent = 0, bitmap_width = 1024, bitmap_height = font_size;
     f32 xpos = 2, scale, baseline;
-    FileResult font_file = g_Platform.ReadEntireFile(font_path);
+    FileResult font_file = platform->ReadEntireFile(font_path);
     font.char_info = PushMemory(&assets->arena, CharInfo, NUM_ASCII);
     
     /* Initialize font */
@@ -242,7 +246,7 @@ LoadFontTest(Assets* assets, char* font_path, i8 font_size)
     }
     
     stbi_write_png("STB.png", bitmap_width, bitmap_height, 1, font_sprite->data, bitmap_width);
-    g_Platform.FreeFile(&font_file);
+    platform->FreeFile(&font_file);
     
     return font;
 }
@@ -303,11 +307,11 @@ GetOBJFileInfo(MemoryArena* arena, FileResult file)
 }
 
 internal Material
-OBJLoadMaterial(char* mat_path)
+OBJLoadMaterial(Platform* platform, char* mat_path)
 {
     Material result = {};
     char prefix[6];
-    FileResult file = g_Platform.ReadEntireFile(mat_path);
+    FileResult file = platform->ReadEntireFile(mat_path);
     
     if (ValidFile(&file))
     {
@@ -338,7 +342,7 @@ OBJLoadMaterial(char* mat_path)
             
             NextLine(&file);
         }
-        g_Platform.FreeFile(&file);
+        platform->FreeFile(&file);
     }
     
     return result;
@@ -430,8 +434,9 @@ OBJGetIndex(OBJFileInfo* obj_info, vec3 key)
 
 struct LoadOBJMeshWorkData
 {
-    MemoryTask* task;
+    Platform* platform;
     
+    MemoryTask* task;
     Assets* assets;
     MeshEnum mesh_id;
     char* mesh_path;
@@ -443,16 +448,17 @@ LoadOBJMeshWork(void* param)
     LoadOBJMeshWorkData* work_data = (LoadOBJMeshWorkData*)param;
     Assets* assets = work_data->assets;
     Mesh* mesh = assets->meshes + work_data->mesh_id;
+    Platform* platform = work_data->platform;
     
-    FileResult file = g_Platform.ReadEntireFile(work_data->mesh_path);
+    FileResult file = platform->ReadEntireFile(work_data->mesh_path);
     
     if (ValidFile(&file))
     {
         
         OBJFileInfo obj_info = GetOBJFileInfo(&work_data->task->arena, file);
         
-        mesh->vertices = Allocate(Vertex3D, obj_info.face_count * 3);
-        mesh->indices = Allocate(u32, obj_info.face_count * 3);
+        mesh->vertices = (Vertex3D*)platform->Allocate(sizeof(Vertex3D) * obj_info.face_count * 3);
+        mesh->indices = (u32*)platform->Allocate(sizeof(u32) * obj_info.face_count * 3);
         
         u32 pos_count = 0, normal_count = 0, uv_count = 0;
         
@@ -533,7 +539,7 @@ LoadOBJMeshWork(void* param)
                     if (IsNewLineChar(c))
                     {
                         material_path[i] = '\0';
-                        mesh->material = OBJLoadMaterial(material_path);
+                        mesh->material = OBJLoadMaterial(platform, material_path);
                         break;
                     }
                     else if (i == max_path_size - 1)
@@ -549,7 +555,7 @@ LoadOBJMeshWork(void* param)
         }
         //mesh->material = CreateDefaultMaterial();
         
-        g_Platform.FreeFile(&file);
+        platform->FreeFile(&file);
         
         assets->loaded_mesh_queue[assets->num_queued_meshes++] = work_data->mesh_id;
         
@@ -565,7 +571,7 @@ LoadOBJMeshWork(void* param)
 
 
 internal void 
-LoadOBJMesh(Assets* assets, MeshEnum mesh_id)
+LoadOBJMesh(Platform* platform, Assets* assets, MeshEnum mesh_id)
 {
     MemoryTask* task = BeginMemoryTask(&assets->task_queue);
     
@@ -573,6 +579,7 @@ LoadOBJMesh(Assets* assets, MeshEnum mesh_id)
     data->assets = assets;
     data->task = task;
     data->mesh_id = mesh_id;
+    data->platform = platform;
     
     if (task)
     {
@@ -592,7 +599,7 @@ LoadOBJMesh(Assets* assets, MeshEnum mesh_id)
             } break;
         }
         
-        g_Platform.PushWorkEntry(g_Platform.work_queue, LoadOBJMeshWork, data);
+        platform->PushWorkEntry(platform->work_queue, LoadOBJMeshWork, data);
     }
 }
 
@@ -612,7 +619,7 @@ GetMesh(Assets* assets, MeshEnum mesh_id)
 /////// ASSET INIT //////////
 
 internal void
-AssetsInit(Assets* assets, MemoryArena* arena)
+AssetsInit(Platform* platform, Assets* assets, MemoryArena* arena)
 {
     SubArena(arena, &assets->arena, Megabytes(128));
     
@@ -626,24 +633,24 @@ AssetsInit(Assets* assets, MemoryArena* arena)
     assets->loaded_sprite_queue = PushMemory(&assets->arena, SpriteID, 50);
     assets->loaded_mesh_queue = PushMemory(&assets->arena, MeshEnum, NUM_MESHES);
     
-    LoadSprite(assets, WHITE_SPRITE);
-    LoadOBJMesh(assets, MESH_CUBE);
+    LoadSprite(platform, assets, WHITE_SPRITE);
+    LoadOBJMesh(platform, assets, MESH_CUBE);
     
     // These assets above are default assets used if assets that are
     // requested are yet not loaded or missing, so we need to wait
     // for them to ensure they are loaded.
-    g_Platform.WaitForWorkers(g_Platform.work_queue);
+    platform->WaitForWorkers(platform->work_queue);
     
     
     for (u32 i = 1; i < NUM_SPRITES; ++i)
     {
-        LoadSprite(assets, (SpriteEnum)i);
+        LoadSprite(platform, assets, (SpriteEnum)i);
     }
     assets->num_sprites = NUM_SPRITES;
     
     for (u32 i = 1; i < NUM_MESHES; ++i)
     {
-        LoadOBJMesh(assets, (MeshEnum)i);
+        LoadOBJMesh(platform, assets, (MeshEnum)i);
     }
     
     assets->num_meshes = NUM_MESHES;

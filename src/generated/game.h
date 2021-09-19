@@ -1,31 +1,5 @@
 #pragma once
 
-typedef struct GameMemory GameMemory;
-struct GameMemory
-{
-    void *permanent_storage;
-    sizet permanent_storage_size;
-
-    void *temporary_storage;
-    sizet temporary_storage_size;
-
-    void *debug_storage;
-    sizet debug_storage_size;
-
-    DebugState *debug;
-
-    Platform platform;
-
-    i32 screen_width;
-    i32 screen_height;
-};
-typedef struct GameSoundBuffer GameSoundBuffer;
-struct GameSoundBuffer
-{
-    i32 samples_per_sec;
-    i32 sample_count;
-    i16 *samples;
-};
 // @Print
 typedef struct Render Render;
 struct Render
@@ -133,10 +107,10 @@ struct GameState
 
     u32 tile_size;
 
-    b8 is_free_camera;
+    b32 is_free_camera;
 
     WorldState world;
 
-    Renderer2D renderer;
+    Renderer2D *renderer;
     RenderGroup *render_group;
 };

@@ -30,7 +30,7 @@ CurrentChar(FileResult* file)
     return ((char*)file->data)[file->cursor];
 }
 
-internal b8
+internal b32
 IsEOF(FileResult* file)
 {
     return (file->size == file->cursor);
@@ -161,10 +161,10 @@ NextVec2(FileResult* file)
     return out;
 }
 
-internal b8
+internal b32
 NextLine(FileResult* file)
 {
-    b8 result = true;
+    b32 result = true;
     char c = CurrentChar(file);
     
     while(1)
@@ -197,7 +197,7 @@ NextWord(FileResult* file, char* buffer)
     }
 }
 
-internal b8
+internal b32
 IsPathSlash(char c)
 {
     return (c == '\\' || c == '/');

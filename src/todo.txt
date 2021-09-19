@@ -3,6 +3,7 @@
 [x] OBJ loading
   [x] Load .mtl
 
+[ ] Shader hot reloading
 
 [ ] OBJ Model Rendering
   [x] Indexed rendering

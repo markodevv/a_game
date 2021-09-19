@@ -1,5 +1,5 @@
 
-
+/*
 OpenGLFunction(void,     glAttachShader,            GLuint program, GLuint shader);
 OpenGLFunction(void,     glBindBuffer,              GLenum target, GLuint buffer);
 OpenGLFunction(void,     glBindFramebuffer,         GLenum target, GLuint framebuffer);
@@ -61,8 +61,11 @@ OpenGLFunction(void,     glClearColor,              GLclampf  	red, GLclampf  	g
 OpenGLFunction(void,     glClear,                   GLbitfield mask);
 OpenGLFunction(void,     glViewport,             	GLint x, GLint y, GLsizei width, GLsizei height);
 OpenGLFunction(void,     glDrawArrays,          	GLenum  	mode, GLint  	first, GLsizei  	count);
-
-
+*/
+#define GL_TEXTURE_SWIZZLE_R              0x8E42
+#define GL_TEXTURE_SWIZZLE_G              0x8E43
+#define GL_TEXTURE_SWIZZLE_B              0x8E44
+#define GL_TEXTURE_SWIZZLE_A              0x8E45
 
 #include "shaders.glsl"
 
@@ -315,8 +318,8 @@ OpenGLLoadMesh(Mesh* mesh)
 }
 
 
-internal void
-OpenGLInit(Renderer2D* ren)
+extern "C" PLATFORM_API void
+RendererInit(Renderer2D* ren)
 {
     Shader* shaders = ren->assets->shaders;
     MemoryArena* arena = &ren->assets->arena;
@@ -573,7 +576,7 @@ OpenGLDrawMesh(Renderer2D* ren, MeshEntry* mesh_entry)
     mat4 view = CameraTransform(ren->camera);
     mat4 vp = projection * view;
     mat4 normal_mat = Mat4Transpose(Mat4Inverse(transform));
-    b8 do_transpose = true;
+    b32 do_transpose = true;
     
     i32 vp_loc = OpenGLGetUniformLocation(ren->shader_program_3D, "u_viewproj");
     glUniformMatrix4fv(vp_loc, 1, do_transpose, (f32*)&vp.rows[0].x);
@@ -607,10 +610,11 @@ OpenGLDrawMesh(Renderer2D* ren, MeshEntry* mesh_entry)
     }
 }
 
-internal void
-OpenGLDraw(Renderer2D* ren)
+
+extern "C" PLATFORM_API void
+RendererDraw(Renderer2D* ren)
 {
-    PROFILE_FUNCTION();
+    //PROFILE_FUNCTION();
     
     local_persist i32 w, h;
     if (w != ren->screen_width || h != ren->screen_height)

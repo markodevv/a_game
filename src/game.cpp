@@ -1,7 +1,7 @@
 #include <math.h>
 #include <stdio.h>
 
-#define GAME_FILE
+#define DLL_FILE
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -16,32 +16,31 @@ struct DebugState* global_debug_state;
 
 #include "log.h"
 #include "platform.h"
+
+global_variable b32 global_is_edit_mode = 0;
+
 #include "generated/memory.h"
 #include "memory.cpp"
-#include "array.cpp"
-#include "hashmap.cpp"
 #include "string.cpp"
 #include "generated/math.h"
 #include "math.cpp"
 #include "generated/input.h"
 #include "input.cpp"
+#include "file_parse.cpp"
 #include "generated/renderer.h"
+#include "asset.cpp"
 #include "renderer.cpp"
+#include "generated/dev_ui.h"
+#include "dev_ui.cpp"
 #include "generated/debug.h"
 #include "debug.cpp"
 #include "generated/game.h"
 #include "entity.cpp"
 #include "generated_print.c"
-#include "file_parse.cpp"
-#include "asset.cpp"
 #include "render_group.cpp"
-#include "dev_ui.cpp"
 
 
 
-Platform g_Platform;
-
-global_variable b8 global_is_edit_mode = 0;
 
 internal void
 GamePlaySound(GameSoundBuffer* game_sound, GameState* game_state)
@@ -68,7 +67,7 @@ GamePlaySound(GameSoundBuffer* game_sound, GameState* game_state)
 }
 
 
-internal b8
+internal b32
 IsColliding(vec2 p1, vec2 s1, vec2 p2, vec2 s2)
 {
     return (p1.x < p2.x + s2.x &&
@@ -120,13 +119,21 @@ RandomBetweenVectors(vec2 min, vec2 max)
 }
 
 extern "C" PLATFORM_API void
-GameInit(GameMemory* memory)
+GameInit(GameMemory* memory, Renderer2D* renderer)
 {
     GameState* game_state = (GameState*)memory->permanent_storage;
-    Renderer2D* ren = &game_state->renderer;
+    game_state->renderer = renderer;
     
-    global_debug_state = memory->debug;
-    g_Platform = memory->platform;
+    DebugState* debug = (DebugState*)memory->debug_storage;
+    debug->GetPrefCounter = memory->platform.GetPrefCounter;
+    debug->GetElapsedSeconds = memory->platform.GetElapsedSeconds;
+    global_debug_state = debug;
+    
+    
+    InitArena(&debug->arena, 
+              (memory->debug_storage_size - sizeof(DebugState)),
+              (u8*)memory->debug_storage + sizeof(DebugState));
+    
     
     InitArena(&game_state->arena, 
               (memory->permanent_storage_size - sizeof(GameState)),
@@ -136,23 +143,24 @@ GameInit(GameMemory* memory)
               (memory->temporary_storage_size),
               (u8*)memory->temporary_storage);
     
-    AssetsInit(&game_state->assets, &game_state->flush_arena);
+    AssetsInit(&memory->platform, &game_state->assets, &game_state->flush_arena);
     
-    game_state->font = LoadFontTest(&game_state->assets, "../assets/fonts/consola.ttf", 32);
+    game_state->font = LoadFontTest(&memory->platform, &game_state->assets, "../assets/fonts/consola.ttf", 32);
     
     
-    ren->assets = &game_state->assets;
+    renderer->assets = &game_state->assets;
     
-    g_Platform.InitRenderer(&game_state->renderer);
-    game_state->render_group = CreateRenderGroup(&game_state->flush_arena, Mat4Orthographic((f32)ren->screen_width, (f32)ren->screen_height),
+    memory->platform.RendererInit(game_state->renderer);
+    game_state->render_group = CreateRenderGroup(&game_state->flush_arena, Mat4Orthographic((f32)renderer->screen_width, (f32)renderer->screen_height),
                                                  CreateCamera(Vec3Up(), Vec3Forward(), V3(0.0f, 0.0f, 200.0f)),
-                                                 &game_state->renderer,
-                                                 &game_state->assets);
+                                                 game_state->renderer,
+                                                 &game_state->assets,
+                                                 Megabytes(12));
     
     // TODO: temporary
-    ren->camera = &game_state->render_group->setup.camera;
+    renderer->camera = &game_state->render_group->setup.camera;
     
-    DevUiInit(memory->debug, ren, &memory->platform, &game_state->assets);
+    DevUiInit(&debug->dev_ui, &debug->arena, renderer, &memory->platform, &game_state->assets);
     
     
     WorldState* world = &game_state->world;
@@ -166,14 +174,21 @@ GameInit(GameMemory* memory)
 
 
 extern "C" PLATFORM_API void
-GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
+GameUpdate(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, GameInput* input)
 {
-    PROFILE_FUNCTION();
+#ifdef GAME_DEBUG
+    global_debug_state = (DebugState*)memory->debug_storage;
+#endif
     
     GameState* game_state = (GameState*)memory->permanent_storage;
+    DebugState* debug = (DebugState*)memory->debug_storage;
+    
+    DEBUG_FRAME_START(debug, input, &game_state->assets, game_state->renderer);
+    PROFILE_FUNCTION();
+    
     
     game_state->delta_time = delta_time;
-    Renderer2D* ren = &game_state->renderer;
+    Renderer2D* ren = game_state->renderer;
     input->mouse.position.y = ren->screen_height - input->mouse.position.y;
     
     if (ren->screen_width != memory->screen_width ||
@@ -278,6 +293,7 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
     }
     
     PushText(game_state->render_group, &game_state->font, "testing hello", V2(200, 200), LAYER_FRONT);
+    PushText(game_state->render_group, &game_state->font, "testing hello ahaha", V2(600, 200), LAYER_FRONT);
     
     PushMesh(game_state->render_group, V3(-100, -100, 0), V3(50), NewColor(255), MESH_CUBE);
     PushMesh(game_state->render_group, V3(100, 100, 0), V3(50), NewColor(255), MESH_SPHERE);
@@ -286,28 +302,24 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
     
     PushClearScreen(game_state->render_group, NewColor(120, 75, 25, 255));
     
-    g_Platform.RendererDraw(ren);
+    memory->platform.RendererDraw(ren);
     
     if (global_is_edit_mode)
     {
-        DebugState* debug = memory->debug;
-        DevUiStart(debug, input, &game_state->assets, ren);
         
-        UiFps(debug);
+        UiFps(&debug->dev_ui, debug->game_fps);
         
-        UiProfilerWindow(debug);
+        UiWindowBegin(&debug->dev_ui, "Window 1");
         
-        UiWindowBegin(debug, "Window 1");
-        
-        if (UiSubmenu(debug, "Camera"))
+        if (UiSubmenu(&debug->dev_ui, "Camera"))
         {
             Camera* camera = &game_state->render_group->setup.camera;
-            UiFloat32Editbox(debug, &camera->up, "up");
-            UiFloat32Editbox(debug, &camera->direction, "direction");
-            UiFloat32Editbox(debug, &camera->position, "position");
+            UiFloat32Editbox((&debug->dev_ui), &camera->up, "up");
+            UiFloat32Editbox((&debug->dev_ui), &camera->direction, "direction");
+            UiFloat32Editbox((&debug->dev_ui), &camera->position, "position");
         }
         
-        if (UiSubmenu(debug, "Player"))
+        if (UiSubmenu(&debug->dev_ui, "Player"))
         {
             /*
                         EntityId player = 0;
@@ -315,80 +327,78 @@ GameMainLoop(f32 delta_time, GameMemory* memory, GameSoundBuffer* game_sound, Ga
                         Transform* trans = GetComponent(&game_state->world, player, Transform);
                         Render* render = GetComponent(&game_state->world, player, Render);
                         
-                        UiCheckbox(debug, &game_state->is_free_camera, "free camera");
-                        UiFloat32Editbox(debug, &rigid->velocity, "velocity");
-                        UiFloat32Editbox(debug, &rigid->mass, "mass");
+                        UiCheckbox(&debug->dev_ui, &game_state->is_free_camera, "free camera");
+                        UiFloat32Editbox(&debug->dev_ui, &rigid->velocity, "velocity");
+                        UiFloat32Editbox(&debug->dev_ui, &rigid->mass, "mass");
                         
-                        UiFloat32Editbox(debug, &trans->position, "position");
-                        UiFloat32Editbox(debug, &trans->rotation, "rotation");
-                        UiFloat32Editbox(debug, &trans->scale, "scale");
+                        UiFloat32Editbox(&debug->dev_ui, &trans->position, "position");
+                        UiFloat32Editbox(&debug->dev_ui, &trans->rotation, "rotation");
+                        UiFloat32Editbox(&debug->dev_ui, &trans->scale, "scale");
                         
-                        UiColorpicker(debug, &render->color, "color");
+                        UiColorpicker(&debug->dev_ui, &render->color, "color");
                         
             */
             
         }
         
-        if (UiButton(debug, "Save Ui Config", V2(200, 200), V2(150, 20)))
+        if (UiButton(&debug->dev_ui, "Save Ui Config", V2(200, 200), V2(150, 20)))
         {
-            WriteUiConfig(debug);
+            WriteUiConfig(&memory->platform, &debug->dev_ui);
         }
         
         
-        UiWindowEnd(memory->debug);
+        UiWindowEnd(&debug->dev_ui);
         
-        UiWindowBegin(debug, "Window 2");
+        UiWindowBegin(&debug->dev_ui, "Window 2");
         
-        if (UiSubmenu(debug, "Camera settings"))
+        if (UiSubmenu(&debug->dev_ui, "Camera settings"))
         {
             Camera* cam = &game_state->render_group->setup.camera;
-            UiFloat32Editbox(debug, &cam->position, "position");
-            UiCheckbox(debug, &game_state->is_free_camera, "free camera");
+            UiFloat32Editbox((&debug->dev_ui), &cam->position, "position");
+            UiCheckbox(&debug->dev_ui, &game_state->is_free_camera, "free camera");
         }
         
-        if (UiSubmenu(debug, "Particle Settings"))
+        if (UiSubmenu(&debug->dev_ui, "Particle Settings"))
         {
             /*
                         ParticleEmitter* pe = GetComponent(&game_state->world, 0, ParticleEmitter);
-                        UiFloat32Editbox(debug, &pe->position, "position");
-                        UiFloat32Editbox(debug, &pe->min_vel, "min velocity");
-                        UiFloat32Editbox(debug, &pe->max_vel, "max velocity");
-                        UiFloat32Editbox(debug, &pe->size, "size");
-                        UiInt32Editbox(debug, &pe->particle_spawn_rate, "spawn rate");
-                        UiColorpicker(debug, &pe->color, "color");
+                        UiFloat32Editbox(&debug->dev_ui, &pe->position, "position");
+                        UiFloat32Editbox(&debug->dev_ui, &pe->min_vel, "min velocity");
+                        UiFloat32Editbox(&debug->dev_ui, &pe->max_vel, "max velocity");
+                        UiFloat32Editbox(&debug->dev_ui, &pe->size, "size");
+                        UiInt32Editbox(&debug->dev_ui, &pe->particle_spawn_rate, "spawn rate");
+                        UiColorpicker(&debug->dev_ui, &pe->color, "color");
             */
         }
-        if (UiSubmenu(debug, "3D rendering"))
+        if (UiSubmenu(&debug->dev_ui, "3D rendering"))
         {
-            if (UiSubmenu(debug, "Lighting"))
+            if (UiSubmenu(&debug->dev_ui, "Lighting"))
             {
-                UiFloat32Editbox(debug, &ren->light.position, "Light position");
-                UiFloat32Editbox(debug, &ren->light.ambient, "Ambient light");
-                UiFloat32Editbox(debug, &ren->light.diffuse, "Diffuse light");
-                UiFloat32Editbox(debug, &ren->light.specular, "Specular light");
+                UiFloat32Editbox((&debug->dev_ui), &ren->light.position, "Light position");
+                UiFloat32Editbox((&debug->dev_ui), &ren->light.ambient, "Ambient light");
+                UiFloat32Editbox((&debug->dev_ui), &ren->light.diffuse, "Diffuse light");
+                UiFloat32Editbox((&debug->dev_ui), &ren->light.specular, "Specular light");
             }
-            if (UiSubmenu(debug, "Material"))
+            if (UiSubmenu(&debug->dev_ui, "Material"))
             {
                 Mesh* mesh = GetMesh(&game_state->assets, MESH_CUBE);
                 
-                UiFloat32Editbox(debug, &mesh->material.ambient, "ambient");
-                UiFloat32Editbox(debug, &mesh->material.diffuse, "diffuse");
-                UiFloat32Editbox(debug, &mesh->material.specular, "specular");
-                UiFloat32Editbox(debug, &mesh->material.shininess, "shininess");
+                UiFloat32Editbox((&debug->dev_ui), &mesh->material.ambient, "ambient");
+                UiFloat32Editbox((&debug->dev_ui), &mesh->material.diffuse, "diffuse");
+                UiFloat32Editbox((&debug->dev_ui), &mesh->material.specular, "specular");
+                UiFloat32Editbox((&debug->dev_ui), &mesh->material.shininess, "shininess");
             }
-            
         }
         
-        UiWindowEnd(debug);
-        
+        UiWindowEnd(&debug->dev_ui);
         
         if (!debug->have_read_config)
         {
-            ReadUiConfig(debug);
+            ReadUiConfig(&memory->platform, &debug->dev_ui);
             debug->have_read_config = true;
         }
         
     }
     
-    g_Platform.RendererDraw(ren);
+    memory->platform.RendererDraw(ren);
 }

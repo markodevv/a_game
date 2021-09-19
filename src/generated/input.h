@@ -3,9 +3,9 @@
 typedef struct ButtonState ButtonState;
 struct ButtonState
 {
-    b8 is_down;
-    b8 released;
-    b8 pressed;
+    b32 is_down;
+    b32 released;
+    b32 pressed;
 };
 typedef struct MouseInput MouseInput;
 struct MouseInput

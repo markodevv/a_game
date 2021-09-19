@@ -16,7 +16,7 @@ MemoryTask :: struct
 {
     arena: MemoryArena,
     temp_memory: TemporaryArena,
-    is_used: b8,
+    is_used: b32,
 }
 
 TaskQueue :: struct

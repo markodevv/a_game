@@ -1,8 +1,8 @@
 ButtonState :: struct
 {
-    is_down: b8,
-    released: b8,
-    pressed: b8,
+    is_down: b32,
+    released: b32,
+    pressed: b32,
 }
 
 MouseInput :: struct

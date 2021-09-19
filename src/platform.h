@@ -25,6 +25,8 @@ assert(condition)
 #include <stdint.h>
 #include <stddef.h>
 
+#define null NULL
+
 typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
@@ -38,7 +40,7 @@ typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 
-typedef i8 b8;
+typedef u32 b32;
 typedef size_t sizet;
 
 typedef u32 EntityID;
@@ -48,19 +50,17 @@ typedef u32 SpriteID;
 typedef u32 Layer;
 
 struct GameState;
-struct Array;
-typedef void (*SystemFunc)(GameState* gs, Array* ent);
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
-#define Kylobytes(n) n*1024
-#define Megabytes(n) n*1024*1024
-#define GigaBytes(n) n*1024*1024*1024
+#define Kylobytes(n) (n*1024)
+#define Megabytes(n) (n*1024*1024)
+#define GigaBytes(n) (n*1024*1024*1024)
 
 
 #ifdef PLATFORM_WIN32
 
-#ifdef GAME_FILE
+#ifdef DLL_FILE
 #define PLATFORM_API __declspec(dllexport)
 #else
 #define PLATFORM_API __declspec(dllimport)
@@ -83,17 +83,16 @@ struct Renderer2D;
 
 typedef FileResult ReadEntireFileProc(char* path);
 typedef void FreeFileProc(FileResult* file);
-typedef b8 WriteEntireFileProc(char* file_name, u32 size, void* memory);
+typedef b32 WriteEntireFileProc(char* file_name, u32 size, void* memory);
 
 typedef void RenderProc(Renderer2D* ren);
 
-typedef void* Allocate(sizet size);
-typedef void* Reallocate(void* ptr, sizet size);
-typedef void Free(void* ptr);
+typedef void* AllocateProc(sizet size);
+typedef void* ReallocateProc(void* ptr, sizet size);
+typedef void FreeProc(void* ptr);
 
-typedef f64 GetElapsedSeconds(u64 start);
-typedef u64 GetPrefCounter();
-
+typedef f64 (*GetElapsedSecondsProc)(u64 start);
+typedef u64 (*GetPrefCounterProc)();
 
 typedef void (WorkCallback)(void* data);
 
@@ -102,21 +101,34 @@ struct WorkQueue;
 typedef void (PushWorkEntryProc)(WorkQueue* queue, WorkCallback* callback, void* data);
 typedef void (WaitForWorkersProc)(WorkQueue* queue);
 
+typedef void (*GameUpdateProc)(f32 delta_time, struct GameMemory* memory, struct GameSoundBuffer* game_sound, struct GameInput* input);
+typedef void (*GameInitProc)(struct GameMemory* memory, struct Renderer2D* renderer);
+
+internal char* GameFunctionNameTable[] =
+{
+    "GameInit",
+    "GameUpdate",
+};
+
+struct GameFunctions
+{
+    GameInitProc GameInit;
+    GameUpdateProc GameUpdate;
+};
+
+
 struct Platform
 {
     ReadEntireFileProc* ReadEntireFile;
     FreeFileProc* FreeFile;
     WriteEntireFileProc* WriteEntireFile;
     
-    RenderProc* InitRenderer;
+    RenderProc* RendererInit;
     RenderProc* RendererDraw;
     
-    GetElapsedSeconds* GetElapsedSeconds;
-    GetPrefCounter* GetPrefCounter;
-    
-    Allocate* Allocate;
-    Reallocate* Reallocate;
-    Free* Free;
+    AllocateProc* Allocate;
+    ReallocateProc* Reallocate;
+    FreeProc* Free;
     
     typedef i32 LogFunc(const char* text, ...);
     LogFunc* LogFunction;
@@ -124,9 +136,45 @@ struct Platform
     WorkQueue* work_queue;
     PushWorkEntryProc* PushWorkEntry;
     WaitForWorkersProc* WaitForWorkers;
+    
+    GetPrefCounterProc GetPrefCounter;
+    GetElapsedSecondsProc GetElapsedSeconds;
 };
 
-internal b8
+struct GameMemory
+{
+    void *permanent_storage;
+    sizet permanent_storage_size;
+    
+    void* temporary_storage;
+    sizet temporary_storage_size;
+    
+    void* debug_storage;
+    sizet debug_storage_size;
+    
+    Platform platform;
+    
+    u16 screen_width;
+    u16 screen_height;
+};
+
+
+struct GameSoundBuffer
+{
+    i32 samples_per_sec;
+    i32 sample_count;
+    i16* samples;
+};
+
+enum DLLType
+{
+    DLL_GAME,
+    DLL_RENDERER,
+    NUM_DLL,
+};
+
+
+internal b32
 ValidFile(FileResult* file)
 {
     return file->data != 0;
@@ -196,16 +244,6 @@ MemClear(void* mem, sizet size)
     }
 }
 
-#ifdef GAME_FILE
-extern Platform g_Platform;
-#else
-Platform g_Platform;
-#endif
-
-
-#define Allocate(type, count) (type*)g_Platform.Allocate(sizeof(type) * (count));
-#define Reallocate(ptr, size) g_Platform.Reallocate(ptr, size);
-#define Free(ptr) g_Platform.Free(ptr);
 
 #endif
 
